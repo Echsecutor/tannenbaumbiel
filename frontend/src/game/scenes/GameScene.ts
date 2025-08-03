@@ -89,22 +89,25 @@ export class GameScene extends Scene {
         })
 
         // Create platform texture (keep simple for now)
-        this.add.graphics()
-            .fillStyle(0x27ae60)
-            .fillRect(0, 0, 100, 32)
-            .generateTexture('platform', 100, 32)
+        const platformGraphics = this.add.graphics()
+        platformGraphics.fillStyle(0x27ae60)
+        platformGraphics.fillRect(0, 0, 100, 32)
+        platformGraphics.generateTexture('platform', 100, 32)
+        platformGraphics.destroy()
 
         // Create simple projectile
-        this.add.graphics()
-            .fillStyle(0xf39c12)
-            .fillRect(0, 0, 8, 4)
-            .generateTexture('projectile', 8, 4)
+        const projectileGraphics = this.add.graphics()
+        projectileGraphics.fillStyle(0xf39c12)
+        projectileGraphics.fillRect(0, 0, 8, 4)
+        projectileGraphics.generateTexture('projectile', 8, 4)
+        projectileGraphics.destroy()
 
         // Create tree texture
-        this.add.graphics()
-            .fillStyle(0x2ecc71)
-            .fillRect(0, 0, 200, 150)
-            .generateTexture('tree', 200, 150)
+        const treeGraphics = this.add.graphics()
+        treeGraphics.fillStyle(0x2ecc71)
+        treeGraphics.fillRect(0, 0, 200, 150)
+        treeGraphics.generateTexture('tree', 200, 150)
+        treeGraphics.destroy()
     }
 
     private createWorld() {

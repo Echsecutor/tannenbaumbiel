@@ -51,7 +51,6 @@ export class UIScene extends Scene {
 
         // Health bar fill
         this.healthBar = this.add.graphics()
-        this.updateHealthBar()
 
         // Health text
         this.healthText = this.add.text(30, 25, `Leben: ${this.health}`, {
@@ -59,6 +58,9 @@ export class UIScene extends Scene {
             color: '#ffffff',
             fontFamily: 'Arial'
         })
+
+        // Update health bar after all components are created
+        this.updateHealthBar()
     }
 
     private createScoreDisplay() {

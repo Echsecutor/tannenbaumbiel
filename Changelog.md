@@ -2,6 +2,20 @@
 
 ## WIP
 
+- Fixed GameScene rendering issue: bright green rectangle appearing in upper left corner
+  - Graphics objects used for texture generation were not being properly destroyed after use
+  - Added proper cleanup of platform, projectile, and tree graphics objects in `loadAssets()`
+  - GameScene now renders correctly with background, platforms, player, and enemies visible
+- Fixed UIScene initialization error: "Cannot read properties of undefined (reading 'setText')"
+  - `updateHealthBar()` was being called before `healthText` object was created in `createHealthBar()`
+  - Moved `updateHealthBar()` call to after all UI components are initialized
+  - UIScene now loads without JavaScript errors
+- Enhanced Selenium integration tests with comprehensive console error checking
+  - Added `check_console_errors()` method to monitor JavaScript errors at all test stages
+  - Enhanced `log_current_game_state()` to include player, enemies, and UI scene status
+  - Added `verify_game_is_running()` method to ensure game components are properly initialized
+  - Console error checking now occurs at: page load, game loading, menu scene, button interaction, and final state
+  - Tests now verify that GameScene and UIScene are both active and game objects are initialized
 - Major UI refactoring: Moved headlines and buttons from Phaser to HTML form
 
   - Transferred game title "Tannenbaumbiel" and subtitle from Phaser text to HTML `<h1>` and `<p>` elements

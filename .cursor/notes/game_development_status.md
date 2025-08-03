@@ -192,3 +192,30 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
 3. **Kämpfen**: Mausklick zum Schießen
 4. **Ziel**: Alle Gegner besiegen für Victory
 5. **Mobile**: Touch Controls für mobile Geräte
+
+## 🐛 Recent Fixes
+
+### GameScene Rendering Issue (2025)
+
+- **Problem**: Bright green rectangle appearing in upper left corner when starting GameScene
+- **Cause**: Graphics objects used for texture generation (`platform`, `projectile`, `tree`) were not being destroyed after `generateTexture()` calls
+- **Solution**: Added proper cleanup by storing graphics objects in variables and calling `.destroy()` after texture generation
+- **Location**: `frontend/src/game/scenes/GameScene.ts` lines 92-110 in `loadAssets()` method
+
+### UIScene Initialization Error (2025)
+
+- **Problem**: "Cannot read properties of undefined (reading 'setText')" error when starting GameScene
+- **Cause**: `updateHealthBar()` method called before `healthText` object was created in `createHealthBar()`
+- **Solution**: Moved `updateHealthBar()` call to after all UI components are properly initialized
+- **Location**: `frontend/src/game/scenes/UIScene.ts` lines 44-64 in `createHealthBar()` method
+
+### Enhanced Selenium Testing (2025)
+
+- **Improvement**: Comprehensive console error monitoring and game state verification
+- **Features Added**:
+  - `check_console_errors()`: Monitors JavaScript errors/warnings/info at all test stages
+  - Enhanced `log_current_game_state()`: Tracks player, enemies, UI scene, and game running status
+  - `verify_game_is_running()`: Ensures game components are properly initialized with timeout
+  - Stage-based error checking: page load → game loading → menu scene → button interaction → final state
+- **Benefits**: Better detection of JavaScript errors and verification that game actually starts and runs properly
+- **Location**: `tools/selenium_test.py` - comprehensive test enhancement

@@ -171,6 +171,41 @@ class TannenbaumGameTest:
         else:
             time.sleep(seconds)
 
+    def check_console_errors(self, stage=""):
+        """Check for JavaScript console errors and log them"""
+        try:
+            # Get console logs
+            logs = self.driver.get_log('browser')
+            
+            # Filter for different types of logs
+            error_logs = [log for log in logs if log['level'] == 'SEVERE']
+            warning_logs = [log for log in logs if log['level'] == 'WARNING']
+            info_logs = [log for log in logs if log['level'] == 'INFO']
+            
+            stage_prefix = f"[{stage}] " if stage else ""
+            
+            if error_logs:
+                logger.error(f"❌ {stage_prefix}JavaScript ERRORS found:")
+                for log in error_logs:
+                    logger.error(f"  ERROR: {log['message']}")
+                return False
+            elif warning_logs:
+                logger.warning(f"⚠️ {stage_prefix}JavaScript WARNINGS found:")
+                for log in warning_logs:
+                    logger.warning(f"  WARNING: {log['message']}")
+            
+            if info_logs and (self.debug_mode or self.visible_mode):
+                logger.info(f"ℹ️ {stage_prefix}JavaScript INFO logs:")
+                for log in info_logs[-3:]:  # Show last 3 info logs
+                    logger.info(f"  INFO: {log['message']}")
+            
+            logger.info(f"✓ {stage_prefix}No critical JavaScript errors found")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"⚠ Failed to check console errors {stage}: {e}")
+            return True  # Don't fail test if we can't check logs
+
     def log_current_game_state(self, context=""):
         """Log the current game state for debugging purposes"""
         try:
@@ -179,9 +214,13 @@ class TannenbaumGameTest:
                     currentScene: null, 
                     menuSceneActive: false, 
                     gameSceneActive: false,
+                    uiSceneActive: false,
                     buttonExists: false,
                     buttonInteractive: false,
-                    inputValues: { username: '', room: '' }
+                    inputValues: { username: '', room: '' },
+                    playerExists: false,
+                    enemiesCount: 0,
+                    gameRunning: false
                 };
                 
                 if (window.game && window.game.scene) {
@@ -193,6 +232,24 @@ class TannenbaumGameTest:
                     // Check specific scenes
                     state.menuSceneActive = sceneKeys.includes('MenuScene');
                     state.gameSceneActive = sceneKeys.includes('GameScene');
+                    state.uiSceneActive = sceneKeys.includes('UIScene');
+                    
+                    // Check if game is actually running
+                    state.gameRunning = state.gameSceneActive && state.uiSceneActive;
+                    
+                    // Check game scene objects if active
+                    const gameScene = window.game.scene.getScene('GameScene');
+                    if (gameScene && state.gameSceneActive) {
+                        // Check if player exists
+                        if (gameScene.player) {
+                            state.playerExists = true;
+                        }
+                        
+                        // Check enemies count
+                        if (gameScene.enemies && gameScene.enemies.children) {
+                            state.enemiesCount = gameScene.enemies.children.entries.length;
+                        }
+                    }
                     
                     // Check button state
                     const menuScene = window.game.scene.getScene('MenuScene');
@@ -212,64 +269,94 @@ class TannenbaumGameTest:
             """)
 
             logger.info(f"🎮 Game state {context}: {game_state}")
+            return game_state
 
         except Exception as e:
             logger.warning(f"⚠ Failed to log game state {context}: {e}")
+            return None
 
     def verify_button_click_success(self):
         """Verify that the button click actually worked by checking game state changes"""
         try:
-            # Check multiple indicators that the button click worked
-            game_state = self.driver.execute_script("""
-                let state = { 
-                    currentScene: null, 
-                    menuSceneActive: false, 
-                    gameSceneActive: false,
-                    offlineMode: false,
-                    networkActivity: false
-                };
-                
-                if (window.game && window.game.scene) {
-                    // Get currently active scenes
-                    const activeScenes = window.game.scene.getScenes(true);
-                    const sceneKeys = activeScenes.map(scene => scene.scene.key);
-                    state.currentScene = sceneKeys.join(', ');
-                    
-                    // Check specific scenes
-                    state.menuSceneActive = sceneKeys.includes('MenuScene');
-                    state.gameSceneActive = sceneKeys.includes('GameScene');
-                    
-                    // Check if we're in offline mode
-                    const gameScene = window.game.scene.getScene('GameScene');
-                    if (gameScene && gameScene.sys.settings && gameScene.sys.settings.data) {
-                        state.offlineMode = gameScene.sys.settings.data.offline === true;
-                    }
-                    
-                    // Check for recent network activity (if connected)
-                    if (window.networkManager) {
-                        state.networkActivity = window.networkManager.getConnectionStatus();
-                    }
-                }
-                
-                console.log('Game state check:', state);
-                return state;
-            """)
-
-            logger.info(f"🎮 Game state: {game_state}")
+            # Wait a moment for transitions to complete
+            self.debug_sleep(2)
+            
+            # Get comprehensive game state
+            game_state = self.log_current_game_state("after button click verification")
+            
+            if not game_state:
+                return False
 
             # Button click was successful if:
-            # 1. We moved from MenuScene to GameScene, OR
-            # 2. We're in offline mode (which means the button triggered offline game start)
+            # 1. We moved from MenuScene to GameScene, AND
+            # 2. UIScene is also active (proper game start), AND
+            # 3. Game objects are initialized (player, enemies)
             success = (
-                game_state['gameSceneActive'] or
-                game_state['offlineMode'] or
-                not game_state['menuSceneActive']  # Menu scene is no longer active
+                game_state['gameSceneActive'] and
+                game_state['uiSceneActive'] and
+                game_state['gameRunning']
             )
+            
+            if success:
+                logger.info("✅ Game successfully started - both GameScene and UIScene are active")
+                if game_state['playerExists']:
+                    logger.info(f"✅ Player character is initialized")
+                if game_state['enemiesCount'] > 0:
+                    logger.info(f"✅ {game_state['enemiesCount']} enemies are initialized")
+            else:
+                logger.warning("⚠ Game may not have started properly:")
+                if not game_state['gameSceneActive']:
+                    logger.warning("  - GameScene is not active")
+                if not game_state['uiSceneActive']:
+                    logger.warning("  - UIScene is not active")
+                if not game_state['gameRunning']:
+                    logger.warning("  - Game is not in running state")
 
             return success
 
         except Exception as e:
             logger.error(f"❌ Failed to verify button click: {e}")
+            return False
+
+    def verify_game_is_running(self):
+        """Verify that the game is actually running with all components initialized"""
+        try:
+            logger.info("Verifying game is running properly...")
+            
+            # Wait for game to fully initialize
+            max_wait = 15
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait:
+                game_state = self.log_current_game_state("game running verification")
+                
+                if (game_state and 
+                    game_state['gameSceneActive'] and 
+                    game_state['uiSceneActive'] and
+                    game_state['playerExists'] and
+                    game_state['enemiesCount'] > 0):
+                    
+                    logger.info("✅ Game is fully running with all components:")
+                    logger.info(f"  - GameScene active: {game_state['gameSceneActive']}")
+                    logger.info(f"  - UIScene active: {game_state['uiSceneActive']}")
+                    logger.info(f"  - Player initialized: {game_state['playerExists']}")
+                    logger.info(f"  - Enemies count: {game_state['enemiesCount']}")
+                    
+                    # Check that there are no console errors in the running game
+                    if not self.check_console_errors("game running"):
+                        logger.warning("⚠ Console errors found while game is running")
+                        return False
+                    
+                    return True
+                
+                self.debug_sleep(1)
+            
+            logger.error("❌ Game did not reach running state within timeout")
+            logger.error(f"Final state: {game_state}")
+            return False
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to verify game is running: {e}")
             return False
 
     def check_connection_status(self):
@@ -334,6 +421,10 @@ class TannenbaumGameTest:
             self.driver.get(self.frontend_url)
             self.debug_pause("Navigate to frontend. Loading screen should appear.")
 
+            # Check console errors after page load
+            if not self.check_console_errors("initial page load"):
+                logger.warning("⚠ Console errors found during initial page load")
+
             # Wait for the loading screen to appear first
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.ID, "loading"))
@@ -346,6 +437,12 @@ class TannenbaumGameTest:
                 EC.visibility_of_element_located((By.ID, "loading"))
             )
             logger.info("✓ Game loaded (loading screen disappeared)")
+            
+            # Check console errors after game loading
+            if not self.check_console_errors("after game loading"):
+                logger.error("❌ Console errors found during game loading")
+                return False
+            
             self.debug_pause("Game has loaded! You should see the menu scene.")
 
             # Check that the game container is present
@@ -353,6 +450,17 @@ class TannenbaumGameTest:
                 EC.presence_of_element_located((By.ID, "game-container"))
             )
             logger.info("✓ Game container found")
+
+            # Wait for menu scene to be fully loaded
+            self.debug_sleep(3)
+            
+            # Log initial game state
+            self.log_current_game_state("after frontend loading")
+            
+            # Check console errors after menu scene load
+            if not self.check_console_errors("menu scene loaded"):
+                logger.error("❌ Console errors found after menu scene loaded")
+                return False
 
             # Check page title
             expected_title = "Tannenbaumbiel - Ein magisches Winterabenteuer"
@@ -376,6 +484,8 @@ class TannenbaumGameTest:
 
         except Exception as e:
             logger.error(f"❌ Frontend loading test failed: {e}")
+            # Check console errors on failure
+            self.check_console_errors("frontend loading failure")
             return False
 
     def test_game_interaction(self):
@@ -406,6 +516,10 @@ class TannenbaumGameTest:
             room_input.send_keys("TestRoom")
             logger.info("✓ Room name input filled")
             self.debug_pause("Room name 'TestRoom' entered. Both fields should be filled now.")
+
+            # Check console errors before game interaction
+            if not self.check_console_errors("before game interaction"):
+                logger.warning("⚠ Console errors found before game interaction")
 
             # Log the current game state before clicking
             self.log_current_game_state("before button click")
@@ -483,6 +597,11 @@ class TannenbaumGameTest:
             # Wait a moment for the game to respond
             self.debug_sleep(3)
 
+            # Check console errors immediately after button click
+            if not self.check_console_errors("immediately after button click"):
+                logger.error("❌ Console errors found immediately after button click")
+                return False
+
             # Log the game state after clicking
             self.log_current_game_state("after button click")
 
@@ -500,6 +619,13 @@ class TannenbaumGameTest:
             logger.info("✓ Screenshot saved: after_game_start.png")
             self.debug_pause("Second screenshot taken. Check for any game state changes.")
 
+            # If game started, verify it's running properly
+            if click_success:
+                if not self.verify_game_is_running():
+                    logger.error("❌ Game did not start properly - components not initialized")
+                    return False
+                logger.info("✅ Game is running properly with all components initialized")
+
             # Check connection status after game interaction
             connection_ok = self.check_connection_status()
             if not connection_ok:
@@ -516,15 +642,18 @@ class TannenbaumGameTest:
             except:
                 logger.info("✓ No error messages found")
 
-            # Check console logs for any JavaScript errors
-            logs = self.driver.get_log('browser')
-            error_logs = [log for log in logs if log['level'] == 'SEVERE']
-            if error_logs:
-                logger.warning("⚠ JavaScript errors found:")
-                for log in error_logs:
-                    logger.warning(f"  {log['message']}")
+            # Final comprehensive console error check
+            final_console_check = self.check_console_errors("final game interaction check")
+            if not final_console_check:
+                logger.error("❌ Console errors found in final check")
+                return False
+
+            # Final game state verification
+            final_state = self.log_current_game_state("final game interaction state")
+            if final_state and final_state['gameRunning']:
+                logger.info("✅ Game is in healthy running state at test completion")
             else:
-                logger.info("✓ No JavaScript errors in console")
+                logger.warning("⚠ Game may not be in optimal state at test completion")
 
             self.debug_pause("Game interaction test complete. Review the final state.")
             return True
