@@ -1,27 +1,164 @@
-# Tannenbaumbiel
+# Tannenbaumbiel 🎄
 
-Tannenbaumbiel ist ein Browser spiel das primär für mobile Endgeräte entwickelt wird.
+Ein Browser-basiertes 2D-Plattformspiel im Stil der Disney-Filme der 1930er Jahre, entwickelt für mobile Endgeräte mit Multiplayer-Unterstützung.
 
-## Technik
+## 🎮 Über das Spiel
 
-Es gibt ein python backend welches als (dedicated) game server fungiert. Über dieses backend können sich spieler anmelden und alleine oder zu mehreren Spielern in der Selben Welt spielen. Spieler melden sich mit einem Nutzername und dem Namen der Welt in der sie spielen möchten an. Darauf hin sendet der Server die Spieldaten, d.h. den Zustand der Welt in der nähe des Spielers per websocket Verbindung an das frontend und erhält die Steuerbefehle zur Bewegung der Spielfigur vom Frontend.
-Performance ist entscheidend für ein flüssiges Spielerlebnis, dem entsprechend wird die verwendete Technologie/framework ausgewählt.
+Tannenbaumbiel ist ein **2D-Platformer/Shooter** in einem verzauberten Winterwald. Spieler wählen aus verschiedenen Pixelart-Charakteren und kämpfen gegen Schneemänner, die Schneebälle werfen. Das Ziel ist es, ein übermäßig mit Girlanden und Lichtern dekoriertes Haus zu erreichen und den Endgegner zu besiegen: einen riesigen Tannenbaum, der kleine Tannenbaumkugeln abschießt.
 
-Das frontend basiert auf einem modernen java script framework für 2d spiele. Wichtig ist auch hier eine performante Darstellung der schnell wechselnden spielwelt und flüssige steuerung der spielfigur mittels einfacher touch Gesten.
+### ✨ Features
 
-## Grafische Gestaltung
+- **🕹️ Vollständiges Multiplayer-System** mit Real-time Synchronisation
+- **📱 Mobile-optimierte Steuerung** mit Touch-Controls
+- **🎨 Pixelart-Grafiken** im klassischen Disney-Stil
+- **⚡ Responsive Gameplay** mit client-seitiger Physik
+- **🌐 WebSocket-basierte** Client-Server-Kommunikation
+- **🎯 Kampfsystem** mit Projektilen und Gegnern
+- **🏃 Charakteranimationen** (Idle, Laufen, Springen, Schießen)
 
-Die Spielgrafik erinnert an frühe Disneyfilme, d.h. Kino Zeichentrick aus den 1930er Jahren.
+### 🎲 Aktuelle Spielmechaniken
 
-## Inhalt
+- **Bewegung**: Links/rechts laufen, springen, fallen
+- **Kampf**: Magische Kugelblitze aus dem Zauberstab schießen
+- **Gegner**: Owlet Monster und Pink Monster Boss
+- **Multiplayer**: Bis zu 4 Spieler pro Welt mit Live-Synchronisation
 
-Bei dem Spiel handelt es sich im Kern um einen einfachen Platformer/2d Shooter, im Spielprinzip ähnlich wie z.B. Super Mario.
+## 🚀 Schnellstart
 
-Der kann sich nach links und rechts laufend vorwärts bewegen, fällt bis zur nächsten Plattform hinunter und kann, wenn er aktuell Boden berührt, springen. Weiterhin kann der Spieler magische kugelblitze aus seinem Zauberstab schießen.
+### Voraussetzungen
 
-Der Spieler kann am Anfang aus einer reihe von Spielfiguren wählen. Zunächst stehen 3 Spielfiguren zur Auswahl. Bei der Gestaltung orientieren wir uns an den Sprites unter `/free-pixel-art-tiny-hero-sprites`.
+- Docker und Docker Compose
+- Git
 
-Wir implementieren zunächst nur eine Welt. Später können auch andere Welten gestartet werden.
-Die Welt ist ein verzauberter Winterwald. Hier wird man von Schneemännern angegriffen, die Schneebälle auf den Spieler werfen. Am Ende erreicht der Spieler ein Übermäßig mit Girlanden und Lichtern dekoriertes Haus im Wald im US Amerikanischen Stiel.
+### Setup
 
-Der Endgegner der ersten Welt ist ein riesiger Tannenbaum im Wohnzimmer des Hauses. Er schießt kleine Tannenbaumkugeln ab, welche autonom als relativ einfache Gegner agieren und besiegt werden müssen.
+```bash
+# Repository klonen
+git clone <repository-url>
+cd tannenbaumbiel
+
+# Alle Services starten
+docker-compose up -d
+
+# Logs anzeigen (optional)
+docker-compose logs -f
+```
+
+### Zugriff
+
+- **🎮 Spiel**: http://localhost:3000
+- **🔧 API**: http://localhost:8000
+- **📚 API Docs**: http://localhost:8000/docs
+
+### Testen
+
+```bash
+cd tools && ./run_test.sh
+```
+
+## 🛠️ Entwicklung
+
+### Lokale Entwicklung (ohne Docker)
+
+```bash
+# Backend (Python FastAPI)
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt && python app/main.py
+
+# Frontend (Phaser 3 + TypeScript)
+cd frontend
+npm install && npm run dev
+```
+
+### Docker Commands
+
+```bash
+docker-compose restart           # Services neu starten
+docker-compose logs -f backend   # Logs anzeigen
+docker-compose down -v           # Reset mit Datenbank
+docker-compose run --rm test     # Tests ausführen
+```
+
+## 📁 Architektur
+
+### Tech Stack
+
+- **Frontend**: Phaser 3 + TypeScript + Vite
+- **Backend**: Python FastAPI + WebSockets
+- **Database**: PostgreSQL + Redis
+- **Deployment**: Docker Compose
+
+### Projekt Struktur
+
+```
+├── backend/         # Python Game Server (FastAPI)
+├── frontend/        # Game Client (Phaser 3 + TypeScript)
+├── shared/          # Gemeinsame Protokoll-Definitionen
+├── deployment/      # Docker & DB Setup
+└── tools/          # Test-Scripts (Selenium)
+```
+
+### Multiplayer Architektur
+
+1. **WebSocket-Verbindung** zwischen Client und Server
+2. **Client-seitige Physik** für responsive Steuerung
+3. **State-Relay System** - Server synchronisiert Spielzustände
+4. **Room-basierte Welten** mit bis zu 4 Spielern
+
+## 🔧 Debugging & Troubleshooting
+
+### Häufige Probleme
+
+```bash
+# Port bereits belegt
+docker-compose down && sudo lsof -i :8000
+
+# Container neu bauen
+docker-compose build --no-cache
+
+# Datenbank zurücksetzen
+docker-compose down -v && docker-compose up -d
+
+# WebSocket testen
+wscat -c ws://localhost:8000/ws/game
+
+# API Health Check
+curl http://localhost:8000/api/v1/health
+```
+
+### Logs & Monitoring
+
+```bash
+docker-compose logs                    # Alle Services
+docker-compose logs -f backend         # Backend spezifisch
+docker-compose logs -f frontend        # Frontend spezifisch
+```
+
+## 🚀 Game Development
+
+### Neue Features hinzufügen
+
+1. **Protocol** definieren in `shared/protocol.py`
+2. **Backend** Logic in `backend/app/`
+3. **Frontend** Client in `frontend/src/`
+4. Mit Integration Tests validieren
+
+### Assets
+
+- **Sprites**: `frontend/assets/sprites/` (Pixel Art Characters)
+- **Audio**: `frontend/assets/audio/` (noch nicht implementiert)
+- **Loading**: Phaser Scene `preload()` Methode
+
+## 📚 Weitere Dokumentation
+
+- **Detaillierte Notes**: `.cursor/notes/` Ordner
+- **Changelogs**: `backend/Changelog.md`, `frontend/Changelog.md`
+- **API Docs**: http://localhost:8000/docs (FastAPI Swagger)
+
+## 🤝 Contributing
+
+1. Feature Branch: `git checkout -b feature/xyz`
+2. Tests durchführen: `cd tools && ./run_test.sh`
+3. Commit: `git commit -m "feat: add xyz"`
+4. Pull Request erstellen

@@ -16,6 +16,7 @@ export class NetworkManager {
     private reconnectDelay = 1000
     private messageHandlers: Map<string, (data: any) => void> = new Map()
     private connectionListeners: Set<(connected: boolean) => void> = new Set()
+    private serverPlayerId: string | null = null  // Store server-provided player ID
 
     constructor() {
         this.setupMessageHandlers()
@@ -97,15 +98,34 @@ export class NetworkManager {
     }
 
     public sendPlayerInput(action: string, pressed: boolean = true): void {
+        // Map frontend action names to protocol action names
+        const actionMap: {[key: string]: string} = {
+            'left': 'move_left',
+            'right': 'move_right', 
+            'jump': 'jump',
+            'shoot': 'shoot'
+        }
+        
+        const protocolAction = actionMap[action] || action
+        
         this.sendMessage({
             type: 'player_input',
             timestamp: Date.now(),
             data: {
-                action: action,
-                player_id: this.getPlayerId(),
+                action: protocolAction,
+                player_id: this.serverPlayerId || this.getPlayerId(), // Use server ID if available
                 pressed: pressed
             }
         })
+    }
+    
+    public setServerPlayerId(playerId: string): void {
+        this.serverPlayerId = playerId
+        console.log('🎮 NetworkManager: Server player ID set to:', playerId)
+    }
+    
+    public getServerPlayerId(): string | null {
+        return this.serverPlayerId
     }
 
     public ping(): void {
@@ -149,7 +169,16 @@ export class NetworkManager {
     private setupMessageHandlers(): void {
         // Default message handlers
         this.onMessage('room_joined', (data) => {
-            console.log('Joined room:', data)
+            console.log('🏠 NetworkManager: Joined room:', data)
+            console.log('🔍 NetworkManager: Checking your_player_id:', data.your_player_id)
+            // Store the server player ID immediately when we join
+            if (data.your_player_id) {
+                this.setServerPlayerId(data.your_player_id)
+                console.log('✅ NetworkManager: Player ID stored:', data.your_player_id)
+                console.log('🔍 NetworkManager: Verification - stored ID:', this.serverPlayerId)
+            } else {
+                console.error('❌ NetworkManager: No your_player_id in room_joined data!')
+            }
         })
 
         this.onMessage('room_left', (data) => {
@@ -164,10 +193,7 @@ export class NetworkManager {
             console.log('Player left:', data)
         })
 
-        this.onMessage('game_state', (data) => {
-            // This would update game state
-            console.log('Game state update:', data)
-        })
+        // game_state handler is now in GameScene.ts
 
         this.onMessage('error', (data) => {
             console.error('Server error:', data)

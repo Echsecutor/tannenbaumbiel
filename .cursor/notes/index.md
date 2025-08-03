@@ -18,6 +18,13 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 - Client-Server Kommunikation über WebSockets
 - Multiplayer-Support Design
 
+### [Multiplayer Architecture](multiplayer_architecture.md)
+
+- Hybrid Client-Server Konfliktlösung
+- Distance-Based Authority System
+- Client-Side Physics mit Server Reconciliation
+- Network Efficiency und Performance Optimization
+
 ### [Repository Structure](repository_structure.md)
 
 - Projektordner-Organisation

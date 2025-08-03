@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config.settings import settings
-from app.api.websocket import router as websocket_router
+from app.api.websocket import router as websocket_router, startup_event, shutdown_event
 from app.api.rest import router as rest_router
 from app.database.connection import init_database, close_database
 
@@ -22,10 +22,20 @@ async def lifespan(app: FastAPI):
     init_database()
     print("Database initialized successfully")
 
+    # Initialize world manager
+    print("Starting world manager...")
+    await startup_event()
+    print("World manager started successfully")
+
     yield
 
     # Shutdown
     print(f"Shutting down {settings.app_name}")
+
+    # Stop world manager
+    print("Stopping world manager...")
+    await shutdown_event()
+    print("World manager stopped")
 
     # Close database connections
     print("Closing database connections...")

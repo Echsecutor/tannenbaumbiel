@@ -146,6 +146,60 @@ npm run dev  # Startet Vite Dev Server auf :3000
 docker-compose up  # Startet beide Services
 ```
 
+### Development Workflow Notes
+
+**Container Restart Behavior:**
+
+- **Frontend**: Runs in development mode with auto-reload (Vite hot-reload)
+  - Code changes are automatically detected and applied
+  - **No container restart needed** for frontend changes
+- **Backend**: Requires container restart for code changes to take effect
+  - Use `docker-compose restart backend` after backend code changes
+  - Database schema changes may require full `docker-compose down && docker-compose up`
+
+**Typical Development Flow:**
+
+```bash
+# Make frontend changes -> Auto-reload, no action needed
+# Make backend changes -> Run: docker-compose restart backend
+# Make database changes -> Run: docker-compose down && docker-compose up
+```
+
+## Multiplayer Architecture (Client-Side Authoritative)
+
+**Design Philosophy:**
+
+- **Client Physics**: Use proven Phaser engine for responsive, consistent gameplay
+- **Server as Relay**: Simple state synchronization instead of complex physics simulation
+- **Host System**: First player manages shared entities (enemies, projectiles)
+
+**Game State Flow:**
+
+```
+Client Phaser Physics -> Complete Game State -> WebSocket -> Server Relay -> Other Clients -> Visual Update
+```
+
+**Key Components:**
+
+- **Local Physics**: All clients run full Phaser physics simulation locally
+- **State Broadcasting**: Clients broadcast complete game state (player, enemies, projectiles)
+- **Server Relay**: Server simply forwards game state between clients (no physics)
+- **Host Management**: Lexicographically first player ID manages shared entities
+- **Collision Detection**: Native Phaser collisions work perfectly (player-enemy, projectile-enemy)
+
+**Critical Design Decisions - CORRECTED HYBRID ARCHITECTURE:**
+
+- **Client-Side Physics**: All clients run full Phaser physics for immediate responsiveness
+- **Client State Broadcasting**: Clients send complete game state (30fps) for conflict resolution
+- **Server Conflict Resolution**: Server uses distance-based authority to resolve state conflicts
+- **Distance-Based Authority**: Closest player to an object has authority over that object
+- **Player Self-Authority**: Players always have authority over their own character
+- **Projectile Owner Authority**: Projectile owners always have authority over their projectiles
+- **Server State Broadcasting**: Server broadcasts resolved state (30fps) back to all clients
+- **Client Reconciliation**: Clients apply server corrections only for significant deviations
+- **Initial World Sync**: Joining players receive complete world state (enemies, projectiles)
+- **Hybrid Responsiveness**: Local physics for immediate feel + server conflict resolution for consistency
+
 ### Build & Deploy
 
 ```bash

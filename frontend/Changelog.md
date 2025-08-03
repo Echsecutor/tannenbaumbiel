@@ -2,4 +2,62 @@
 
 ## WIP
 
+- **MAJOR MULTIPLAYER ARCHITECTURE REVISION**: Fixed hybrid client-server authority system
+  - Restored client-side game state broadcasting for proper conflict resolution
+  - Updated input action mapping to match server protocol (left/right/jump/shoot)
+  - Implemented selective client reconciliation with higher thresholds for responsiveness
+  - Added proper server state acceptance for enemies and projectiles
+  - Modified broadcast throttle to 30fps for optimal conflict resolution
+  - Enhanced network player management with server authority
+  - Fixed client reconciliation to maintain local physics while accepting server corrections
+  - Improved game state update handling for hybrid authority model
+
+- **MAJOR FEATURE**: Implemented multiplayer rendering and synchronization
+  - Added support for multiple player sprites in GameScene
+  - Real-time player position updates from server game state
+  - Network player rendering with visual differentiation (green tint)
+  - Player ID tracking and local vs network player handling
+  - Smooth position interpolation for network players
+  - Automatic cleanup of disconnected players
+- Fixed critical multiplayer bugs
+  - Fixed player ID mismatch between server and client causing input issues
+  - Fixed network player scaling (now matches local player size)
+  - Fixed duplicate player rendering (local player appearing as network player)
+  - Added proper single-player mode (no network players when alone)
+  - Enhanced debugging and player state logging
+  - Fixed timing issue: NetworkManager now stores player ID immediately on room_joined
+  - Added fallback mechanisms to ensure player ID is available in GameScene
+  - Fixed MenuScene DOM access error: Added null check for menuForm.node in connection status updates
+- **MAJOR FIX**: Implemented server-authoritative physics to eliminate flickering
+  - In multiplayer mode: Local player now follows server position exactly (no client physics)
+  - Input system redesigned: Client only sends inputs to server, no local movement
+  - Animation system updated: All animations driven by server state data
+  - Offline mode preserved: Client physics still used when playing offline
+  - Removed position threshold checks in multiplayer (server position is always correct)
+- **NEW**: Added server-synchronized enemies for true multiplayer gaming
+  - Multiplayer mode: Enemies managed by server, synchronized across all players
+  - Offline mode: Enemies still created locally with client physics
+  - Network enemies have visual differentiation (orange tint for owlets, pink for boss)
+  - Server-side enemy AI with random movement and physics simulation
+  - All players see the same enemy positions and movements in real-time
+- **CRITICAL FIX**: Completely redesigned multiplayer input system
+  - Fixed input flooding: Now only sends input on key state changes (not every frame)
+  - Fixed character not stopping: Properly sends key release events (pressed=false)
+  - Added input state tracking to prevent duplicate messages
+  - Separated offline and multiplayer input handling for better reliability
+  - Improved responsiveness and reduced server load significantly
+- **MAJOR ARCHITECTURAL CHANGE**: Switched to client-side authoritative physics
+  - **Why**: Server-side physics engine was causing sync issues, ground-level problems, and poor responsiveness
+  - **Solution**: Use proven Phaser physics on client, server only relays state between players
+  - **Benefits**: Immediate responsive controls, better collision detection, native shooting support
+  - **Implementation**: Clients broadcast complete game state, server relays to other players
+  - **Host System**: First player in room manages enemies/projectiles to prevent conflicts
+  - **Collision Restoration**: Player-enemy and projectile-enemy collisions now work properly
+  - **Shooting Fixed**: Local shooting with network projectile synchronization
+- **CRITICAL TIMING FIX**: Fixed "Player not in any room" race condition
+  - **Problem**: Clients started broadcasting game state before room join was fully confirmed
+  - **Solution**: Added roomJoinConfirmed flag to prevent premature broadcasting
+  - **Throttling**: Limited game state broadcasts to 10fps to reduce server load
+  - **Confirmation**: Only broadcast after receiving room_joined confirmation or pre-confirmed player ID
+  - **Result**: Eliminates NOT_IN_ROOM errors when joining/leaving rooms
 - Changed keyboard controls: Space bar now shoots instead of jumping (up/w keys still handle jumping)

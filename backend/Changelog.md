@@ -2,10 +2,59 @@
 
 ## WIP
 
+- **MAJOR MULTIPLAYER ARCHITECTURE OVERHAUL**: Implemented hybrid client-server conflict resolution
+
+  - Added distance-based authority system for object control
+  - Implemented server conflict resolution using proximity-based authority
+  - Added initial world state synchronization for joining players
+  - Created client-server reconciliation with selective correction thresholds
+  - Restored client-side game state broadcasting for conflict resolution
+  - Added authority tracking and resolution methods in GameWorld
+  - Updated player/enemy/projectile state management from client inputs
+  - Improved network efficiency with 30fps server broadcasts
+  - Enhanced client reconciliation to maintain local physics responsiveness
+
+- **MAJOR FEATURE**: Implemented full multiplayer game functionality
+  - Added server-side game world simulation with 60fps update loop in `world.py`
+  - Real-time player position tracking and physics simulation
+  - Game state broadcasting to all players in rooms via WebSocket
+  - Player input handling with immediate server-side processing
+  - Projectile system with server authoritative collision detection
+  - World management with automatic cleanup of empty game worlds
+- **NEW**: Added server-side enemy management and synchronization
+  - Enemies now created and managed by server (3 enemies: 2 owlets + 1 pink boss)
+  - Server-side enemy AI with random movement patterns and physics
+  - Enemy state synchronized across all players in real-time
+  - Enemies have proper collision detection and boundary bouncing
+- **MAJOR FIX**: Resolved client-server physics conflict causing player flickering
+  - Synchronized physics constants between client and server (ground_y=700, gravity=800)
+  - Moved to server-authoritative physics system for multiplayer consistency
+  - Adjusted player starting position to y=650 (above ground level)
+  - Server now uses configurable physics constants (player_speed=200, jump_speed=550)
+- Fixed critical bugs in multiplayer player management
+  - Fixed AttributeError: `'GameRoom' object has no attribute 'players'`
+  - Updated broadcast system to use correct `_active_connections` attribute
+  - Fixed player ID mismatch causing input attribution errors
+  - Added player ID debugging and validation in input processing
 - Added integration testing infrastructure
   - Test dependencies for Selenium and Chrome WebDriver
   - Service health checks for backend API endpoints
   - Integration with Docker Compose test environments
+- **MAJOR ARCHITECTURAL CHANGE**: Switched to state relay model (client-side authoritative)
+  - **Replaced**: Complex server-side physics engine with simple state relay system
+  - **New Flow**: Clients run local Phaser physics, broadcast state updates to server
+  - **Server Role**: Relay game state between players instead of running physics simulation
+  - **Added**: game_state_update message handler for client state broadcasting
+  - **Benefits**: Eliminates physics sync issues, reduces server complexity, improves responsiveness
+  - **Performance**: Significant reduction in server computational load
+- **PROTOCOL FIX**: Added GAME_STATE_UPDATE to MessageType enum
+  - Fixed validation error: "Input should be 'join_room', 'leave_room'..." when clients broadcast state
+  - Updated websocket handler to use proper MessageType.GAME_STATE_UPDATE enum value
+  - Ensures client state broadcasting works correctly in new architecture
+- **CRITICAL FIX**: Fixed RELAY_ERROR - "'RoomManager' object has no attribute 'rooms'"
+  - Updated game_state_update handler to use correct RoomManager.\_room_cache attribute
+  - Replaced manual room iteration with proper get_player_room() method
+  - Eliminated AttributeError when relaying client game state between players
 - **BREAKING CHANGE**: Removed Redis dependency and replaced in-memory session storage with PostgreSQL-backed persistence
   - Removed `redis` dependency from `requirements.txt`
   - Removed Redis configuration from `settings.py`

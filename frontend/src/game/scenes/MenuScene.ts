@@ -25,7 +25,7 @@ export class MenuScene extends Scene {
         
         this.createBackground()
         this.createMenuForm()
-        this.createConnectionStatus()
+        this.createConnectionStatus() // Called after menuForm is created
         
         this.setupNetworkHandlers()
     }
@@ -110,9 +110,7 @@ export class MenuScene extends Scene {
 
 
     private createConnectionStatus() {
-        // Initial connection status update
-        this.updateConnectionStatus()
-        
+        // Set up connection status listener (initial update already done in createMenuForm)
         if (this.networkManager) {
             this.networkManager.onConnectionChange((connected) => {
                 this.updateConnectionStatus()
@@ -125,7 +123,7 @@ export class MenuScene extends Scene {
         const statusText = isConnected ? 'Verbindung: Verbunden' : 'Verbindung: Getrennt'
         
         // Update the connection status in the embedded form
-        if (this.menuForm) {
+        if (this.menuForm && this.menuForm.node) {
             const statusElement = this.menuForm.node.querySelector('#connection-status') as HTMLElement
             if (statusElement) {
                 statusElement.textContent = statusText
@@ -139,16 +137,20 @@ export class MenuScene extends Scene {
                 console.warn('⚠️ MenuScene: connection-status element not found in form!')
             }
         } else {
-            console.warn('⚠️ MenuScene: menuForm not initialized!')
+            console.log('ℹ️ MenuScene: menuForm or DOM node not ready yet, status update skipped')
         }
     }
 
     private setupNetworkHandlers() {
         if (this.networkManager) {
             this.networkManager.onMessage('room_joined', (data) => {
-                console.log('Successfully joined room:', data)
-                // Start game scene
-                this.scene.start('GameScene', { roomData: data })
+                console.log('🏠 MenuScene: Successfully joined room:', data)
+                console.log('🔍 MenuScene: Passing player ID to GameScene:', data.your_player_id)
+                // Start game scene with room data including player ID
+                this.scene.start('GameScene', { 
+                    roomData: data,
+                    myPlayerId: data.your_player_id 
+                })
             })
 
             this.networkManager.onMessage('error', (data) => {

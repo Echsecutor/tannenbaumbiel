@@ -12,6 +12,7 @@ class MessageType(str, Enum):
     JOIN_ROOM = "join_room"
     LEAVE_ROOM = "leave_room"
     PLAYER_INPUT = "player_input"
+    GAME_STATE_UPDATE = "game_state_update"
     PING = "ping"
 
     # Server to Client

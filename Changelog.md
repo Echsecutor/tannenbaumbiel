@@ -2,6 +2,8 @@
 
 ## WIP
 
+- Improved README.md: Added clear project description from initial requirements, streamlined content from 290 to 165 lines, better organization with emojis and sections
+
 - Fixed GameScene rendering issue: bright green rectangle appearing in upper left corner
   - Graphics objects used for texture generation were not being properly destroyed after use
   - Added proper cleanup of platform, projectile, and tree graphics objects in `loadAssets()`

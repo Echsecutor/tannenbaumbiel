@@ -11,6 +11,18 @@ export class GameScene extends Scene {
     private enemies!: Phaser.Physics.Arcade.Group
     private projectiles!: Phaser.Physics.Arcade.Group
     
+    // Multiplayer support
+    private networkPlayers: Map<string, Phaser.Physics.Arcade.Sprite> = new Map()
+    private networkEnemies: Map<string, Phaser.Physics.Arcade.Sprite> = new Map()
+    private networkProjectiles: Map<string, Phaser.Physics.Arcade.Sprite> = new Map()
+    private myPlayerId: string = ''
+    private roomJoinConfirmed: boolean = false
+    private lastBroadcastTime: number = 0
+    private broadcastThrottle: number = 33  // Broadcast max every 33ms (30fps) for conflict resolution
+    
+    // Input state tracking for multiplayer
+    private inputState: Map<string, boolean> = new Map()
+    
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
     private wasd!: any
     private touchControls!: any
@@ -25,7 +37,20 @@ export class GameScene extends Scene {
     init(data: any) {
         this.isOffline = data.offline || false
         this.roomData = data.roomData || null
-        console.log('GameScene initialized:', { offline: this.isOffline, roomData: this.roomData })
+        
+        // Get player ID directly from scene data (passed from MenuScene)
+        if (data.myPlayerId) {
+            this.myPlayerId = data.myPlayerId
+            this.roomJoinConfirmed = true  // Room join already confirmed by MenuScene
+            console.log('🎮 GameScene.init: Player ID received directly:', this.myPlayerId)
+            console.log('✅ GameScene.init: Room join pre-confirmed, ready to broadcast game state')
+        }
+        
+        console.log('GameScene initialized:', { 
+            offline: this.isOffline, 
+            roomData: this.roomData,
+            myPlayerId: this.myPlayerId 
+        })
     }
 
     preload() {
@@ -193,6 +218,10 @@ export class GameScene extends Scene {
         // Create enemy animations
         this.createEnemyAnimations()
         
+        // CLIENT-SIDE PHYSICS: Always create local enemies with Phaser physics
+        // In multiplayer, the first player to join will be the "host" and their enemy state will be authoritative
+        console.log('🎮 Creating local enemies with client-side physics')
+        
         // Create owlet enemies
         const enemy1 = this.enemies.create(300, 400, 'enemy_idle')
         enemy1.setBounce(1)
@@ -200,6 +229,7 @@ export class GameScene extends Scene {
         enemy1.setVelocity(Phaser.Math.Between(-200, 200), 20)
         enemy1.setData('health', 50)
         enemy1.setData('type', 'owlet')
+        enemy1.setData('facingRight', true)
         enemy1.play('enemy_idle_anim')
 
         const enemy2 = this.enemies.create(600, 300, 'enemy_idle')
@@ -208,6 +238,7 @@ export class GameScene extends Scene {
         enemy2.setVelocity(Phaser.Math.Between(-200, 200), 20)
         enemy2.setData('health', 50)
         enemy2.setData('type', 'owlet')
+        enemy2.setData('facingRight', true)
         enemy2.play('enemy_idle_anim')
         
         // Create a pink enemy boss
@@ -217,6 +248,7 @@ export class GameScene extends Scene {
         boss.setVelocity(Phaser.Math.Between(-100, 100), 20)
         boss.setData('health', 100)
         boss.setData('type', 'pink_boss')
+        boss.setData('facingRight', true)
         boss.setScale(1.5) // Make boss bigger
         boss.play('pink_enemy_idle_anim')
 
@@ -310,72 +342,162 @@ export class GameScene extends Scene {
     }
 
     private handlePlayerMovement() {
+        // CLIENT-SIDE PHYSICS: Use local Phaser physics for both offline and multiplayer
+        // In multiplayer, we'll broadcast our complete game state to other clients
+        
         const speed = 200
         const jumpSpeed = 550
 
         // Horizontal movement
         if (this.cursors.left.isDown || this.wasd.A.isDown) {
-            this.setPlayerInput('move_left', true)
+            this.player.setVelocityX(-speed)
+            this.player.setData('facingRight', false)
+            this.player.setFlipX(true)
+            if (this.player.body!.touching.down) {
+                this.player.play('player_run_anim', true)
+            }
         } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
-            this.setPlayerInput('move_right', true)
+            this.player.setVelocityX(speed)
+            this.player.setData('facingRight', true)
+            this.player.setFlipX(false)
+            if (this.player.body!.touching.down) {
+                this.player.play('player_run_anim', true)
+            }
         } else {
-            this.setPlayerInput('stop_move', true)
+            this.player.setVelocityX(0)
+            if (this.player.body!.touching.down) {
+                this.player.play('player_idle_anim', true)
+            }
         }
 
         // Jumping
         if ((this.cursors.up.isDown || this.wasd.W.isDown) && this.player.body!.touching.down) {
-            this.setPlayerInput('jump', true)
+            this.player.setVelocityY(-jumpSpeed)
+            this.player.play('player_jump_anim', true)
         }
 
         // Shooting
         if ((this.input.activePointer.isDown && !this.input.activePointer.wasTouch) || this.wasd.SPACE.isDown) {
-            this.setPlayerInput('shoot', true)
+            if (!this.inputState.get('shoot')) {
+                this.inputState.set('shoot', true)
+                this.shootProjectile()
+            }
+        } else {
+            this.inputState.set('shoot', false)
+        }
+        
+        // HYBRID AUTHORITY: Send both input and game state for conflict resolution
+        if (!this.isOffline && this.roomJoinConfirmed) {
+            // Send input for immediate server processing
+            this.sendInputUpdates()
+            // Send game state for server conflict resolution
+            this.broadcastGameState()
         }
     }
-
-    private setPlayerInput(action: string, pressed: boolean) {
-        const speed = 200
-        const jumpSpeed = 550
-        const isOnGround = this.player.body!.touching.down
-
-        switch (action) {
-            case 'move_left':
-                this.player.setVelocityX(-speed)
-                this.player.setData('facingRight', false)
-                this.player.setFlipX(true)
-                if (isOnGround) {
-                    this.player.play('player_run_anim', true)
-                }
-                break
-            case 'move_right':
-                this.player.setVelocityX(speed)
-                this.player.setData('facingRight', true)
-                this.player.setFlipX(false)
-                if (isOnGround) {
-                    this.player.play('player_run_anim', true)
-                }
-                break
-            case 'stop_move':
-                this.player.setVelocityX(0)
-                if (isOnGround) {
-                    this.player.play('player_idle_anim', true)
-                }
-                break
-            case 'jump':
-                if (isOnGround) {
-                    this.player.setVelocityY(-jumpSpeed)
-                    this.player.play('player_jump_anim', true)
-                }
-                break
-            case 'shoot':
-                this.shootProjectile()
-                break
+    
+    private sendInputUpdates() {
+        if (!this.networkManager || !this.myPlayerId) return
+        
+        // Send input state changes immediately for responsiveness
+        // Server will handle all physics and broadcast authoritative state
+        
+        // Only send when input state actually changes to reduce network traffic
+        const currentInputs = {
+            left: this.cursors.left.isDown || this.wasd.A.isDown,
+            right: this.cursors.right.isDown || this.wasd.D.isDown,
+            jump: this.cursors.up.isDown || this.wasd.W.isDown,
+            shoot: (this.input.activePointer.isDown && !this.input.activePointer.wasTouch) || this.wasd.SPACE.isDown
         }
-
-        // Send input to server if online
-        if (!this.isOffline && this.networkManager) {
-            this.networkManager.sendPlayerInput(action, pressed)
+        
+        // Check if any input has changed since last update
+        const inputsChanged = Object.entries(currentInputs).some(([action, pressed]) => {
+            const wasPressed = this.inputState.get(action) || false
+            return wasPressed !== pressed
+        })
+        
+        if (inputsChanged) {
+            // Send only changed inputs to server
+            Object.entries(currentInputs).forEach(([action, pressed]) => {
+                const wasPressed = this.inputState.get(action) || false
+                if (wasPressed !== pressed) {
+                    this.networkManager.sendPlayerInput(action, pressed)
+                    this.inputState.set(action, pressed)
+                }
+            })
         }
+    }
+    
+    private broadcastGameState() {
+        if (!this.networkManager || !this.myPlayerId) return
+        
+        // Throttle broadcasting for conflict resolution (30fps)
+        const now = Date.now()
+        if (now - this.lastBroadcastTime < this.broadcastThrottle) return
+        this.lastBroadcastTime = now
+        
+        // Create comprehensive game state from local physics simulation
+        const gameState = {
+            player: {
+                player_id: this.myPlayerId,
+                x: this.player.x,
+                y: this.player.y,
+                velocity_x: this.player.body!.velocity.x,
+                velocity_y: this.player.body!.velocity.y,
+                facing_right: this.player.getData('facingRight'),
+                is_grounded: this.player.body!.touching.down,
+                is_jumping: this.player.body!.velocity.y < -10,
+                health: this.player.getData('health') || 100
+            },
+            enemies: this.getLocalEnemyStates(),
+            projectiles: this.getLocalProjectileStates()
+        }
+        
+        // Send to server for conflict resolution
+        this.networkManager.sendMessage({
+            type: 'game_state_update',
+            timestamp: Date.now(),
+            data: gameState
+        })
+    }
+    
+    private getLocalEnemyStates(): any[] {
+        const enemyStates: any[] = []
+        
+        this.enemies.children.entries.forEach((enemy: any, index: number) => {
+            if (enemy.active) {
+                enemyStates.push({
+                    enemy_id: `enemy_${index + 1}`, // Match server enemy IDs
+                    enemy_type: enemy.getData('type'),
+                    x: enemy.x,
+                    y: enemy.y,
+                    velocity_x: enemy.body.velocity.x,
+                    velocity_y: enemy.body.velocity.y,
+                    facing_right: enemy.getData('facingRight') !== false,
+                    health: enemy.getData('health') || 50
+                })
+            }
+        })
+        
+        return enemyStates
+    }
+    
+    private getLocalProjectileStates(): any[] {
+        const projectileStates: any[] = []
+        
+        this.projectiles.children.entries.forEach((projectile: any, index: number) => {
+            if (projectile.active) {
+                projectileStates.push({
+                    projectile_id: `projectile_${this.myPlayerId}_${index}`,
+                    x: projectile.x,
+                    y: projectile.y,
+                    velocity_x: projectile.body.velocity.x,
+                    velocity_y: projectile.body.velocity.y,
+                    owner_id: this.myPlayerId
+                })
+            }
+        })
+        
+        return projectileStates
     }
 
     private shootProjectile() {
@@ -470,16 +592,265 @@ export class GameScene extends Scene {
 
     private setupNetworkHandlers() {
         if (this.networkManager) {
+            // Player ID should already be set from init() - but try NetworkManager as fallback
+            if (!this.myPlayerId) {
+                this.myPlayerId = this.networkManager.getServerPlayerId() || ''
+                console.log('🔄 GameScene: Fallback - retrieved player ID from NetworkManager:', this.myPlayerId)
+            }
+            
+            // Ensure NetworkManager also has the player ID
+            if (this.myPlayerId && !this.networkManager.getServerPlayerId()) {
+                this.networkManager.setServerPlayerId(this.myPlayerId)
+                console.log('🔄 GameScene: Updated NetworkManager with player ID:', this.myPlayerId)
+            }
+            
+            console.log('🎮 GameScene: Final player ID:', this.myPlayerId)
+            
             this.networkManager.onMessage('game_state', (data) => {
                 this.updateGameState(data)
             })
+            
+            // Set up a fallback handler in case we missed the room_joined message
+            this.networkManager.onMessage('room_joined', (data) => {
+                console.log('🏠 GameScene: Received room_joined data (fallback):', data)
+                if (!this.myPlayerId && data.your_player_id) {
+                    this.myPlayerId = data.your_player_id
+                    console.log('✅ GameScene: Fallback player ID set to:', this.myPlayerId)
+                }
+                // Confirm room join - now safe to start broadcasting game state
+                this.roomJoinConfirmed = true
+                console.log('✅ GameScene: Room join confirmed, will start broadcasting game state')
+            })
+        } else {
+            console.error('❌ GameScene: NetworkManager not available!')
         }
     }
 
     private updateGameState(gameState: any) {
-        // Update game state from server
-        console.log('Game state update:', gameState)
-        // This would sync player positions, enemy states, etc.
+        // HYBRID AUTHORITY: Server resolves conflicts, clients run physics
+        console.log('🔄 Received server conflict-resolved state')
+        
+        // Update all players from server state (includes conflict resolution)
+        if (gameState.players && Array.isArray(gameState.players)) {
+            this.updateAllPlayersFromServer(gameState.players)
+        }
+        
+        // Update enemies from server state (server has resolved conflicts)
+        if (gameState.enemies && Array.isArray(gameState.enemies)) {
+            this.updateEnemiesFromServer(gameState.enemies)
+        }
+        
+        // Update projectiles from server state (server has resolved ownership)
+        if (gameState.projectiles && Array.isArray(gameState.projectiles)) {
+            this.updateProjectilesFromServer(gameState.projectiles)
+        }
+    }
+    
+    // REMOVED: handlePlayerListUpdate() and isHostPlayer()
+    // No longer needed with server-authoritative architecture
+    
+    private updateAllPlayersFromServer(players: any[]) {
+        // Update all players including our own player (for reconciliation)
+        for (const playerState of players) {
+            if (playerState.player_id === this.myPlayerId) {
+                // This is our own player - apply server reconciliation
+                this.reconcileLocalPlayer(playerState)
+            } else {
+                // This is another player - update network player
+                this.updateNetworkPlayer(playerState)
+            }
+        }
+        
+        // Remove any network players that are no longer in the server state
+        const activePlayerIds = new Set(players.map(p => p.player_id))
+        for (const [playerId, sprite] of this.networkPlayers) {
+            if (!activePlayerIds.has(playerId)) {
+                console.log('👋 Removing disconnected network player:', playerId)
+                sprite.destroy()
+                this.networkPlayers.delete(playerId)
+            }
+        }
+    }
+    
+    private reconcileLocalPlayer(serverPlayerState: any) {
+        // HYBRID RECONCILIATION: Only correct significant deviations from server conflict resolution
+        const positionThreshold = 15 // pixels - higher threshold for client-side physics
+        const velocityThreshold = 100 // pixels/second - allow more local variation
+        
+        const positionDiff = Math.abs(this.player.x - serverPlayerState.x) + Math.abs(this.player.y - serverPlayerState.y)
+        const velocityDiffX = Math.abs(this.player.body!.velocity.x - serverPlayerState.velocity_x)
+        const velocityDiffY = Math.abs(this.player.body!.velocity.y - serverPlayerState.velocity_y)
+        
+        if (positionDiff > positionThreshold || velocityDiffX > velocityThreshold || velocityDiffY > velocityThreshold) {
+            console.log('🔧 Server conflict resolution: Correcting local player state')
+            console.log(`Position diff: ${positionDiff.toFixed(1)}, velocity diff: ${velocityDiffX.toFixed(1)}, ${velocityDiffY.toFixed(1)}`)
+            
+            // Apply server correction for conflict resolution
+            // Keep local physics responsive by only correcting major deviations
+            this.player.setPosition(serverPlayerState.x, serverPlayerState.y)
+            this.player.setVelocity(serverPlayerState.velocity_x, serverPlayerState.velocity_y)
+        }
+        
+        // Always sync health (important for gameplay)
+        if (serverPlayerState.health !== undefined) {
+            this.player.setData('health', serverPlayerState.health)
+        }
+    }
+    
+    private updateNetworkPlayer(playerState: any) {
+        let sprite = this.networkPlayers.get(playerState.player_id)
+        
+        if (!sprite) {
+            // Create new network player sprite
+            sprite = this.physics.add.sprite(playerState.x, playerState.y, 'player_idle')
+            // Use same scale as local player (default 1.0)
+            sprite.setTint(0x00ff00) // Green tint to differentiate from local player
+            sprite.setData('health', playerState.health)
+            sprite.setData('facingRight', playerState.facing_right)
+            
+            // Add physics (same as local player)
+            sprite.setBounce(0.2)
+            sprite.setCollideWorldBounds(true)
+            
+            // Add collisions with platforms
+            this.physics.add.collider(sprite, this.platforms)
+            
+            this.networkPlayers.set(playerState.player_id, sprite)
+            console.log(`🟢 Created network player: ${playerState.username} (${playerState.player_id}) at ${playerState.x},${playerState.y}`)
+        }
+        
+        // Update position and state
+        sprite.setPosition(playerState.x, playerState.y)
+        sprite.setFlipX(!playerState.facing_right)
+        sprite.setData('health', playerState.health)
+        sprite.setData('facingRight', playerState.facing_right)
+        
+        // Update animation based on server state
+        if (Math.abs(playerState.velocity_x) > 10) {
+            sprite.play('player_run_anim', true)
+        } else if (playerState.is_jumping || !playerState.is_grounded) {
+            sprite.play('player_jump_anim', true)
+        } else {
+            sprite.play('player_idle_anim', true)
+        }
+    }
+    
+    private updateEnemiesFromServer(enemyStates: any[]) {
+        console.log('🦴 Updating enemies from server conflict resolution:', enemyStates.length)
+        
+        const activeEnemyIds = new Set<string>()
+        
+        for (const enemyState of enemyStates) {
+            activeEnemyIds.add(enemyState.enemy_id)
+            let sprite = this.networkEnemies.get(enemyState.enemy_id)
+            
+            if (!sprite) {
+                // Create new network enemy sprite
+                const texture = enemyState.enemy_type === 'pink_boss' ? 'pink_enemy_idle' : 'enemy_idle'
+                sprite = this.physics.add.sprite(enemyState.x, enemyState.y, texture)
+                
+                // Set up enemy properties
+                sprite.setData('health', enemyState.health)
+                sprite.setData('type', enemyState.enemy_type)
+                sprite.setData('facingRight', enemyState.facing_right)
+                
+                // Boss is bigger
+                if (enemyState.enemy_type === 'pink_boss') {
+                    sprite.setScale(1.5)
+                    sprite.setTint(0xff69b4) // Pink tint for network boss
+                } else {
+                    sprite.setTint(0xffa500) // Orange tint for network enemies
+                }
+                
+                // Add physics (but no client-side AI)
+                sprite.setBounce(0)
+                sprite.setCollideWorldBounds(true)
+                
+                // Add collisions with platforms
+                this.physics.add.collider(sprite, this.platforms)
+                
+                // Add collision with local player
+                this.physics.add.overlap(this.player, sprite, this.hitEnemy, undefined, this)
+                
+                // Add collision with projectiles
+                this.physics.add.overlap(this.projectiles, sprite, this.projectileHitEnemy, undefined, this)
+                
+                this.networkEnemies.set(enemyState.enemy_id, sprite)
+                console.log(`🦴 Created network enemy: ${enemyState.enemy_id} (${enemyState.enemy_type}) at ${enemyState.x},${enemyState.y}`)
+            }
+            
+            // Update position and state from server
+            sprite.setPosition(enemyState.x, enemyState.y)
+            sprite.setVelocity(enemyState.velocity_x, enemyState.velocity_y)
+            sprite.setFlipX(!enemyState.facing_right)
+            sprite.setData('health', enemyState.health)
+            
+            // Update animation based on server state
+            if (Math.abs(enemyState.velocity_x) > 10) {
+                if (enemyState.enemy_type === 'pink_boss') {
+                    sprite.play('pink_enemy_walk_anim', true)
+                } else {
+                    sprite.play('enemy_walk_anim', true)
+                }
+            } else {
+                if (enemyState.enemy_type === 'pink_boss') {
+                    sprite.play('pink_enemy_idle_anim', true)
+                } else {
+                    sprite.play('enemy_idle_anim', true)
+                }
+            }
+        }
+        
+        // Remove enemies that no longer exist on server
+        for (const [enemyId, sprite] of this.networkEnemies) {
+            if (!activeEnemyIds.has(enemyId)) {
+                console.log('👋 Removing server enemy:', enemyId)
+                sprite.destroy()
+                this.networkEnemies.delete(enemyId)
+            }
+        }
+    }
+    
+    private updateProjectilesFromServer(projectileStates: any[]) {
+        // Create a map to track network projectiles (separate from local projectiles)
+        if (!this.networkProjectiles) {
+            this.networkProjectiles = new Map()
+        }
+        
+        const activeProjectileIds = new Set<string>()
+        
+        for (const projectileState of projectileStates) {
+            if (projectileState.owner_id === this.myPlayerId) continue // Skip our own projectiles
+            
+            activeProjectileIds.add(projectileState.projectile_id)
+            let sprite = this.networkProjectiles.get(projectileState.projectile_id)
+            
+            if (!sprite) {
+                // Create new network projectile sprite
+                sprite = this.physics.add.sprite(projectileState.x, projectileState.y, 'projectile')
+                sprite.setTint(0xff0000) // Red tint for network projectiles
+                
+                // Add collisions
+                this.physics.add.overlap(sprite, this.enemies, this.projectileHitEnemy, undefined, this)
+                this.physics.add.collider(sprite, this.platforms, this.projectileHitPlatform, undefined, this)
+                
+                this.networkProjectiles.set(projectileState.projectile_id, sprite)
+                console.log(`🔴 Created network projectile: ${projectileState.projectile_id}`)
+            }
+            
+            // Update position and velocity
+            sprite.setPosition(projectileState.x, projectileState.y)
+            sprite.setVelocity(projectileState.velocity_x, projectileState.velocity_y)
+        }
+        
+        // Remove projectiles that no longer exist
+        for (const [projectileId, sprite] of this.networkProjectiles) {
+            if (!activeProjectileIds.has(projectileId)) {
+                console.log('👋 Removing network projectile:', projectileId)
+                sprite.destroy()
+                this.networkProjectiles.delete(projectileId)
+            }
+        }
     }
 
     private gameOver() {
