@@ -211,7 +211,6 @@ test: add unit tests for physics
 ```bash
 # Backend .env
 DATABASE_URL=postgresql://user:pass@localhost:5432/tannenbaumbiel_dev
-REDIS_URL=redis://localhost:6379
 DEBUG=True
 
 # Frontend .env
@@ -224,7 +223,16 @@ VITE_WS_URL=ws://localhost:8000/ws
 ```bash
 # Environment Variables über Docker/K8s
 DATABASE_URL=postgresql://prod-db-url
-REDIS_URL=redis://prod-redis-url
 JWT_SECRET_KEY=secure-random-key
 DEBUG=False
 ```
+
+## Implementierte Datenbank-Architektur
+
+**PostgreSQL Single-Database Ansatz:**
+
+- **Sessions**: Player-Sessions in `players` Tabelle mit `session_id`
+- **Game State**: Rooms in `game_rooms`, aktive Teilnahme in `game_sessions`
+- **Statistics**: Spielstatistiken in `game_stats` Tabelle
+- **Repository Pattern**: Clean separation zwischen Business Logic und Database
+- **SQLAlchemy ORM**: Type-safe database operations mit automatischen Migrations

@@ -12,16 +12,13 @@ class Settings(BaseSettings):
     app_name: str = "Tannenbaumbiel Game Server"
     debug: bool = True
     secret_key: str = "dev-secret-key"
-    
+
     # Database
     database_url: str = "postgresql://user:password@localhost:5432/tannenbaumbiel_dev"
-    
-    # Redis
-    redis_url: str = "redis://localhost:6379"
-    
+
     # CORS
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
-    
+
     @field_validator('allowed_origins')
     @classmethod
     def parse_cors_origins(cls, v):

@@ -1,71 +1,74 @@
 """
-Session management for WebSocket connections
+Session management for WebSocket connections using PostgreSQL
 """
 import uuid
-from typing import Dict, Optional
+from typing import Optional
 from datetime import datetime, timedelta
+from uuid import UUID
 
-
-class Session:
-    """Represents a user session"""
-
-    def __init__(self, session_id: str, username: str = None):
-        self.session_id = session_id
-        self.username = username
-        self.created_at = datetime.utcnow()
-        self.last_activity = datetime.utcnow()
-        self.room_id: Optional[str] = None
-
-    def update_activity(self):
-        """Update last activity timestamp"""
-        self.last_activity = datetime.utcnow()
-
-    def is_expired(self, timeout_minutes: int = 30) -> bool:
-        """Check if session is expired"""
-        expiry_time = self.last_activity + timedelta(minutes=timeout_minutes)
-        return datetime.utcnow() > expiry_time
+from app.database.repository import GameRepository
+from app.database.models import Player
 
 
 class SessionManager:
-    """Manages user sessions"""
-
-    def __init__(self):
-        self.sessions: Dict[str, Session] = {}
+    """Manages user sessions using PostgreSQL backend"""
 
     def generate_session_id(self) -> str:
         """Generate a unique session ID"""
         return str(uuid.uuid4())
 
-    def create_session(self, username: str = None) -> Session:
-        """Create a new session"""
+    def create_session(self, username: str = None) -> str:
+        """Create a new session and return session ID"""
         session_id = self.generate_session_id()
-        session = Session(session_id, username)
-        self.sessions[session_id] = session
-        return session
 
-    def get_session(self, session_id: str) -> Optional[Session]:
-        """Get session by ID"""
-        return self.sessions.get(session_id)
+        with GameRepository() as repo:
+            # Check if player exists by username
+            if username:
+                player = repo.get_player_by_username(username)
+                if player:
+                    # Update existing player's session
+                    repo.update_player_session(player.id, session_id)
+                else:
+                    # Create new player
+                    repo.create_player(username=username, session_id=session_id)
+            else:
+                # Anonymous player
+                repo.create_player(username=f"Guest_{session_id[:8]}", session_id=session_id)
+
+        return session_id
+
+    def get_player_by_session(self, session_id: str) -> Optional[Player]:
+        """Get player by session ID"""
+        with GameRepository() as repo:
+            return repo.get_player_by_session_id(session_id)
 
     def update_session_activity(self, session_id: str):
-        """Update session activity"""
-        session = self.get_session(session_id)
-        if session:
-            session.update_activity()
+        """Update session activity (last seen timestamp)"""
+        with GameRepository() as repo:
+            player = repo.get_player_by_session_id(session_id)
+            if player:
+                repo.update_player_last_seen(player.id)
 
     def remove_session(self, session_id: str):
-        """Remove session"""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
+        """Remove session by clearing session_id from player"""
+        with GameRepository() as repo:
+            player = repo.get_player_by_session_id(session_id)
+            if player:
+                # Clear the session_id instead of deleting the player
+                repo.update_player_session(player.id, None)
 
-    def cleanup_expired_sessions(self, timeout_minutes: int = 30):
-        """Remove expired sessions"""
-        expired_sessions = [
-            session_id for session_id, session in self.sessions.items()
-            if session.is_expired(timeout_minutes)
-        ]
+    def cleanup_expired_sessions(self, timeout_minutes: int = 30) -> int:
+        """Clean up expired sessions using repository cleanup"""
+        timeout_hours = timeout_minutes / 60.0
+        with GameRepository() as repo:
+            return repo.cleanup_old_sessions(hours_ago=int(timeout_hours))
 
-        for session_id in expired_sessions:
-            self.remove_session(session_id)
+    def is_session_valid(self, session_id: str) -> bool:
+        """Check if session is valid and not expired"""
+        player = self.get_player_by_session(session_id)
+        if not player or not player.session_id:
+            return False
 
-        return len(expired_sessions)
+        # Check if last seen is within timeout
+        timeout = timedelta(minutes=30)
+        return (datetime.utcnow() - player.last_seen) < timeout

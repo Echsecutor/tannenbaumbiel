@@ -7,7 +7,7 @@ Browser-basiertes 2D Multiplayer Platformer Game mit Python Backend und JavaScri
 ## High-Level Architektur
 
 ```
-[Mobile Browser Client] ←→ WebSocket ←→ [Python Game Server] ←→ [Redis] ←→ [Database]
+[Mobile Browser Client] ←→ WebSocket ←→ [Python Game Server] ←→ [PostgreSQL Database]
 ```
 
 ## Frontend Architektur
@@ -53,8 +53,8 @@ Frontend/
 
 - **Framework**: FastAPI mit WebSocket Support
 - **ASGI Server**: Uvicorn (Production)
-- **Session Store**: Redis
-- **Database**: PostgreSQL (Spieler, Statistiken, Welten)
+- **Database**: PostgreSQL (Sessions, Spieler, Statistiken, Welten)
+- **ORM**: SQLAlchemy mit Alembic Migrations
 - **Containerization**: Docker
 
 ### Komponenten
@@ -154,7 +154,6 @@ interface GameMessage {
 Local Machine:
 ├── Frontend Dev Server (Vite) :3000
 ├── Backend Dev Server (FastAPI) :8000
-├── Redis :6379
 └── PostgreSQL :5432
 ```
 
@@ -164,7 +163,6 @@ Local Machine:
 Cloud Infrastructure:
 ├── Frontend: Static Files (CDN)
 ├── Backend: Container Service (Docker)
-├── Redis: Managed Redis Service
 ├── Database: Managed PostgreSQL
 └── Load Balancer: WebSocket Sticky Sessions
 ```
@@ -181,9 +179,9 @@ Cloud Infrastructure:
 ### Backend
 
 - **Concurrency**: Async/await für WebSocket Handling
-- **Scaling**: Horizontal Scaling mit Redis für Session Sharing
+- **Scaling**: Horizontal Scaling mit Shared PostgreSQL
 - **Database**: Connection Pooling, Read Replicas
-- **Caching**: Redis für häufige Queries
+- **Caching**: PostgreSQL Query Optimization, Indexes
 
 ## Security
 

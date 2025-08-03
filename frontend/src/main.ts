@@ -11,6 +11,10 @@ class TannenbaumGame {
 
     constructor() {
         this.networkManager = new NetworkManager()
+        
+        // Expose networkManager globally for debugging and testing
+        ;(window as any).networkManager = this.networkManager
+        
         this.init()
     }
 

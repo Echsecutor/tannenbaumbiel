@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from app.config.settings import settings
 from app.api.websocket import router as websocket_router
 from app.api.rest import router as rest_router
+from app.database.connection import init_database, close_database
 
 
 @asynccontextmanager
@@ -16,15 +17,20 @@ async def lifespan(app: FastAPI):
     # Startup
     print(f"Starting {settings.app_name}")
 
-    # Here we would initialize:
-    # - Database connection
-    # - Redis connection
-    # - Game world state
+    # Initialize database connection
+    print("Initializing database connection...")
+    init_database()
+    print("Database initialized successfully")
 
     yield
 
     # Shutdown
     print(f"Shutting down {settings.app_name}")
+
+    # Close database connections
+    print("Closing database connections...")
+    close_database()
+    print("Database connections closed")
 
 
 def create_app() -> FastAPI:

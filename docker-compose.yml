@@ -10,7 +10,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://tannenbaum:password@postgres:5432/tannenbaumbiel_dev
-      - REDIS_URL=redis://redis:6379
+
       - DEBUG=True
       - SECRET_KEY=dev-secret-key-change-in-production
       - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
@@ -19,7 +19,6 @@ services:
       - ./shared:/app/shared
     depends_on:
       - postgres
-      - redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
@@ -64,20 +63,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis for Session Management
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   # Nginx Reverse Proxy (Optional for production-like setup)
   # nginx:
   #   image: nginx:alpine
@@ -90,9 +75,35 @@ services:
   #     - backend
   #   restart: unless-stopped
 
+  # Selenium Test Service (run manually with: docker compose run --rm test)
+  test:
+    image: python:3.11-slim
+    working_dir: /app/tools
+    volumes:
+      - ./tools:/app/tools
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+    depends_on:
+      - frontend
+      - backend
+      - postgres
+    profiles:
+      - test
+    command: >
+      bash -c "
+        apt-get update &&
+        apt-get install -y wget gnupg2 curl unzip &&
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - &&
+        echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' > /etc/apt/sources.list.d/google-chrome.list &&
+        apt-get update &&
+        apt-get install -y google-chrome-stable &&
+        pip install -r test_requirements.txt &&
+        python selenium_test.py
+      "
+
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   default:

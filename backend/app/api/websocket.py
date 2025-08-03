@@ -96,9 +96,14 @@ async def websocket_game_endpoint(websocket: WebSocket):
                 await send_error(connection_id, "MESSAGE_ERROR", str(e))
 
     except WebSocketDisconnect:
+        # Handle disconnect - clean up room if player was in one
+        room_id = room_manager.disconnect_player(connection_id)
         connection_manager.disconnect(connection_id)
+        if room_id:
+            print(f"Player {connection_id} disconnected from room {room_id}")
     except Exception as e:
         print(f"WebSocket error for {connection_id}: {e}")
+        room_manager.disconnect_player(connection_id)
         connection_manager.disconnect(connection_id)
 
 
@@ -126,9 +131,17 @@ async def handle_join_room(connection_id: str, message: GameMessage):
     try:
         join_data = JoinRoomData(**message.data)
 
+        # Create session for player (this creates or updates player in database)
+        session_id = session_manager.create_session(join_data.username)
+
+        # Get player from database
+        player = session_manager.get_player_by_session(session_id)
+        if not player:
+            await send_error(connection_id, "SESSION_ERROR", "Failed to create player session")
+            return
+
         # Create or join room
-        room = room_manager.join_room(
-            join_data.room_name, connection_id, join_data.username)
+        room = room_manager.join_room(join_data.room_name, connection_id, player)
 
         if room:
             # Track connection-room mapping
@@ -140,20 +153,21 @@ async def handle_join_room(connection_id: str, message: GameMessage):
                 timestamp=message.timestamp,
                 data={
                     "room_id": room.room_id,
-                    "player_count": len(room.players),
-                    "max_players": settings.max_players_per_room
+                    "player_count": room.get_active_connection_count(),
+                    "max_players": settings.max_players_per_room,
+                    "player_list": room.get_player_list()
                 }
             )
             await connection_manager.send_message(connection_id, response)
 
             # Notify other players
-            if len(room.players) > 1:
+            if room.get_active_connection_count() > 1:
                 broadcast_message = GameMessage(
                     type=MessageType.PLAYER_JOINED,
                     timestamp=message.timestamp,
                     data={
                         "username": join_data.username,
-                        "player_count": len(room.players)
+                        "player_count": room.get_active_connection_count()
                     }
                 )
                 await connection_manager.broadcast_to_room(
@@ -162,7 +176,7 @@ async def handle_join_room(connection_id: str, message: GameMessage):
                     exclude={connection_id}
                 )
         else:
-            await send_error(connection_id, "ROOM_FULL", "Room is full")
+            await send_error(connection_id, "ROOM_JOIN_FAILED", "Failed to join room (may be full or player already in another room)")
 
     except Exception as e:
         await send_error(connection_id, "JOIN_ROOM_ERROR", str(e))
@@ -187,11 +201,11 @@ async def handle_leave_room(connection_id: str, message: GameMessage):
             await connection_manager.send_message(connection_id, response)
 
             # Notify other players
-            if len(room.players) > 0:
+            if room.get_active_connection_count() > 0:
                 broadcast_message = GameMessage(
                     type=MessageType.PLAYER_LEFT,
                     timestamp=message.timestamp,
-                    data={"player_count": len(room.players)}
+                    data={"player_count": room.get_active_connection_count()}
                 )
                 await connection_manager.broadcast_to_room(room_id, broadcast_message)
 

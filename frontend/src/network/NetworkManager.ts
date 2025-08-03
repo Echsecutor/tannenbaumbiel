@@ -192,6 +192,13 @@ export class NetworkManager {
     }
 
     private notifyConnectionListeners(connected: boolean): void {
+        console.log(`🔄 NetworkManager: Updating connection status to ${connected ? 'CONNECTED' : 'DISCONNECTED'}`)
+        
+        // Update HTML connection status element first
+        this.updateHtmlConnectionStatus(connected)
+        
+        // Notify all game scene listeners
+        console.log(`📢 NetworkManager: Notifying ${this.connectionListeners.size} listeners`)
         this.connectionListeners.forEach(listener => {
             try {
                 listener(connected)
@@ -199,6 +206,21 @@ export class NetworkManager {
                 console.error('Error in connection listener:', error)
             }
         })
+    }
+
+    private updateHtmlConnectionStatus(connected: boolean): void {
+        const statusElement = document.getElementById('connection-status')
+        if (statusElement) {
+            const newText = connected ? 'Verbindung: Verbunden' : 'Verbindung: Getrennt'
+            const newClass = connected ? 'connected' : 'disconnected'
+            
+            statusElement.textContent = newText
+            statusElement.className = newClass
+            
+            console.log(`📱 HTML Status Updated: '${newText}' (class: ${newClass})`)
+        } else {
+            console.warn('⚠️ HTML connection-status element not found!')
+        }
     }
 
     private getPlayerId(): string {

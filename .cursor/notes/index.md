@@ -37,12 +37,14 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 - Grafische Assets: `/free-pixel-art-tiny-hero-sprites`
 - **Frontend**: http://localhost:3000 (Phaser Game)
 - **Backend**: http://localhost:8000 (FastAPI Server)
+- **Testing**: `cd tools && ./run_test.sh` (Selenium Integration Tests)
 
 ## Technische Hauptentscheidungen
 
 - **Frontend**: Phaser 3 mit TypeScript
 - **Backend**: Python FastAPI mit WebSocket Support
-- **Database**: PostgreSQL + Redis
+- **Database**: PostgreSQL (Single Database)
 - **Development**: Docker Compose Environment
+- **Testing**: Selenium Integration Tests mit Chrome WebDriver
 - **Zielplattform**: Primär mobile Browser, später native Apps
 - **Grafik-Stil**: Pixel Art Monster/Character Sprites

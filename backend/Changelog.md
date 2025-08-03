@@ -1,0 +1,52 @@
+# Backend Changelog
+
+## WIP
+
+- Added integration testing infrastructure
+  - Test dependencies for Selenium and Chrome WebDriver
+  - Service health checks for backend API endpoints
+  - Integration with Docker Compose test environments
+- **BREAKING CHANGE**: Removed Redis dependency and replaced in-memory session storage with PostgreSQL-backed persistence
+  - Removed `redis` dependency from `requirements.txt`
+  - Removed Redis configuration from `settings.py`
+  - All sessions now stored in PostgreSQL `players` table with `session_id` field
+- Added comprehensive SQLAlchemy database models for game entities
+  - `GameRoom` model for multiplayer rooms with metadata tracking
+  - `Player` model for user accounts, sessions, and statistics
+  - `GameSession` model for tracking active player participation in rooms
+  - `GameStat` model for gameplay statistics and analytics
+  - Full relationship mapping between all entities with proper cascade deletes
+- Implemented database connection and session management
+  - `connection.py` with centralized database initialization and session handling
+  - Connection pooling and health checks for production reliability
+  - Automatic table creation for development environments
+- Added Repository pattern for clean data access layer
+  - `GameRepository` class with comprehensive CRUD operations for all entities
+  - Transaction management and proper error handling
+  - Intelligent cleanup methods for expired sessions and inactive rooms
+  - Context manager support for automatic session cleanup
+- **BREAKING CHANGE**: Completely rewrote `SessionManager` to use PostgreSQL backend
+  - Sessions now persist across server restarts
+  - Player creation and session lifecycle management through database
+  - Session validation and expiration handling with configurable timeouts
+  - Support for both anonymous and named player sessions
+- **BREAKING CHANGE**: Rewrote `RoomManager` to use PostgreSQL with performance caching
+  - Room state now persists in database through `game_rooms` and `game_sessions` tables
+  - In-memory caching layer for active rooms to optimize performance
+  - Real-time session tracking through database entities
+  - Automatic cleanup of empty/inactive rooms with database persistence
+- Updated WebSocket API (`websocket.py`) to integrate with new database backend
+  - Enhanced room join/leave operations with proper database persistence
+  - Improved player disconnect handling with session cleanup
+  - Rich player information in room listings including character types
+  - Better error handling and validation for all WebSocket operations
+- Integrated database initialization into FastAPI application lifecycle
+  - Database connection initialized on app startup
+  - Graceful connection closure on app shutdown
+  - Proper error handling for database connection failures
+- Added database package structure with `__init__.py` for clean imports
+- Updated application architecture to single-database approach
+  - Eliminated architectural complexity of dual Redis/PostgreSQL setup
+  - Improved data consistency with ACID transaction guarantees
+  - Enhanced scalability foundation with repository pattern
+  - Better type safety through SQLAlchemy models

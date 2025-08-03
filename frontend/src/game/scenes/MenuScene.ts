@@ -181,7 +181,7 @@ export class MenuScene extends Scene {
     }
 
     private createConnectionStatus() {
-        this.connectionStatus = this.add.text(20, 20, 'Verbindung: Getrennt', {
+        this.connectionStatus = this.add.text(20, 20, 'Verbindung wird hergestellt...', {
             fontSize: '16px',
             color: '#e74c3c'
         })
@@ -196,13 +196,17 @@ export class MenuScene extends Scene {
         }
     }
 
-    private updateConnectionStatus() {
-        if (this.networkManager && this.networkManager.getConnectionStatus()) {
-            this.connectionStatus.setText('Verbindung: Verbunden')
-            this.connectionStatus.setColor('#27ae60')
+    public updateConnectionStatus() {
+        const isConnected = this.networkManager && this.networkManager.getConnectionStatus()
+        const statusText = isConnected ? 'Verbindung: Verbunden' : 'Verbindung: Getrennt'
+        const statusColor = isConnected ? '#27ae60' : '#e74c3c'
+        
+        if (this.connectionStatus) {
+            this.connectionStatus.setText(statusText)
+            this.connectionStatus.setColor(statusColor)
+            console.log(`🎮 MenuScene Status Updated: '${statusText}' (${isConnected ? 'CONNECTED' : 'DISCONNECTED'})`)
         } else {
-            this.connectionStatus.setText('Verbindung: Getrennt')
-            this.connectionStatus.setColor('#e74c3c')
+            console.warn('⚠️ MenuScene: connectionStatus text object not initialized!')
         }
     }
 

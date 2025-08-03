@@ -149,17 +149,23 @@ export class UIScene extends Scene {
         this.scoreText.setText(`Punkte: ${this.score}`)
     }
 
-    private updateConnectionStatus() {
+    public updateConnectionStatus() {
         // Get fresh NetworkManager from registry each time
         const currentNetworkManager = this.registry.get('networkManager')
         const isConnected = currentNetworkManager ? currentNetworkManager.getConnectionStatus() : false
         
-        if (currentNetworkManager && isConnected) {
-            this.connectionText.setText('Online: Verbunden')
-            this.connectionText.setColor('#27ae60')
+        if (this.connectionText) {
+            if (currentNetworkManager && isConnected) {
+                this.connectionText.setText('Online: Verbunden')
+                this.connectionText.setColor('#27ae60')
+                console.log(`🎮 UIScene Status Updated: 'Online: Verbunden' (CONNECTED)`)
+            } else {
+                this.connectionText.setText('Offline Modus') 
+                this.connectionText.setColor('#95a5a6')
+                console.log(`🎮 UIScene Status Updated: 'Offline Modus' (DISCONNECTED)`)
+            }
         } else {
-            this.connectionText.setText('Offline Modus') 
-            this.connectionText.setColor('#95a5a6')
+            console.warn('⚠️ UIScene: connectionText object not initialized!')
         }
     }
 

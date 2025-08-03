@@ -35,6 +35,17 @@ docker-compose logs -f
 - **PostgreSQL**: localhost:5432 (tannenbaum/password)
 - **Redis**: localhost:6379
 
+### 4. Integration Tests ausführen
+
+```bash
+# Selenium-Test für Frontend-Funktionalität
+cd tools
+./run_test.sh
+
+# Oder mit Docker Compose
+docker compose run --rm test
+```
+
 ## Entwicklungsworkflow
 
 ### Backend Development
@@ -77,6 +88,9 @@ docker-compose down
 
 # Volumes löschen (Datenbank reset)
 docker-compose down -v
+
+# Integration Tests ausführen
+docker-compose run --rm test
 ```
 
 ## Projekt Struktur
