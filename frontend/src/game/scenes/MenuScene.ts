@@ -1,15 +1,12 @@
 /**
  * Menu Scene - Main menu and room selection
  */
-import { Scene } from 'phaser'
+import Phaser, { Scene } from 'phaser'
 import { NetworkManager } from '../../network/NetworkManager'
 
 export class MenuScene extends Scene {
     private networkManager!: NetworkManager
-    private roomNameInput!: HTMLInputElement
-    private usernameInput!: HTMLInputElement
-    private joinButton!: Phaser.GameObjects.Text
-    private connectionStatus!: Phaser.GameObjects.Text
+    private menuForm!: Phaser.GameObjects.DOMElement
 
     constructor() {
         super({ key: 'MenuScene' })
@@ -18,15 +15,16 @@ export class MenuScene extends Scene {
     preload() {
         // Load menu assets
         this.createMenuAssets()
+        
+        // Load HTML form for menu inputs
+        this.load.html('menuform', '/src/game/forms/menu-form.html')
     }
 
     create() {
         this.networkManager = this.registry.get('networkManager')
         
         this.createBackground()
-        this.createTitle()
-        this.createInputs()
-        this.createButtons()
+        this.createMenuForm()
         this.createConnectionStatus()
         
         this.setupNetworkHandlers()
@@ -71,122 +69,48 @@ export class MenuScene extends Scene {
         }
     }
 
-    private createTitle() {
-        const title = this.add.text(this.scale.width / 2, 150, 'Tannenbaumbiel', {
-            fontSize: '48px',
-            fontFamily: 'Arial Black',
-            color: '#ffffff',
-            stroke: '#2c3e50',
-            strokeThickness: 4
-        }).setOrigin(0.5)
 
-        const subtitle = this.add.text(this.scale.width / 2, 200, 'Ein magisches Winterabenteuer', {
-            fontSize: '24px',
-            fontFamily: 'Arial',
-            color: '#ecf0f1',
-            style: 'italic'
-        }).setOrigin(0.5)
 
-        // Title animation
-        this.tweens.add({
-            targets: title,
-            scaleX: 1.1,
-            scaleY: 1.1,
-            duration: 2000,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.easeInOut'
+    private createMenuForm() {
+        // Create embedded HTML form using Phaser's DOM support
+        this.menuForm = this.add.dom(this.scale.width / 2, this.scale.height / 2).createFromCache('menuform')
+        
+        // Set default values from localStorage
+        const usernameInput = this.menuForm.getChildByName('username') as HTMLInputElement
+        const roomnameInput = this.menuForm.getChildByName('roomname') as HTMLInputElement
+        const joinButton = this.menuForm.getChildByID('join-game-btn') as HTMLButtonElement
+        const offlineButton = this.menuForm.getChildByID('offline-game-btn') as HTMLButtonElement
+        
+        if (usernameInput) {
+            usernameInput.value = localStorage.getItem('tannenbaum_username') || ''
+        }
+        
+        if (roomnameInput) {
+            roomnameInput.value = 'Winterwald'
+        }
+        
+        // Setup button event listeners
+        if (joinButton) {
+            joinButton.addEventListener('click', () => this.joinGame())
+        }
+        
+        if (offlineButton) {
+            offlineButton.addEventListener('click', () => this.startOfflineGame())
+        }
+        
+        // Setup Enter key listener for form submission
+        this.input.keyboard?.on('keydown-ENTER', () => {
+            this.joinGame()
         })
+        
+        // Update connection status now that the form is created
+        this.updateConnectionStatus()
     }
 
-    private createInputs() {
-        // Create HTML inputs (overlayed on canvas)
-        const container = document.createElement('div')
-        container.style.position = 'absolute'
-        container.style.top = '300px'
-        container.style.left = '50%'
-        container.style.transform = 'translateX(-50%)'
-        container.style.zIndex = '100'
-        
-        // Username input
-        const usernameLabel = document.createElement('label')
-        usernameLabel.textContent = 'Spielername:'
-        usernameLabel.style.color = 'white'
-        usernameLabel.style.display = 'block'
-        usernameLabel.style.marginBottom = '5px'
-        
-        this.usernameInput = document.createElement('input')
-        this.usernameInput.type = 'text'
-        this.usernameInput.placeholder = 'Dein Name'
-        this.usernameInput.maxLength = 20
-        this.usernameInput.style.padding = '10px'
-        this.usernameInput.style.marginBottom = '20px'
-        this.usernameInput.style.borderRadius = '5px'
-        this.usernameInput.style.border = 'none'
-        this.usernameInput.style.width = '200px'
-        
-        // Room name input
-        const roomLabel = document.createElement('label')
-        roomLabel.textContent = 'Weltname:'
-        roomLabel.style.color = 'white'
-        roomLabel.style.display = 'block'
-        roomLabel.style.marginBottom = '5px'
-        
-        this.roomNameInput = document.createElement('input')
-        this.roomNameInput.type = 'text'
-        this.roomNameInput.placeholder = 'Winterwald'
-        this.roomNameInput.maxLength = 30
-        this.roomNameInput.style.padding = '10px'
-        this.roomNameInput.style.borderRadius = '5px'
-        this.roomNameInput.style.border = 'none'
-        this.roomNameInput.style.width = '200px'
-        
-        container.appendChild(usernameLabel)
-        container.appendChild(this.usernameInput)
-        container.appendChild(roomLabel)
-        container.appendChild(this.roomNameInput)
-        
-        document.body.appendChild(container)
-        
-        // Default values
-        this.usernameInput.value = localStorage.getItem('tannenbaum_username') || ''
-        this.roomNameInput.value = 'Winterwald'
-    }
 
-    private createButtons() {
-        this.joinButton = this.add.text(this.scale.width / 2, 500, 'Spiel Starten', {
-            fontSize: '32px',
-            fontFamily: 'Arial',
-            color: '#ffffff',
-            backgroundColor: '#3498db',
-            padding: { x: 20, y: 10 }
-        }).setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => this.joinGame())
-        .on('pointerover', () => this.joinButton.setStyle({ backgroundColor: '#2980b9' }))
-        .on('pointerout', () => this.joinButton.setStyle({ backgroundColor: '#3498db' }))
-
-        // Offline mode button
-        const offlineButton = this.add.text(this.scale.width / 2, 570, 'Offline Spielen', {
-            fontSize: '24px',
-            fontFamily: 'Arial',
-            color: '#95a5a6',
-            backgroundColor: '#7f8c8d',
-            padding: { x: 15, y: 8 }
-        }).setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => this.startOfflineGame())
-        .on('pointerover', () => offlineButton.setStyle({ backgroundColor: '#6c7b7d' }))
-        .on('pointerout', () => offlineButton.setStyle({ backgroundColor: '#7f8c8d' }))
-    }
 
     private createConnectionStatus() {
-        this.connectionStatus = this.add.text(20, 20, 'Verbindung wird hergestellt...', {
-            fontSize: '16px',
-            color: '#e74c3c'
-        })
-
-        // Update connection status
+        // Initial connection status update
         this.updateConnectionStatus()
         
         if (this.networkManager) {
@@ -199,14 +123,23 @@ export class MenuScene extends Scene {
     public updateConnectionStatus() {
         const isConnected = this.networkManager && this.networkManager.getConnectionStatus()
         const statusText = isConnected ? 'Verbindung: Verbunden' : 'Verbindung: Getrennt'
-        const statusColor = isConnected ? '#27ae60' : '#e74c3c'
         
-        if (this.connectionStatus) {
-            this.connectionStatus.setText(statusText)
-            this.connectionStatus.setColor(statusColor)
-            console.log(`🎮 MenuScene Status Updated: '${statusText}' (${isConnected ? 'CONNECTED' : 'DISCONNECTED'})`)
+        // Update the connection status in the embedded form
+        if (this.menuForm) {
+            const statusElement = this.menuForm.node.querySelector('#connection-status') as HTMLElement
+            if (statusElement) {
+                statusElement.textContent = statusText
+                
+                // Remove all status classes and add the appropriate one
+                statusElement.classList.remove('connected', 'disconnected', 'connecting')
+                statusElement.classList.add(isConnected ? 'connected' : 'disconnected')
+                
+                console.log(`🎮 MenuScene Status Updated: '${statusText}' (${isConnected ? 'CONNECTED' : 'DISCONNECTED'})`)
+            } else {
+                console.warn('⚠️ MenuScene: connection-status element not found in form!')
+            }
         } else {
-            console.warn('⚠️ MenuScene: connectionStatus text object not initialized!')
+            console.warn('⚠️ MenuScene: menuForm not initialized!')
         }
     }
 
@@ -227,8 +160,11 @@ export class MenuScene extends Scene {
     }
 
     private joinGame() {
-        const username = this.usernameInput.value.trim()
-        const roomName = this.roomNameInput.value.trim()
+        const usernameInput = this.menuForm.getChildByName('username') as HTMLInputElement
+        const roomnameInput = this.menuForm.getChildByName('roomname') as HTMLInputElement
+        
+        const username = usernameInput?.value.trim() || ''
+        const roomName = roomnameInput?.value.trim() || 'Winterwald'
 
         if (!username) {
             this.showError('Bitte geben Sie einen Spielernamen ein')

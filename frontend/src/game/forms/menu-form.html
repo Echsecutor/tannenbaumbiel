@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        #menu-form {
+            background: linear-gradient(135deg, rgba(52, 73, 94, 0.95), rgba(44, 62, 80, 0.95));
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            font-family: 'Arial', sans-serif;
+            min-width: 320px;
+            text-align: center;
+        }
+
+        .game-title {
+            font-size: 48px;
+            font-family: 'Arial Black', Arial, sans-serif;
+            color: #ffffff;
+            text-shadow: 3px 3px 6px rgba(44, 62, 80, 0.8);
+            margin: 0 0 10px 0;
+            animation: titlePulse 2s ease-in-out infinite alternate;
+        }
+
+        .game-subtitle {
+            font-size: 18px;
+            font-family: Arial, sans-serif;
+            color: #ecf0f1;
+            font-style: italic;
+            margin: 0 0 30px 0;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        @keyframes titlePulse {
+            from {
+                transform: scale(1);
+            }
+
+            to {
+                transform: scale(1.05);
+            }
+        }
+
+        #menu-form label {
+            display: block;
+            color: #ecf0f1;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        #menu-form input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            color: #2c3e50;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        #menu-form input[type="text"]:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
+            transform: translateY(-2px);
+        }
+
+        #menu-form input[type="text"]::placeholder {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        #connection-status {
+            background: rgba(44, 62, 80, 0.8);
+            color: #bdc3c7;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        #connection-status.connected {
+            background: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+            border-color: rgba(39, 174, 96, 0.3);
+        }
+
+        #connection-status.disconnected {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border-color: rgba(231, 76, 60, 0.3);
+        }
+
+        #connection-status.connecting {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+            border-color: rgba(241, 196, 15, 0.3);
+        }
+
+        .game-button {
+            display: block;
+            width: 100%;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 20px;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .game-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-button.primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border: 2px solid #2980b9;
+        }
+
+        .game-button.primary:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
+            border-color: #21618c;
+        }
+
+        .game-button.secondary {
+            background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
+            border: 2px solid #6c7b7d;
+        }
+
+        .game-button.secondary:hover {
+            background: linear-gradient(135deg, #6c7b7d, #5d6d6e);
+            border-color: #5d6d6e;
+        }
+
+        .input-section {
+            margin: 20px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="menu-form">
+        <h1 class="game-title">Tannenbaumbiel</h1>
+        <p class="game-subtitle">Ein magisches Winterabenteuer</p>
+
+        <div class="input-section">
+            <label for="username">Spielername:</label>
+            <input type="text" name="username" id="username" placeholder="Dein Name" maxlength="20" />
+
+            <label for="roomname">Weltname:</label>
+            <input type="text" name="roomname" id="roomname" placeholder="Winterwald" maxlength="30" />
+        </div>
+
+        <button id="join-game-btn" class="game-button primary">Spiel Starten</button>
+        <button id="offline-game-btn" class="game-button secondary">Offline Spielen</button>
+
+        <div id="connection-status" class="connecting">Verbindung wird hergestellt...</div>
+    </div>
+</body>
+
+</html>

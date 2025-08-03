@@ -23,7 +23,11 @@
 - ✅ **Kampf-System**: Projectile Shooting + Enemy Health
 - ✅ **Animationen**: Sprite-basierte Character Animationen
 - ✅ **Mobile Support**: Touch Controls für Bewegung/Sprung/Schießen
-- ✅ **UI Elements**: Health Display, Control Instructions
+- ✅ **UI Elements**: Health Display, Control Instructions, Fully HTML-based Menu Interface
+- ✅ **Input System**: Complete HTML form with buttons, inputs, and connection status
+- ✅ **Menu Interface**: Headlines, buttons, and connection status all in HTML form (no mixed Phaser/HTML layout)
+- ✅ **Button System**: HTML buttons with CSS styling, hover effects, and JavaScript event handling
+- ✅ **Unified Layout**: All menu elements consolidated in embedded HTML form for consistent presentation
 - ✅ **Spiel-Zustand**: Game Over, Victory Screens
 
 ### Backend (FastAPI Server)

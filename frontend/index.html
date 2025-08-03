@@ -70,27 +70,6 @@
             border-radius: 5px;
             z-index: 1001;
         }
-
-        #connection-status {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 12px;
-            z-index: 1001;
-            transition: color 0.3s ease;
-        }
-
-        #connection-status.connected {
-            color: #27ae60;
-        }
-
-        #connection-status.disconnected {
-            color: #e74c3c;
-        }
     </style>
 </head>
 
@@ -101,7 +80,6 @@
             <div>Lade Tannenbaumbiel...</div>
         </div>
         <div id="error-message"></div>
-        <div id="connection-status" class="disconnected">Verbindung: Getrennt</div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

@@ -51,6 +51,11 @@ export const GameConfig: Types.Core.GameConfig = {
         disableWebAudio: false,
     },
     
+    // DOM element support for embedded HTML forms
+    dom: {
+        createContainer: true
+    },
+    
     // Scene configuration
     scene: [
         MenuScene,

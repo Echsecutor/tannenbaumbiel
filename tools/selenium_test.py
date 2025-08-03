@@ -273,74 +273,53 @@ class TannenbaumGameTest:
             return False
 
     def check_connection_status(self):
-        """Check the connection status displayed in both HTML element and game text"""
+        """Check the connection status displayed in the menu form"""
         try:
-            # Check HTML connection status element
-            connection_status = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID, "connection-status"))
+            # Wait for the game to load and the menu form to appear
+            WebDriverWait(self.driver, 15).until_not(
+                EC.visibility_of_element_located((By.ID, "loading"))
             )
 
-            status_text = connection_status.text
-            status_class = connection_status.get_attribute("class")
+            # Check for connection status within the DOM element (embedded in Phaser)
+            # The connection status is now part of the menu form DOM element
+            connection_status = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "canvas"))
+            )
 
-            logger.info(f"📱 HTML Connection status: '{status_text}' (class: {status_class})")
-
-            # Check if the element is visible on screen
-            is_displayed = connection_status.is_displayed()
-            location = connection_status.location
-            size = connection_status.size
-            logger.info(f"📱 HTML status element - displayed: {is_displayed}, location: {location}, size: {size}")
-
-            # Try to get Phaser game status from console logs or by executing script
-            try:
-                game_status_info = self.driver.execute_script("""
-                    // Try to get status from active scenes
-                    let statusInfo = [];
-                    if (window.game && window.game.scene) {
-                        const scenes = window.game.scene.getScenes(true);
-                        scenes.forEach(scene => {
-                            if (scene.connectionStatus && scene.connectionStatus.text) {
-                                statusInfo.push({
-                                    scene: scene.scene.key,
-                                    text: scene.connectionStatus.text,
-                                    color: scene.connectionStatus.style ? scene.connectionStatus.style.color : 'unknown'
-                                });
-                            }
-                            if (scene.connectionText && scene.connectionText.text) {
-                                statusInfo.push({
-                                    scene: scene.scene.key + '_UI',
-                                    text: scene.connectionText.text,
-                                    color: scene.connectionText.style ? scene.connectionText.style.color : 'unknown'
-                                });
-                            }
-                        });
+            # Execute script to get the connection status from the embedded form
+            status_info = self.driver.execute_script("""
+                if (window.game && window.game.scene) {
+                    const menuScene = window.game.scene.getScene('MenuScene');
+                    if (menuScene && menuScene.menuForm && menuScene.menuForm.node) {
+                        const statusElement = menuScene.menuForm.node.querySelector('#connection-status');
+                        if (statusElement) {
+                            return {
+                                text: statusElement.textContent,
+                                className: statusElement.className
+                            };
+                        }
                     }
-                    return statusInfo;
-                """)
+                }
+                return null;
+            """)
 
-                logger.info(f"🎮 Game status indicators: {game_status_info}")
+            if status_info:
+                status_text = status_info['text']
+                status_class = status_info['className']
+                logger.info(f"📱 Menu Form Connection status: '{status_text}' (class: {status_class})")
+            else:
+                logger.warning("⚠️ Could not find connection status in menu form")
+                return False
 
-                # Check if any game indicators show different status than HTML
-                html_connected = "Verbindung: Verbunden" in status_text and "connected" in status_class
-
-                for game_status in game_status_info:
-                    game_connected = "Verbunden" in game_status['text'] or "Online: Verbunden" in game_status['text']
-                    if html_connected != game_connected:
-                        logger.warning(f"⚠️ STATUS MISMATCH! HTML: {html_connected}, Game ({game_status['scene']}): {game_connected}")
-                        logger.warning(f"   HTML text: '{status_text}', Game text: '{game_status['text']}'")
-
-            except Exception as e:
-                logger.warning(f"⚠️ Could not check game status indicators: {e}")
-
-            # Determine overall status based on HTML element (primary source)
-            if "Verbindung: Verbunden" in status_text and "connected" in status_class:
-                logger.info("✅ HTML Connection status shows as CONNECTED")
+            # Determine overall status based on menu form connection status
+            if status_info and "Verbindung: Verbunden" in status_text and "connected" in status_class:
+                logger.info("✅ Menu Form Connection status shows as CONNECTED")
                 return True
-            elif "Verbindung: Getrennt" in status_text and "disconnected" in status_class:
-                logger.warning("⚠️ HTML Connection status shows as DISCONNECTED - backend may not be reachable")
+            elif status_info and "Verbindung: Getrennt" in status_text and "disconnected" in status_class:
+                logger.warning("⚠️ Menu Form Connection status shows as DISCONNECTED - backend may not be reachable")
                 return False
             else:
-                logger.warning(f"⚠️ Unexpected HTML connection status: '{status_text}' with class '{status_class}'")
+                logger.warning(f"⚠️ Unexpected menu form connection status: '{status_text}' with class '{status_class}'")
                 return False
 
         except Exception as e:
@@ -436,91 +415,70 @@ class TannenbaumGameTest:
             logger.info("✓ Screenshot saved: before_game_start.png")
             self.debug_pause("Screenshot taken. Ready to click the 'Spiel Starten' button.")
 
-            # Find and click the "Spiel Starten" button
-            # We need to click on the Phaser canvas element that contains the button
-            # Since it's a Phaser game, we'll try multiple approaches to ensure the click works
-            canvas = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "canvas"))
-            )
-
-            # First, try to get the actual button position from the game
-            button_info = self.driver.execute_script("""
-                // Try to get button position from the MenuScene
-                let buttonInfo = { found: false, x: 0, y: 0, gameWidth: 0, gameHeight: 0 };
-                if (window.game && window.game.scene) {
-                    const menuScene = window.game.scene.getScene('MenuScene');
-                    if (menuScene && menuScene.joinButton) {
-                        const button = menuScene.joinButton;
-                        buttonInfo.found = true;
-                        buttonInfo.x = button.x;
-                        buttonInfo.y = button.y;
-                        buttonInfo.gameWidth = menuScene.scale.width;
-                        buttonInfo.gameHeight = menuScene.scale.height;
-                        console.log('Button found at game coordinates:', buttonInfo);
-                    }
-                }
-                return buttonInfo;
-            """)
-
-            if button_info['found']:
-                logger.info(f"✓ Found button at game coordinates: x={button_info['x']}, y={button_info['y']}")
-                logger.info(f"  Game dimensions: {button_info['gameWidth']}x{button_info['gameHeight']}")
-
-                # Convert game coordinates to canvas coordinates
-                canvas_size = canvas.size
-                scale_x = canvas_size['width'] / button_info['gameWidth']
-                scale_y = canvas_size['height'] / button_info['gameHeight']
-
-                click_x = int(button_info['x'] * scale_x)
-                click_y = int(button_info['y'] * scale_y)
-
-                logger.info(f"  Canvas size: {canvas_size['width']}x{canvas_size['height']}")
-                logger.info(f"  Scale factors: x={scale_x:.2f}, y={scale_y:.2f}")
-                logger.info(f"  Calculated canvas click position: x={click_x}, y={click_y}")
-            else:
-                logger.warning("⚠ Could not find button in game - using fallback coordinates")
-                # Fallback to original approach but more precise
-                canvas_size = canvas.size
-                click_x = canvas_size['width'] // 2
-                click_y = 500  # Use the exact y-coordinate from MenuScene code
-                logger.info(f"  Using fallback coordinates: x={click_x}, y={click_y}")
-
-            # Try clicking via JavaScript first (more reliable)
+            # Find and click the "Spiel Starten" button - now it's an HTML button in the embedded form
             try:
+                # Try to click the HTML button via JavaScript (more reliable with embedded DOM)
                 click_result = self.driver.execute_script("""
-                    const canvas = document.querySelector('canvas');
-                    if (canvas && window.game && window.game.scene) {
+                    if (window.game && window.game.scene) {
                         const menuScene = window.game.scene.getScene('MenuScene');
-                        if (menuScene && menuScene.joinButton) {
-                            // Simulate a click on the button directly
-                            menuScene.joinButton.emit('pointerdown');
-                            console.log('Button clicked via JavaScript');
-                            return { success: true, method: 'javascript' };
+                        if (menuScene && menuScene.menuForm && menuScene.menuForm.node) {
+                            const joinButton = menuScene.menuForm.node.querySelector('#join-game-btn');
+                            if (joinButton) {
+                                joinButton.click();
+                                console.log('HTML join button clicked via JavaScript');
+                                return { success: true, method: 'javascript', button: 'join-game-btn' };
+                            }
                         }
                     }
                     return { success: false, method: 'javascript' };
                 """)
 
                 if click_result['success']:
-                    logger.info("✓ Successfully clicked button via JavaScript")
+                    logger.info(f"✓ Successfully clicked {click_result['button']} button via JavaScript")
                 else:
-                    raise Exception("JavaScript click failed")
+                    raise Exception("JavaScript click on HTML button failed")
 
             except Exception as js_error:
-                logger.warning(f"⚠ JavaScript click failed: {js_error}, trying Selenium click")
+                logger.warning(f"⚠ JavaScript click failed: {js_error}, trying direct DOM selection")
 
-                # Fallback to Selenium click
-                from selenium.webdriver.common.action_chains import ActionChains
-                actions = ActionChains(self.driver)
-                actions.move_to_element_with_offset(canvas, click_x - canvas_size['width'] // 2, click_y - canvas_size['height'] // 2)
+                # Fallback: try to find the button in the DOM (though it might be in shadow DOM)
+                try:
+                    # Since the form is embedded in Phaser DOM element, we need to be creative
+                    join_button = WebDriverWait(self.driver, 5).until(
+                        EC.element_to_be_clickable((By.ID, "join-game-btn"))
+                    )
+                    join_button.click()
+                    logger.info("✓ Successfully clicked join button via direct DOM selection")
 
-                if self.debug_mode:
-                    logger.info(f"About to click at coordinates: x={click_x}, y={click_y}")
-                    self.debug_pause("Watch the mouse cursor move to the button area and click.")
+                except Exception as dom_error:
+                    logger.error(f"❌ Could not find HTML join button: {dom_error}")
+                    logger.info("Falling back to offline game button")
 
-                actions.click()
-                actions.perform()
-                logger.info("✓ Clicked game start button area via Selenium")
+                    # Try offline button as fallback
+                    try:
+                        offline_result = self.driver.execute_script("""
+                            if (window.game && window.game.scene) {
+                                const menuScene = window.game.scene.getScene('MenuScene');
+                                if (menuScene && menuScene.menuForm && menuScene.menuForm.node) {
+                                    const offlineButton = menuScene.menuForm.node.querySelector('#offline-game-btn');
+                                    if (offlineButton) {
+                                        offlineButton.click();
+                                        console.log('HTML offline button clicked as fallback');
+                                        return { success: true, method: 'javascript', button: 'offline-game-btn' };
+                                    }
+                                }
+                            }
+                            return { success: false, method: 'javascript' };
+                        """)
+
+                        if offline_result['success']:
+                            logger.info(f"✓ Successfully clicked {offline_result['button']} button as fallback")
+                        else:
+                            raise Exception("All button click methods failed")
+
+                    except Exception as final_error:
+                        logger.error(f"❌ All button click attempts failed: {final_error}")
+                        return False
 
             # Wait a moment for the game to respond
             self.debug_sleep(3)
