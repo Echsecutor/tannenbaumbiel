@@ -16,7 +16,7 @@
 ### Frontend (Phaser 3 Game)
 
 - ✅ **Spielfigur**: Dude Monster mit Idle/Run/Jump Animationen
-- ✅ **Bewegungssteuerung**: Arrow Keys + WASD Support
+- ✅ **Bewegungssteuerung**: Arrow Keys + WASD Support (Space bar for shooting)
 - ✅ **Physics Engine**: Arcade Physics mit Kollisionserkennung
 - ✅ **Plattform-Spiel**: Springbare Plattformen und Hindernisse
 - ✅ **Gegner-System**: Owlet Monster + Pink Monster Boss
@@ -188,8 +188,8 @@ max-line-length = 120
 Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
 
 1. **Steuerung**: Pfeiltasten oder WASD zum bewegen
-2. **Springen**: Sprungmechanik mit Physics
-3. **Kämpfen**: Mausklick zum Schießen
+2. **Springen**: Up/W Tasten (Sprungmechanik mit Physics)
+3. **Kämpfen**: Space bar oder Mausklick zum Schießen
 4. **Ziel**: Alle Gegner besiegen für Victory
 5. **Mobile**: Touch Controls für mobile Geräte
 

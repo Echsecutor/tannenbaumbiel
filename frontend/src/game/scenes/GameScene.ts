@@ -323,12 +323,12 @@ export class GameScene extends Scene {
         }
 
         // Jumping
-        if ((this.cursors.up.isDown || this.wasd.W.isDown || this.wasd.SPACE.isDown) && this.player.body!.touching.down) {
+        if ((this.cursors.up.isDown || this.wasd.W.isDown) && this.player.body!.touching.down) {
             this.setPlayerInput('jump', true)
         }
 
         // Shooting
-        if (this.input.activePointer.isDown && !this.input.activePointer.wasTouch) {
+        if ((this.input.activePointer.isDown && !this.input.activePointer.wasTouch) || this.wasd.SPACE.isDown) {
             this.setPlayerInput('shoot', true)
         }
     }
