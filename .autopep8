@@ -1,0 +1,7 @@
+[autopep8]
+# Sichere autopep8-Konfiguration die String-Literale nicht umbricht
+select = E1,E2,E3,E401,W2,W3
+ignore = E226,E24,E26,E501,E502
+max_line_length = 120
+in-place = true
+recursive = true
