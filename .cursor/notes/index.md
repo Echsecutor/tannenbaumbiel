@@ -25,6 +25,13 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 - Client-Side Physics mit Server Reconciliation
 - Network Efficiency und Performance Optimization
 
+### [Multiplayer Debugging](multiplayer_debugging.md)
+
+- Common Network Game Issues und Fixes
+- Sprite Creation Safety Patterns
+- Error Handling Best Practices
+- Performance Monitoring und Debugging Tools
+
 ### [Repository Structure](repository_structure.md)
 
 - Projektordner-Organisation

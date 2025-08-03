@@ -38,6 +38,15 @@ export class GameScene extends Scene {
         this.isOffline = data.offline || false
         this.roomData = data.roomData || null
         
+        // Store original join parameters for restart functionality
+        if (data.roomData && !this.isOffline) {
+            // Extract or determine the original join parameters
+            // These should be passed from MenuScene or derived from the data
+            this.registry.set('originalRoomName', data.originalRoomName || 'Winterwald')
+            this.registry.set('originalUsername', data.originalUsername || 'Player')
+            console.log('💾 Stored original join parameters:', data.originalRoomName, data.originalUsername)
+        }
+        
         // Get player ID directly from scene data (passed from MenuScene)
         if (data.myPlayerId) {
             this.myPlayerId = data.myPlayerId
@@ -46,10 +55,32 @@ export class GameScene extends Scene {
             console.log('✅ GameScene.init: Room join pre-confirmed, ready to broadcast game state')
         }
         
+        // Check if this is a restart that should rejoin the room
+        const shouldRejoinRoom = this.registry.get('shouldRejoinRoom')
+        const lastRoomData = this.registry.get('lastRoomData')
+        
+        if (shouldRejoinRoom && lastRoomData && !this.isOffline) {
+            console.log('🔄 Restart detected, will rejoin room:', lastRoomData)
+            this.isOffline = false
+            this.roomData = lastRoomData
+            
+            // Clear the rejoin flags
+            this.registry.set('shouldRejoinRoom', false)
+            this.registry.set('lastRoomData', null)
+            
+            // Set up for automatic rejoin after scene creation
+            this.events.once('create', () => {
+                setTimeout(() => {
+                    this.autoRejoinAfterRestart()
+                }, 200) // Small delay to ensure scene is fully created
+            })
+        }
+        
         console.log('GameScene initialized:', { 
             offline: this.isOffline, 
             roomData: this.roomData,
-            myPlayerId: this.myPlayerId 
+            myPlayerId: this.myPlayerId,
+            shouldRejoin: shouldRejoinRoom 
         })
     }
 
@@ -701,37 +732,66 @@ export class GameScene extends Scene {
         let sprite = this.networkPlayers.get(playerState.player_id)
         
         if (!sprite) {
-            // Create new network player sprite
-            sprite = this.physics.add.sprite(playerState.x, playerState.y, 'player_idle')
-            // Use same scale as local player (default 1.0)
-            sprite.setTint(0x00ff00) // Green tint to differentiate from local player
-            sprite.setData('health', playerState.health)
-            sprite.setData('facingRight', playerState.facing_right)
-            
-            // Add physics (same as local player)
-            sprite.setBounce(0.2)
-            sprite.setCollideWorldBounds(true)
-            
-            // Add collisions with platforms
-            this.physics.add.collider(sprite, this.platforms)
-            
-            this.networkPlayers.set(playerState.player_id, sprite)
-            console.log(`🟢 Created network player: ${playerState.username} (${playerState.player_id}) at ${playerState.x},${playerState.y}`)
+            try {
+                // Create new network player sprite
+                sprite = this.physics.add.sprite(playerState.x, playerState.y, 'player_idle')
+                
+                // Verify sprite was created successfully
+                if (!sprite) {
+                    console.error(`❌ Failed to create sprite for network player ${playerState.player_id}`)
+                    return // Exit early
+                }
+                
+                // Use same scale as local player (default 1.0)
+                sprite.setTint(0x00ff00) // Green tint to differentiate from local player
+                sprite.setData('health', playerState.health)
+                sprite.setData('facingRight', playerState.facing_right)
+                
+                // Add physics (same as local player)
+                sprite.setBounce(0.2)
+                sprite.setCollideWorldBounds(true)
+                
+                // Add collisions with platforms
+                this.physics.add.collider(sprite, this.platforms)
+                
+                this.networkPlayers.set(playerState.player_id, sprite)
+                console.log(`🟢 Created network player: ${playerState.username} (${playerState.player_id}) at ${playerState.x},${playerState.y}`)
+            } catch (error) {
+                console.error(`❌ Error creating network player ${playerState.player_id}:`, error)
+                return // Exit early
+            }
         }
         
-        // Update position and state
-        sprite.setPosition(playerState.x, playerState.y)
-        sprite.setFlipX(!playerState.facing_right)
-        sprite.setData('health', playerState.health)
-        sprite.setData('facingRight', playerState.facing_right)
+        // Safety check: Ensure sprite exists before updating
+        if (!sprite) {
+            console.error(`❌ Sprite is undefined for network player ${playerState.player_id}, skipping update`)
+            return
+        }
         
-        // Update animation based on server state
-        if (Math.abs(playerState.velocity_x) > 10) {
-            sprite.play('player_run_anim', true)
-        } else if (playerState.is_jumping || !playerState.is_grounded) {
-            sprite.play('player_jump_anim', true)
-        } else {
-            sprite.play('player_idle_anim', true)
+        try {
+            // Update position and state
+            sprite.setPosition(playerState.x, playerState.y)
+            sprite.setFlipX(!playerState.facing_right)
+            sprite.setData('health', playerState.health)
+            sprite.setData('facingRight', playerState.facing_right)
+        } catch (error) {
+            console.error(`❌ Error updating network player ${playerState.player_id}:`, error)
+            return
+        }
+        
+        // Update animation based on server state (with safety checks)
+        if (sprite && sprite.anims) {
+            try {
+                if (Math.abs(playerState.velocity_x) > 10) {
+                    sprite.play('player_run_anim', true)
+                } else if (playerState.is_jumping || !playerState.is_grounded) {
+                    sprite.play('player_jump_anim', true)
+                } else {
+                    sprite.play('player_idle_anim', true)
+                }
+            } catch (error) {
+                console.error(`❌ Error playing animation for network player ${playerState.player_id}:`, error)
+            }
         }
     }
     
@@ -745,58 +805,104 @@ export class GameScene extends Scene {
             let sprite = this.networkEnemies.get(enemyState.enemy_id)
             
             if (!sprite) {
-                // Create new network enemy sprite
-                const texture = enemyState.enemy_type === 'pink_boss' ? 'pink_enemy_idle' : 'enemy_idle'
-                sprite = this.physics.add.sprite(enemyState.x, enemyState.y, texture)
-                
-                // Set up enemy properties
-                sprite.setData('health', enemyState.health)
-                sprite.setData('type', enemyState.enemy_type)
-                sprite.setData('facingRight', enemyState.facing_right)
-                
-                // Boss is bigger
-                if (enemyState.enemy_type === 'pink_boss') {
-                    sprite.setScale(1.5)
-                    sprite.setTint(0xff69b4) // Pink tint for network boss
-                } else {
-                    sprite.setTint(0xffa500) // Orange tint for network enemies
+                try {
+                    // Create new network enemy sprite
+                    const texture = enemyState.enemy_type === 'pink_boss' ? 'pink_enemy_idle' : 'enemy_idle'
+                    sprite = this.physics.add.sprite(enemyState.x, enemyState.y, texture)
+                    
+                    // Verify sprite was created successfully
+                    if (!sprite) {
+                        console.error(`❌ Failed to create sprite for enemy ${enemyState.enemy_id}`)
+                        continue // Skip this enemy and move to next
+                    }
+                    
+                    // Verify physics body was created
+                    if (!sprite.body) {
+                        console.warn(`⚠️ Physics body missing for enemy ${enemyState.enemy_id}, attempting to enable physics`)
+                        // Try to enable physics manually
+                        this.physics.world.enable(sprite)
+                        if (!sprite.body) {
+                            console.error(`❌ Failed to enable physics for enemy ${enemyState.enemy_id}`)
+                            continue
+                        }
+                    }
+                    
+                    // Set up enemy properties
+                    sprite.setData('health', enemyState.health)
+                    sprite.setData('type', enemyState.enemy_type)
+                    sprite.setData('facingRight', enemyState.facing_right)
+                    
+                    // Boss is bigger
+                    if (enemyState.enemy_type === 'pink_boss') {
+                        sprite.setScale(1.5)
+                        sprite.setTint(0xff69b4) // Pink tint for network boss
+                    } else {
+                        sprite.setTint(0xffa500) // Orange tint for network enemies
+                    }
+                    
+                    // Add physics (but no client-side AI)
+                    sprite.setBounce(0)
+                    sprite.setCollideWorldBounds(true)
+                    
+                    // Add collisions with platforms
+                    this.physics.add.collider(sprite, this.platforms)
+                    
+                    // Add collision with local player
+                    this.physics.add.overlap(this.player, sprite, this.hitEnemy, undefined, this)
+                    
+                    // Add collision with projectiles
+                    this.physics.add.overlap(this.projectiles, sprite, this.projectileHitEnemy, undefined, this)
+                    
+                    this.networkEnemies.set(enemyState.enemy_id, sprite)
+                    console.log(`🦴 Created network enemy: ${enemyState.enemy_id} (${enemyState.enemy_type}) at ${enemyState.x},${enemyState.y}`)
+                } catch (error) {
+                    console.error(`❌ Error creating network enemy ${enemyState.enemy_id}:`, error)
+                    continue // Skip this enemy and move to next
                 }
-                
-                // Add physics (but no client-side AI)
-                sprite.setBounce(0)
-                sprite.setCollideWorldBounds(true)
-                
-                // Add collisions with platforms
-                this.physics.add.collider(sprite, this.platforms)
-                
-                // Add collision with local player
-                this.physics.add.overlap(this.player, sprite, this.hitEnemy, undefined, this)
-                
-                // Add collision with projectiles
-                this.physics.add.overlap(this.projectiles, sprite, this.projectileHitEnemy, undefined, this)
-                
-                this.networkEnemies.set(enemyState.enemy_id, sprite)
-                console.log(`🦴 Created network enemy: ${enemyState.enemy_id} (${enemyState.enemy_type}) at ${enemyState.x},${enemyState.y}`)
             }
             
-            // Update position and state from server
-            sprite.setPosition(enemyState.x, enemyState.y)
-            sprite.setVelocity(enemyState.velocity_x, enemyState.velocity_y)
-            sprite.setFlipX(!enemyState.facing_right)
-            sprite.setData('health', enemyState.health)
+            // Safety check: Ensure sprite exists before updating
+            if (!sprite) {
+                console.error(`❌ Sprite is undefined for enemy ${enemyState.enemy_id}, skipping update`)
+                continue
+            }
             
-            // Update animation based on server state
-            if (Math.abs(enemyState.velocity_x) > 10) {
-                if (enemyState.enemy_type === 'pink_boss') {
-                    sprite.play('pink_enemy_walk_anim', true)
+            try {
+                // Update position and state from server
+                sprite.setPosition(enemyState.x, enemyState.y)
+                
+                // Check if physics body exists before setting velocity
+                if (sprite.body) {
+                    sprite.setVelocity(enemyState.velocity_x, enemyState.velocity_y)
                 } else {
-                    sprite.play('enemy_walk_anim', true)
+                    console.warn(`⚠️ Enemy ${enemyState.enemy_id} has no physics body, skipping velocity update`)
                 }
-            } else {
-                if (enemyState.enemy_type === 'pink_boss') {
-                    sprite.play('pink_enemy_idle_anim', true)
-                } else {
-                    sprite.play('enemy_idle_anim', true)
+                
+                sprite.setFlipX(!enemyState.facing_right)
+                sprite.setData('health', enemyState.health)
+            } catch (error) {
+                console.error(`❌ Error updating enemy ${enemyState.enemy_id}:`, error)
+                continue
+            }
+            
+            // Update animation based on server state (with safety checks)
+            if (sprite && sprite.anims) {
+                try {
+                    if (Math.abs(enemyState.velocity_x) > 10) {
+                        if (enemyState.enemy_type === 'pink_boss') {
+                            sprite.play('pink_enemy_walk_anim', true)
+                        } else {
+                            sprite.play('enemy_walk_anim', true)
+                        }
+                    } else {
+                        if (enemyState.enemy_type === 'pink_boss') {
+                            sprite.play('pink_enemy_idle_anim', true)
+                        } else {
+                            sprite.play('enemy_idle_anim', true)
+                        }
+                    }
+                } catch (error) {
+                    console.error(`❌ Error playing animation for enemy ${enemyState.enemy_id}:`, error)
                 }
             }
         }
@@ -826,21 +932,61 @@ export class GameScene extends Scene {
             let sprite = this.networkProjectiles.get(projectileState.projectile_id)
             
             if (!sprite) {
-                // Create new network projectile sprite
-                sprite = this.physics.add.sprite(projectileState.x, projectileState.y, 'projectile')
-                sprite.setTint(0xff0000) // Red tint for network projectiles
-                
-                // Add collisions
-                this.physics.add.overlap(sprite, this.enemies, this.projectileHitEnemy, undefined, this)
-                this.physics.add.collider(sprite, this.platforms, this.projectileHitPlatform, undefined, this)
-                
-                this.networkProjectiles.set(projectileState.projectile_id, sprite)
-                console.log(`🔴 Created network projectile: ${projectileState.projectile_id}`)
+                try {
+                    // Create new network projectile sprite
+                    sprite = this.physics.add.sprite(projectileState.x, projectileState.y, 'projectile')
+                    
+                    // Verify sprite was created successfully
+                    if (!sprite) {
+                        console.error(`❌ Failed to create sprite for projectile ${projectileState.projectile_id}`)
+                        continue // Skip this projectile and move to next
+                    }
+                    
+                    // Verify physics body was created
+                    if (!sprite.body) {
+                        console.warn(`⚠️ Physics body missing for projectile ${projectileState.projectile_id}, attempting to enable physics`)
+                        // Try to enable physics manually
+                        this.physics.world.enable(sprite)
+                        if (!sprite.body) {
+                            console.error(`❌ Failed to enable physics for projectile ${projectileState.projectile_id}`)
+                            continue
+                        }
+                    }
+                    
+                    sprite.setTint(0xff0000) // Red tint for network projectiles
+                    
+                    // Add collisions
+                    this.physics.add.overlap(sprite, this.enemies, this.projectileHitEnemy, undefined, this)
+                    this.physics.add.collider(sprite, this.platforms, this.projectileHitPlatform, undefined, this)
+                    
+                    this.networkProjectiles.set(projectileState.projectile_id, sprite)
+                    console.log(`🔴 Created network projectile: ${projectileState.projectile_id}`)
+                } catch (error) {
+                    console.error(`❌ Error creating network projectile ${projectileState.projectile_id}:`, error)
+                    continue // Skip this projectile and move to next
+                }
             }
             
-            // Update position and velocity
-            sprite.setPosition(projectileState.x, projectileState.y)
-            sprite.setVelocity(projectileState.velocity_x, projectileState.velocity_y)
+            // Safety check: Ensure sprite exists before updating
+            if (!sprite) {
+                console.error(`❌ Sprite is undefined for projectile ${projectileState.projectile_id}, skipping update`)
+                continue
+            }
+            
+            try {
+                // Update position and velocity
+                sprite.setPosition(projectileState.x, projectileState.y)
+                
+                // Check if physics body exists before setting velocity
+                if (sprite.body) {
+                    sprite.setVelocity(projectileState.velocity_x, projectileState.velocity_y)
+                } else {
+                    console.warn(`⚠️ Projectile ${projectileState.projectile_id} has no physics body, skipping velocity update`)
+                }
+            } catch (error) {
+                console.error(`❌ Error updating projectile ${projectileState.projectile_id}:`, error)
+                continue
+            }
         }
         
         // Remove projectiles that no longer exist
@@ -872,10 +1018,109 @@ export class GameScene extends Scene {
         }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => {
-            this.scene.restart()
+            this.restartMultiplayerGame()
         })
 
         this.physics.pause()
+    }
+
+    private restartMultiplayerGame() {
+        console.log('🔄 Starting multiplayer-aware game restart...')
+        
+        if (!this.isOffline && this.networkManager && this.networkManager.getConnectionStatus()) {
+            console.log('🏠 Leaving room before restart for proper synchronization...')
+            
+            // Clean up network state before leaving
+            this.cleanupNetworkEntities()
+            
+            // Leave the room to notify other players
+            this.networkManager.leaveRoom()
+            
+            // Set a flag to rejoin after restart and preserve original join parameters
+            this.registry.set('shouldRejoinRoom', true)
+            this.registry.set('lastRoomData', this.roomData)
+            
+            // Ensure original join parameters are preserved for rejoin
+            if (!this.registry.get('originalRoomName') || !this.registry.get('originalUsername')) {
+                console.warn('⚠️ Original join parameters missing during restart, using defaults')
+                this.registry.set('originalRoomName', 'Winterwald')
+                this.registry.set('originalUsername', 'Player')
+            }
+            
+            // Wait a moment for leave message to be processed
+            setTimeout(() => {
+                console.log('🎮 Restarting scene after leaving room...')
+                this.scene.restart()
+            }, 100)
+        } else {
+            // Offline mode - simple restart
+            console.log('🎮 Offline restart...')
+            this.scene.restart()
+        }
+    }
+    
+    private cleanupNetworkEntities() {
+        console.log('🧹 Cleaning up network entities before restart...')
+        
+        // Destroy all network players
+        for (const [playerId, sprite] of this.networkPlayers) {
+            sprite.destroy()
+        }
+        this.networkPlayers.clear()
+        
+        // Destroy all network enemies
+        for (const [enemyId, sprite] of this.networkEnemies) {
+            sprite.destroy()
+        }
+        this.networkEnemies.clear()
+        
+        // Destroy all network projectiles
+        for (const [projectileId, sprite] of this.networkProjectiles) {
+            sprite.destroy()
+        }
+        this.networkProjectiles.clear()
+        
+        console.log('✅ Network entities cleaned up')
+    }
+    
+    private async autoRejoinAfterRestart() {
+        console.log('🔄 Auto-rejoining room after restart...')
+        
+        if (!this.networkManager) {
+            console.error('❌ NetworkManager not available for rejoin')
+            return
+        }
+        
+        // Check if we have the original join parameters stored
+        const originalRoomName = this.registry.get('originalRoomName')
+        const originalUsername = this.registry.get('originalUsername')
+        
+        if (!originalRoomName || !originalUsername) {
+            console.error('❌ No original join parameters available for rejoin')
+            return
+        }
+        
+        try {
+            // Reset networking state
+            this.myPlayerId = ''
+            this.roomJoinConfirmed = false
+            this.networkPlayers.clear()
+            this.networkEnemies.clear()
+            this.networkProjectiles.clear()
+            
+            // Rejoin the room using the original parameters
+            console.log('🏠 Rejoining room:', originalRoomName, 'as', originalUsername)
+            this.networkManager.joinRoom(originalRoomName, originalUsername)
+            
+            // Set up network handlers for the rejoined session
+            this.setupNetworkHandlers()
+            
+            console.log('✅ Rejoin process initiated')
+        } catch (error) {
+            console.error('❌ Error during auto-rejoin:', error)
+            // Fall back to offline mode if rejoin fails
+            this.isOffline = true
+        }
     }
 
     private victory() {

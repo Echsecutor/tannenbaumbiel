@@ -146,10 +146,19 @@ export class MenuScene extends Scene {
             this.networkManager.onMessage('room_joined', (data) => {
                 console.log('🏠 MenuScene: Successfully joined room:', data)
                 console.log('🔍 MenuScene: Passing player ID to GameScene:', data.your_player_id)
-                // Start game scene with room data including player ID
+                
+                // Get the original join parameters for restart functionality
+                const usernameInput = this.menuForm.getChildByName('username') as HTMLInputElement
+                const roomnameInput = this.menuForm.getChildByName('roomname') as HTMLInputElement
+                const originalUsername = usernameInput?.value.trim() || 'Player'
+                const originalRoomName = roomnameInput?.value.trim() || 'Winterwald'
+                
+                // Start game scene with room data including player ID and original join parameters
                 this.scene.start('GameScene', { 
                     roomData: data,
-                    myPlayerId: data.your_player_id 
+                    myPlayerId: data.your_player_id,
+                    originalRoomName: originalRoomName,
+                    originalUsername: originalUsername
                 })
             })
 

@@ -2,6 +2,13 @@
 
 ## WIP
 
+- **MULTIPLAYER IMPROVEMENT**: Enhanced support for proper game restart synchronization
+
+  - Server now properly handles rapid leave/rejoin sequences during game restarts
+  - Improved cleanup of player state when players leave before rejoining
+  - Better support for client restart sequences in multiplayer sessions
+  - Enhanced room management for restart scenarios
+
 - **MAJOR MULTIPLAYER ARCHITECTURE OVERHAUL**: Implemented hybrid client-server conflict resolution
 
   - Added distance-based authority system for object control

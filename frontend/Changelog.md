@@ -2,6 +2,34 @@
 
 ## WIP
 
+- **CRITICAL BUG FIX**: Fixed "Field required" validation error during auto-rejoin after restart
+  - Fixed issue where auto-rejoin was using server response data instead of original join parameters
+  - Server was receiving only `{'character_type': 'hero1'}` instead of required `room_name` and `username`
+  - Modified MenuScene to pass original join parameters (`originalRoomName`, `originalUsername`) to GameScene
+  - Updated auto-rejoin logic to use stored original parameters instead of server response data
+  - Added parameter validation and fallback defaults for rejoin process
+  - Auto-rejoin after restart now works correctly with proper field validation
+
+- **MAJOR MULTIPLAYER FIX**: Implemented proper game restart synchronization for multiplayer sessions
+  - Fixed issue where only one player could see the other after restart
+  - Added `restartMultiplayerGame()` method that properly leaves room before restart
+  - Implemented automatic room rejoin after restart with `autoRejoinAfterRestart()`
+  - Added comprehensive network entity cleanup before restart (`cleanupNetworkEntities()`)
+  - Added registry-based state persistence across scene restarts
+  - All players now properly see each other after any player restarts
+  - Restart sequence: Leave Room → Clean Network State → Restart Scene → Auto-rejoin Room
+
+- **BUG FIX**: Fixed critical sprite and physics body errors in network entity updates
+  - Added comprehensive safety checks in `updateEnemiesFromServer`, `updateProjectilesFromServer`, and `updateNetworkPlayer`
+  - Added try-catch blocks around sprite creation and updates to prevent crashes
+  - Added sprite existence validation before calling setVelocity/setPosition methods
+  - **NEW**: Added animation safety checks - validate sprite.anims exists before calling sprite.play()
+  - **NEW**: Added physics body validation - check sprite.body exists before calling setVelocity()
+  - **NEW**: Added automatic physics body recovery - attempt to enable physics if body is missing
+  - **NEW**: Wrapped all animation code in try-catch blocks to prevent animation crashes
+  - Improved error logging for better debugging of sprite creation, physics body, and animation failures
+  - Network game now handles sprite creation, physics body, and animation failures gracefully without crashing
+
 - **MAJOR MULTIPLAYER ARCHITECTURE REVISION**: Fixed hybrid client-server authority system
   - Restored client-side game state broadcasting for proper conflict resolution
   - Updated input action mapping to match server protocol (left/right/jump/shoot)
