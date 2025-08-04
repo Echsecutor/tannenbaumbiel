@@ -108,17 +108,31 @@ frontend/src/assets/sprites/
 - **Health**: Health Points mit Visual Feedback
 - **Animations**: State-basierte Sprite Animationen
 
+### Camera System
+
+- **Side-scrolling**: Camera follows player with dead zone (200px)
+- **Individual Viewports**: Each player maintains their own camera view in multiplayer
+- **Smooth Following**: Camera lerp factor 0.05 for smooth movement
+- **World Bounds**: Camera constrained to extended world boundaries
+- **Parallax Effects**: Background elements scroll at different rates for depth
+
 ### Enemy System
 
+- **Procedural Spawning**: 1-3 randomly placed enemies per chunk
 - **AI Behavior**: Simple random movement patterns
 - **Health System**: Damage + Destruction
 - **Visual Feedback**: Damage tinting effects
 - **Boss Mechanics**: Larger, tougher Pink Monster
+- **Chunk-based Cleanup**: Enemies are unloaded with their chunks for memory efficiency
 
 ### Level Design
 
-- **Platform Layout**: Multi-level jumping puzzle
-- **Background**: Winter forest theme mit particle effects
+- **Side-scrolling System**: Complete side-scrolling camera system implemented
+- **Procedural Generation**: Chunk-based world generation (1024px chunks)
+- **Extended World**: World bounds from -2000 to 12000 pixels for infinite scrolling
+- **Platform Layout**: Procedurally generated ground and floating platforms
+- **Background**: Winter forest theme with parallax scrolling and particle effects
+- **World Streaming**: Dynamic chunk loading/unloading for memory efficiency
 - **Collision**: Plattformen, Weltgrenzen, Projektile
 
 ## 📱 Deployment URLs

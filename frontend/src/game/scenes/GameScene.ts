@@ -1,7 +1,7 @@
 /**
  * Game Scene - Main game world
  */
-import { Scene } from 'phaser'
+import Phaser, { Scene } from 'phaser'
 import { NetworkManager } from '../../network/NetworkManager'
 
 export class GameScene extends Scene {
@@ -29,6 +29,22 @@ export class GameScene extends Scene {
     
     private isOffline = false
     private roomData: any = null
+
+    // Side-scrolling system
+    private worldWidth: number = 10000  // Extended world width for side-scrolling
+    private cameraDeadZone: number = 200  // Area around player where camera doesn't move
+    private lastCameraX: number = 0
+    
+    // Procedural generation
+    private platformChunks: Map<number, Phaser.Physics.Arcade.StaticGroup> = new Map()
+    private backgroundElements: Map<number, Phaser.GameObjects.Group> = new Map()
+    private chunkSize: number = 1024  // Size of each procedural chunk
+    private chunksGenerated: Set<number> = new Set()
+    private visibleChunks: Set<number> = new Set()
+    
+    // World streaming
+    private leftBoundary: number = -2000
+    private rightBoundary: number = 12000
 
     constructor() {
         super({ key: 'GameScene' })
@@ -91,11 +107,18 @@ export class GameScene extends Scene {
     create() {
         this.networkManager = this.registry.get('networkManager')
         
+        // Initialize enemy and projectile groups first (needed for world generation)
+        this.enemies = this.physics.add.group()
+        this.projectiles = this.physics.add.group()
+        
         this.createWorld()
         this.createPlayer()
-        this.createEnemies()
+        this.createEnemies()  // This will now just create animations since groups are already initialized
         this.createControls()
         this.createPhysics()
+        
+        // Setup side-scrolling camera system
+        this.setupSideScrollingCamera()
         
         if (!this.isOffline) {
             this.setupNetworkHandlers()
@@ -108,6 +131,10 @@ export class GameScene extends Scene {
     update() {
         this.handlePlayerMovement()
         this.updateEnemies()
+        
+        // Update side-scrolling camera and world streaming
+        this.updateSideScrollingCamera()
+        this.updateWorldStreaming()
     }
 
     private loadAssets() {
@@ -167,33 +194,22 @@ export class GameScene extends Scene {
     }
 
     private createWorld() {
-        // Winter forest background
-        const bg = this.add.graphics()
-        bg.fillGradientStyle(0x87ceeb, 0x87ceeb, 0xe0f6ff, 0xe0f6ff)
-        bg.fillRect(0, 0, this.scale.width, this.scale.height)
+        // Extended winter forest background for side-scrolling
+        this.createScrollingBackground()
 
-        // Create platforms
+        // Initialize platforms group for procedural generation
         this.platforms = this.physics.add.staticGroup()
         
-        // Ground platforms
-        this.platforms.create(100, 700, 'platform').setScale(2, 1).refreshBody()
-        this.platforms.create(300, 700, 'platform').setScale(2, 1).refreshBody()
-        this.platforms.create(500, 700, 'platform').setScale(2, 1).refreshBody()
-        this.platforms.create(700, 700, 'platform').setScale(2, 1).refreshBody()
-        this.platforms.create(900, 700, 'platform').setScale(2, 1).refreshBody()
+        // Set extended world bounds for side-scrolling
+        this.physics.world.setBounds(this.leftBoundary, 0, this.rightBoundary - this.leftBoundary, this.scale.height)
         
-        // Floating platforms
-        this.platforms.create(400, 600, 'platform')
-        this.platforms.create(200, 500, 'platform')
-        this.platforms.create(600, 450, 'platform')
-        this.platforms.create(800, 350, 'platform')
+        // Generate initial chunks around player start position
+        const startChunk = Math.floor(100 / this.chunkSize)  // Player starts at x=100
+        for (let i = startChunk - 2; i <= startChunk + 3; i++) {
+            this.generateChunk(i)
+        }
 
-        // Decorative trees
-        this.add.image(150, 550, 'tree').setScale(0.5)
-        this.add.image(750, 550, 'tree').setScale(0.7)
-        this.add.image(450, 300, 'tree').setScale(0.4)
-
-        // Snow particles
+        // Snow particles (scrolling with world)
         this.createSnowEffect()
     }
 
@@ -244,47 +260,12 @@ export class GameScene extends Scene {
     }
 
     private createEnemies() {
-        this.enemies = this.physics.add.group()
-        
-        // Create enemy animations
+        // Create enemy animations (groups are already initialized in create())
         this.createEnemyAnimations()
         
         // CLIENT-SIDE PHYSICS: Always create local enemies with Phaser physics
-        // In multiplayer, the first player to join will be the "host" and their enemy state will be authoritative
-        console.log('🎮 Creating local enemies with client-side physics')
-        
-        // Create owlet enemies
-        const enemy1 = this.enemies.create(300, 400, 'enemy_idle')
-        enemy1.setBounce(1)
-        enemy1.setCollideWorldBounds(true)
-        enemy1.setVelocity(Phaser.Math.Between(-200, 200), 20)
-        enemy1.setData('health', 50)
-        enemy1.setData('type', 'owlet')
-        enemy1.setData('facingRight', true)
-        enemy1.play('enemy_idle_anim')
-
-        const enemy2 = this.enemies.create(600, 300, 'enemy_idle')
-        enemy2.setBounce(1)
-        enemy2.setCollideWorldBounds(true)
-        enemy2.setVelocity(Phaser.Math.Between(-200, 200), 20)
-        enemy2.setData('health', 50)
-        enemy2.setData('type', 'owlet')
-        enemy2.setData('facingRight', true)
-        enemy2.play('enemy_idle_anim')
-        
-        // Create a pink enemy boss
-        const boss = this.enemies.create(800, 250, 'pink_enemy_idle')
-        boss.setBounce(1)
-        boss.setCollideWorldBounds(true)
-        boss.setVelocity(Phaser.Math.Between(-100, 100), 20)
-        boss.setData('health', 100)
-        boss.setData('type', 'pink_boss')
-        boss.setData('facingRight', true)
-        boss.setScale(1.5) // Make boss bigger
-        boss.play('pink_enemy_idle_anim')
-
-        // Create projectiles group
-        this.projectiles = this.physics.add.group()
+        // In side-scrolling, enemies are generated procedurally as chunks are created
+        console.log('🎮 Enemy animations created for procedural generation')
     }
     
     private createEnemyAnimations() {
@@ -1053,9 +1034,9 @@ export class GameScene extends Scene {
                 this.scene.restart()
             }, 100)
         } else {
-            // Offline mode - simple restart
-            console.log('🎮 Offline restart...')
-            this.scene.restart()
+            // Offline mode - restart with offline flag preserved
+            console.log('🎮 Offline restart - preserving offline mode...')
+            this.scene.restart({ offline: true })
         }
     }
     
@@ -1141,8 +1122,282 @@ export class GameScene extends Scene {
         }).setOrigin(0.5)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => {
-            // TODO: Implement next level or return to menu
+            this.startNextLevel()
+        })
+
+        const menuText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 150, 'Zurück zum Menü', {
+            fontSize: '18px',
+            color: '#ffffff',
+            backgroundColor: '#34495e',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => {
             this.scene.start('MenuScene')
         })
+    }
+
+    private startNextLevel() {
+        console.log('🎮 Starting next level...')
+        
+        if (this.isOffline) {
+            // Offline mode - restart with offline flag preserved  
+            console.log('🎮 Next level in offline mode...')
+            this.scene.restart({ offline: true })
+        } else {
+            // Online mode - handle multiplayer level transition
+            console.log('🎮 Next level in multiplayer mode...')
+            
+            if (this.networkManager && this.networkManager.getConnectionStatus()) {
+                // Clean up and notify other players we're moving to next level
+                this.cleanupNetworkEntities()
+                
+                // Set flag to rejoin after level transition
+                this.registry.set('shouldRejoinRoom', true)
+                this.registry.set('lastRoomData', this.roomData)
+                
+                // Restart scene - will automatically rejoin the room
+                this.scene.restart()
+            } else {
+                // Connection lost - fallback to offline mode
+                console.log('⚠️ Connection lost, switching to offline mode for next level')
+                this.scene.restart({ offline: true })
+            }
+        }
+    }
+
+    // =================
+    // SIDE-SCROLLING CAMERA SYSTEM
+    // =================
+    
+    private setupSideScrollingCamera() {
+        // Setup camera to follow player with dead zone
+        this.cameras.main.startFollow(this.player, true, 0.05, 0.05)
+        this.cameras.main.setDeadzone(this.cameraDeadZone, this.scale.height)
+        
+        // Set camera bounds to allow scrolling across extended world
+        this.cameras.main.setBounds(this.leftBoundary, 0, this.rightBoundary - this.leftBoundary, this.scale.height)
+        
+        console.log('📷 Side-scrolling camera setup completed')
+    }
+    
+    private updateSideScrollingCamera() {
+        const currentCameraX = this.cameras.main.scrollX
+        
+        // Only update if camera has moved significantly
+        if (Math.abs(currentCameraX - this.lastCameraX) > 10) {
+            this.lastCameraX = currentCameraX
+            
+            // For multiplayer: Send camera position to other players so they can see our viewport
+            if (!this.isOffline && this.roomJoinConfirmed) {
+                // Camera position is sent as part of player state in broadcastGameState()
+                // Each player maintains their own camera view
+            }
+        }
+    }
+    
+    // =================
+    // PROCEDURAL WORLD GENERATION
+    // =================
+    
+    private createScrollingBackground() {
+        // Create tiled background that extends across the entire world
+        const bgTileWidth = this.scale.width
+        const numBgTiles = Math.ceil((this.rightBoundary - this.leftBoundary) / bgTileWidth) + 2
+        
+        for (let i = 0; i < numBgTiles; i++) {
+            const x = this.leftBoundary + (i * bgTileWidth)
+            const bg = this.add.graphics()
+            bg.fillGradientStyle(0x87ceeb, 0x87ceeb, 0xe0f6ff, 0xe0f6ff)
+            bg.fillRect(0, 0, bgTileWidth, this.scale.height)
+            bg.x = x
+            bg.setScrollFactor(0.5)  // Parallax scrolling effect
+        }
+    }
+    
+    private generateChunk(chunkIndex: number) {
+        if (this.chunksGenerated.has(chunkIndex)) return
+        
+        const chunkX = chunkIndex * this.chunkSize
+        console.log(`🏗️ Generating chunk ${chunkIndex} at x=${chunkX}`)
+        
+        // Create platform group for this chunk
+        const chunkPlatforms = this.physics.add.staticGroup()
+        
+        // Generate ground platforms
+        this.generateGroundPlatforms(chunkX, chunkPlatforms)
+        
+        // Generate floating platforms
+        this.generateFloatingPlatforms(chunkX, chunkPlatforms)
+        
+        // Generate background elements (trees, decorations)
+        this.generateBackgroundElements(chunkX, chunkIndex)
+        
+        // Generate enemies for this chunk
+        this.generateChunkEnemies(chunkX, chunkIndex)
+        
+        // Store chunk data
+        this.platformChunks.set(chunkIndex, chunkPlatforms)
+        this.chunksGenerated.add(chunkIndex)
+        
+        console.log(`✅ Generated chunk ${chunkIndex} with ${chunkPlatforms.children.size} platforms`)
+    }
+    
+    private generateGroundPlatforms(chunkX: number, chunkPlatforms: Phaser.Physics.Arcade.StaticGroup) {
+        const groundY = 700
+        const platformWidth = 200
+        const numGroundPlatforms = Math.floor(this.chunkSize / platformWidth) + 1
+        
+        for (let i = 0; i < numGroundPlatforms; i++) {
+            const x = chunkX + (i * platformWidth)
+            const platform = this.platforms.create(x, groundY, 'platform')
+            platform.setScale(2, 1).refreshBody()
+            chunkPlatforms.add(platform)
+        }
+    }
+    
+    private generateFloatingPlatforms(chunkX: number, chunkPlatforms: Phaser.Physics.Arcade.StaticGroup) {
+        // Generate 3-5 floating platforms per chunk
+        const numPlatforms = 3 + Math.floor(Math.random() * 3)
+        
+        for (let i = 0; i < numPlatforms; i++) {
+            const x = chunkX + 100 + Math.random() * (this.chunkSize - 200)
+            const y = 300 + Math.random() * 250  // Random height between 300-550
+            
+            // Avoid placing platforms too close to each other
+            const minDistance = 150
+            let validPosition = true
+            
+            chunkPlatforms.children.entries.forEach((existingPlatform: any) => {
+                if (Math.abs(existingPlatform.x - x) < minDistance && Math.abs(existingPlatform.y - y) < 100) {
+                    validPosition = false
+                }
+            })
+            
+            if (validPosition) {
+                const platform = this.platforms.create(x, y, 'platform')
+                chunkPlatforms.add(platform)
+            }
+        }
+    }
+    
+    private generateBackgroundElements(chunkX: number, chunkIndex: number) {
+        const backgroundGroup = this.add.group()
+        
+        // Generate 2-4 trees per chunk
+        const numTrees = 2 + Math.floor(Math.random() * 3)
+        
+        for (let i = 0; i < numTrees; i++) {
+            const x = chunkX + 50 + Math.random() * (this.chunkSize - 100)
+            const y = 400 + Math.random() * 200
+            const scale = 0.3 + Math.random() * 0.5
+            
+            const tree = this.add.image(x, y, 'tree')
+            tree.setScale(scale)
+            tree.setScrollFactor(0.8)  // Parallax effect for depth
+            backgroundGroup.add(tree)
+        }
+        
+        this.backgroundElements.set(chunkIndex, backgroundGroup)
+    }
+    
+    private generateChunkEnemies(chunkX: number, chunkIndex: number) {
+        // Generate 1-3 enemies per chunk randomly
+        const numEnemies = 1 + Math.floor(Math.random() * 3)
+        
+        for (let i = 0; i < numEnemies; i++) {
+            const x = chunkX + 150 + Math.random() * (this.chunkSize - 300)
+            const y = 650  // Place on ground level initially
+            
+            // Random enemy type
+            const enemyTypes = ['owlet', 'owlet', 'pink_boss']  // 2/3 chance for owlet, 1/3 for boss
+            const enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)]
+            
+            let enemy: Phaser.Physics.Arcade.Sprite
+            
+            if (enemyType === 'pink_boss') {
+                enemy = this.enemies.create(x, y, 'pink_enemy_idle')
+                enemy.setData('health', 100)
+                enemy.setData('type', 'pink_boss')
+                enemy.setScale(1.5) // Make boss bigger
+                enemy.play('pink_enemy_idle_anim')
+                enemy.setVelocity(Phaser.Math.Between(-100, 100), 20)
+            } else {
+                enemy = this.enemies.create(x, y, 'enemy_idle')
+                enemy.setData('health', 50)
+                enemy.setData('type', 'owlet')
+                enemy.play('enemy_idle_anim')
+                enemy.setVelocity(Phaser.Math.Between(-200, 200), 20)
+            }
+            
+            enemy.setBounce(1)
+            enemy.setCollideWorldBounds(true)
+            enemy.setData('facingRight', true)
+            enemy.setData('chunkIndex', chunkIndex)  // Track which chunk this enemy belongs to
+            
+            console.log(`👹 Generated ${enemyType} enemy in chunk ${chunkIndex} at x=${x}`)
+        }
+    }
+    
+    // =================
+    // WORLD STREAMING SYSTEM
+    // =================
+    
+    private updateWorldStreaming() {
+        const playerX = this.player.x
+        const currentChunk = Math.floor(playerX / this.chunkSize)
+        
+        // Generate chunks ahead and behind player
+        const loadDistance = 3  // Load 3 chunks in each direction
+        
+        for (let i = currentChunk - loadDistance; i <= currentChunk + loadDistance; i++) {
+            if (!this.chunksGenerated.has(i)) {
+                this.generateChunk(i)
+            }
+            this.visibleChunks.add(i)
+        }
+        
+        // Cleanup distant chunks to save memory
+        const unloadDistance = 5
+        const chunksToRemove: number[] = []
+        
+        this.chunksGenerated.forEach(chunkIndex => {
+            if (Math.abs(chunkIndex - currentChunk) > unloadDistance) {
+                chunksToRemove.push(chunkIndex)
+            }
+        })
+        
+        chunksToRemove.forEach(chunkIndex => {
+            this.unloadChunk(chunkIndex)
+        })
+    }
+    
+    private unloadChunk(chunkIndex: number) {
+        // Remove platforms
+        const chunkPlatforms = this.platformChunks.get(chunkIndex)
+        if (chunkPlatforms) {
+            chunkPlatforms.destroy(true)
+            this.platformChunks.delete(chunkIndex)
+        }
+        
+        // Remove background elements
+        const backgroundElements = this.backgroundElements.get(chunkIndex)
+        if (backgroundElements) {
+            backgroundElements.destroy(true)
+            this.backgroundElements.delete(chunkIndex)
+        }
+        
+        // Remove enemies belonging to this chunk
+        this.enemies.children.entries.forEach((enemy: any) => {
+            if (enemy.getData('chunkIndex') === chunkIndex) {
+                enemy.destroy()
+                console.log(`👹 Removed enemy from chunk ${chunkIndex}`)
+            }
+        })
+        
+        this.chunksGenerated.delete(chunkIndex)
+        this.visibleChunks.delete(chunkIndex)
+        
+        console.log(`🗑️ Unloaded chunk ${chunkIndex}`)
     }
 }

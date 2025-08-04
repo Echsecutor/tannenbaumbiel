@@ -2,6 +2,32 @@
 
 ## WIP
 
+- **MAJOR FEATURE**: Implemented complete side-scrolling system with procedural level generation
+  - **Side-scrolling Camera**: Camera follows player with dead zone, world moves around player
+  - **Extended World Bounds**: World extends from -2000 to 12000 pixels for infinite scrolling
+  - **Procedural Generation**: Levels are generated in chunks as player explores
+  - **Chunk-based System**: 1024px chunks with platforms, enemies, and background elements
+  - **World Streaming**: Dynamic loading/unloading of chunks for memory efficiency
+  - **Parallax Background**: Scrolling background with depth effect (0.5x scroll factor)
+  - **Random Platform Generation**: Ground platforms and floating platforms in each chunk
+  - **Procedural Enemies**: 1-3 randomly placed enemies per chunk (owlet/pink boss)
+  - **Background Decorations**: Random trees with parallax scrolling (0.8x scroll factor)
+  - **Memory Management**: Distant chunks are automatically unloaded to save resources
+  - **Multiplayer Compatible**: Each player maintains their own camera view in multiplayer
+
+- **BUG FIX**: Fixed "this.enemies is undefined" error in offline mode
+  - Fixed initialization order issue where world generation tried to access enemy groups before they were created
+  - Moved enemy and projectile group initialization to create() method before world generation
+  - Offline mode now loads correctly without errors
+
+- **OFFLINE MODE FIX**: Fixed offline mode preservation during game restart and level transitions
+  - Fixed issue where offline games would switch to online mode when restarting
+  - Fixed issue where "next level" would return to menu instead of continuing in same mode
+  - Modified `restartMultiplayerGame()` to preserve offline state when restarting
+  - Added `startNextLevel()` method to handle level transitions while preserving game mode
+  - Offline games now stay offline, online games stay online during all transitions
+  - Added "Zurück zum Menü" option in victory screen for explicit menu return
+
 - **CRITICAL BUG FIX**: Fixed "Field required" validation error during auto-rejoin after restart
   - Fixed issue where auto-rejoin was using server response data instead of original join parameters
   - Server was receiving only `{'character_type': 'hero1'}` instead of required `room_name` and `username`
