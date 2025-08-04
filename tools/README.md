@@ -1,6 +1,29 @@
-# Tannenbaumbiel - Testing Tools
+# Tannenbaumbiel - Tools Directory
 
-This directory contains testing tools and scripts for the Tannenbaumbiel game project.
+This directory contains development tools and scripts for the Tannenbaumbiel game project.
+
+## Image Analysis Tools
+
+Located in `image_analysis/` - Computer vision tools for analyzing sprite sheets and tilesets.
+
+### Key Features:
+
+- **Automated tile boundary detection** using OpenCV edge detection
+- **Theme-specific region identification** (winter, seasonal themes)
+- **Automatic asset extraction** from complex sprite sheets
+- **Visual analysis output** with annotated detection results
+
+### Usage:
+
+```bash
+cd image_analysis
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python3 analyze_tileset.py /path/to/tileset.png
+```
+
+See `image_analysis/README.md` for detailed documentation.
 
 ## Selenium Integration Test
 

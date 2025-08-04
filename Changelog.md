@@ -1,64 +1,39 @@
-# Tannenbaumbiel Project Changelog
+# Project Changelog
+
+This file documents major project-wide changes and restructuring.
 
 ## WIP
 
-- Improved README.md: Added clear project description from initial requirements, streamlined content from 290 to 165 lines, better organization with emojis and sections
+- **ASSET MANAGEMENT**: Fixed winter ground tile synchronization issue
 
-- Fixed GameScene rendering issue: bright green rectangle appearing in upper left corner
-  - Graphics objects used for texture generation were not being properly destroyed after use
-  - Added proper cleanup of platform, projectile, and tree graphics objects in `loadAssets()`
-  - GameScene now renders correctly with background, platforms, player, and enemies visible
-- Fixed UIScene initialization error: "Cannot read properties of undefined (reading 'setText')"
-  - `updateHealthBar()` was being called before `healthText` object was created in `createHealthBar()`
-  - Moved `updateHealthBar()` call to after all UI components are initialized
-  - UIScene now loads without JavaScript errors
-- Enhanced Selenium integration tests with comprehensive console error checking
-  - Added `check_console_errors()` method to monitor JavaScript errors at all test stages
-  - Enhanced `log_current_game_state()` to include player, enemies, and UI scene status
-  - Added `verify_game_is_running()` method to ensure game components are properly initialized
-  - Console error checking now occurs at: page load, game loading, menu scene, button interaction, and final state
-  - Tests now verify that GameScene and UIScene are both active and game objects are initialized
-- Major UI refactoring: Moved headlines and buttons from Phaser to HTML form
+  - Synchronized all winter ground tiles (32x32 pixels) between `tiles/winter/` and `frontend/src/assets/winter/`
+  - Ensured game uses updated `winter_ground_upper_right.png` with correct proportions
+  - Established clear asset workflow: source tiles in `tiles/` directory, deployed assets in `frontend/src/assets/`
 
-  - Transferred game title "Tannenbaumbiel" and subtitle from Phaser text to HTML `<h1>` and `<p>` elements
-  - Moved "Spiel Starten" and "Offline Spielen" buttons from Phaser to HTML `<button>` elements with improved styling
-  - Consolidated all UI elements in `menu-form.html` for better layout consistency
-  - Updated `MenuScene.ts` to handle HTML button events instead of Phaser text objects
-  - Improved button styling with gradients, hover effects, and modern CSS animations
-  - Enhanced selenium tests to interact with HTML buttons instead of trying to click Phaser canvas elements
-  - Connection status remains in menu form for unified UI presentation
+- **CLEANUP**: Removed obsolete folder references and updated documentation
 
-- **Improved UI/UX**: Refactored text input system using embedded HTML forms instead of programmatic DOM creation
-  - Replaced manual DOM element creation in `MenuScene.ts` with cleaner HTML form approach
-  - Added DOM support to Phaser configuration for embedded HTML forms
-  - Created styled `menu-form.html` with modern CSS design
-  - Integrated connection status display within the game form (removed external HTML overlay)
-  - Better scaling and integration with Phaser's canvas system
-- Added comprehensive Selenium integration testing for frontend game functionality
-  - Created `tools/selenium_test.py` with automated browser testing
-  - Tests frontend loading, UI interaction, and game start functionality
-  - Includes service health checks and detailed error reporting
-  - Screenshots and console log analysis for debugging
-- Added Docker Compose test service for automated testing
-  - Test service with Chrome browser and all necessary dependencies
-  - Isolated test environment with proper dependency management
-  - Integration with CI/CD workflows through `docker compose run --rm test`
-- Created testing tools and documentation
-  - `tools/run_test.sh` script for easy test execution
-  - `tools/README.md` with comprehensive testing documentation
-  - Updated `README_DEVELOPMENT.md` with testing instructions
-- **BREAKING CHANGE**: Simplified development infrastructure by removing Redis dependency
-  - Removed Redis service from `docker-compose.yml`
-  - Removed Redis volume configuration
-  - Updated backend dependencies to only require PostgreSQL
-  - Simplified development setup to single-database architecture
-- Updated project architecture documentation
-  - Revised architecture diagrams to reflect PostgreSQL-only approach
-  - Updated deployment configuration examples
-  - Enhanced database architecture documentation with implementation details
-  - Updated technology stack documentation in project notes
-- **ARCHITECTURAL CHANGE**: Migrated from dual-database (Redis + PostgreSQL) to single PostgreSQL approach
-  - All session management now handled through PostgreSQL
-  - Game state persistence unified in single database
-  - Reduced operational complexity for development and deployment
-  - Improved data consistency and transaction safety
+  - Removed obsolete `shared/` directory references (protocol moved to backend)
+  - Fixed `frontend/assets/` → `frontend/src/assets/` path references
+  - Updated `free-pixel-art-tiny-hero-sprites/` → `tiles/free-pixel-art-tiny-hero-sprites/` paths
+  - Updated repository structure notes to reflect current reality
+  - Fixed .gitignore to remove incorrect sprite directory exclusion
+
+- **PROTOCOL ENHANCEMENT**: Updated for hybrid client-server conflict resolution architecture
+
+  - Confirmed compatibility with distance-based authority system
+  - Game state messages support full world state synchronization
+  - Player input protocol handles immediate responsiveness with server conflict resolution
+  - Message types support both client broadcasting and server authority
+  - Protocol structures optimized for 30fps conflict resolution updates
+
+- **NEW MESSAGE TYPE**: Added GAME_STATE_UPDATE for client-side authoritative architecture
+  - Enables clients to broadcast complete game state to server for relay to other players
+  - Supports new client-side physics with server state relay model
+
+## Current Version
+
+- MessageType enum for WebSocket message types
+- PlayerInputData for input handling
+- GameStateData for complete game state
+- PlayerState, EnemyState, ProjectileState for entity states
+- JoinRoomData for room management

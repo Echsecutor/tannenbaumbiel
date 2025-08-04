@@ -11,7 +11,7 @@ from app.config.settings import settings
 from app.network.session import SessionManager
 from app.network.rooms import RoomManager
 from app.game.world import world_manager
-from shared.protocol import GameMessage, MessageType, JoinRoomData, PlayerInputData, InputAction
+from app.network.protocol import GameMessage, MessageType, JoinRoomData, PlayerInputData, InputAction
 
 
 router = APIRouter()

@@ -206,7 +206,7 @@ await connection_manager.send_message(connection_id, state_message)
 
 - `backend/app/game/world.py` - Authority resolution and conflict handling
 - `backend/app/api/websocket.py` - Network message processing
-- `shared/protocol.py` - Message structure definitions
+- `backend/app/network/protocol.py` - Message structure definitions
 
 ### Frontend
 

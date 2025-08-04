@@ -1,6 +1,6 @@
 # Repository Structure - Tannenbaumbiel
 
-## Empfohlene Projektstruktur
+## Aktuelle Projektstruktur
 
 ```
 tannenbaumbiel/
@@ -9,10 +9,7 @@ tannenbaumbiel/
 ├── .cursor/
 │   ├── notes/                    # AI Notes (dieses Verzeichnis)
 │   └── rules/                    # Cursor Rules
-├── docs/                         # Projektdokumentation
-│   ├── api.md                    # API Dokumentation
-│   ├── game-design.md            # Game Design Document
-│   └── deployment.md             # Deployment Guide
+# docs/ - Planned documentation directory (not yet created)
 ├── frontend/                     # JavaScript Game Client
 │   ├── src/
 │   │   ├── game/
@@ -23,12 +20,8 @@ tannenbaumbiel/
 │   │   ├── network/              # WebSocket Client
 │   │   ├── ui/                   # UI Components
 │   │   └── main.ts               # Entry Point
-│   ├── assets/
-│   │   ├── sprites/              # Game Graphics
-│   │   ├── audio/                # Sound Effects/Music
-│   │   └── data/                 # JSON Configuration
-│   ├── public/                   # Static Assets
-│   ├── dist/                     # Build Output
+# Note: frontend/assets/ at root level removed, assets are in src/assets/
+│   ├── dist/                     # Build Output (generated)
 │   ├── package.json
 │   ├── vite.config.ts            # Build Configuration
 │   └── tsconfig.json
@@ -41,9 +34,7 @@ tannenbaumbiel/
 │   │   │   └── rest.py           # REST API
 │   │   ├── game/
 │   │   │   ├── world.py          # Game World Logic
-│   │   │   ├── entities/         # Server Game Objects
-│   │   │   ├── physics.py        # Physics Engine
-│   │   │   └── events.py         # Event System
+# Note: backend entities/, physics.py, events.py not yet implemented
 │   │   ├── network/
 │   │   │   ├── protocol.py       # Message Protocol
 │   │   │   ├── session.py        # Session Management
@@ -53,25 +44,28 @@ tannenbaumbiel/
 │   │   │   ├── connection.py     # DB Connection
 │   │   │   └── repository.py     # Data Access
 │   │   ├── config/
-│   │   │   ├── settings.py       # App Configuration
-│   │   │   └── logging.py        # Logging Setup
+│   │   │   └── settings.py       # App Configuration
+# Note: logging.py not yet implemented
 │   │   └── utils/
-│   ├── tests/                    # Unit Tests
+# Note: protocol.py moved from shared/ to app/network/
+│   ├── tests/                    # Unit Tests (empty directory)
 │   ├── requirements.txt          # Python Dependencies
-│   ├── Dockerfile
-│   └── .env.example
-├── shared/                       # Geteilte Typen/Konstanten
-│   ├── protocol.ts               # TypeScript Message Types
-│   └── constants.py              # Python Konstanten
+│   └── Dockerfile
+# Note: .env.example not yet created
+
 ├── deployment/                   # Deployment Configuration
-│   ├── docker-compose.yml        # Local Development
-│   ├── docker-compose.prod.yml   # Production Setup
-│   ├── nginx.conf                # Reverse Proxy Config
-│   └── scripts/                  # Deployment Scripts
-├── free-pixel-art-tiny-hero-sprites/  # Existing Assets
+│   └── postgres/                 # Database initialization
+# Note: docker-compose.yml is at project root, not in deployment/
+# Note: docker-compose.prod.yml, nginx.conf, scripts/ not yet created
+├── tiles/                        # Game Assets & Tilesets
+│   ├── free-pixel-art-tiny-hero-sprites/  # Character Sprites
+│   ├── winter/                   # Winter Theme Assets
+│   └── Season_collection.png     # Main Tileset
 └── tools/                        # Development Tools
-    ├── asset-pipeline/           # Asset Processing
-    └── scripts/                  # Build/Dev Scripts
+    ├── image_analysis/           # Computer Vision Asset Tools
+    ├── selenium_test.py          # Integration Tests
+    ├── run_test.sh              # Test Runner Script
+    └── venv/                     # Python Virtual Environment (gitignored)
 ```
 
 ## Verzeichnis-Beschreibungen
@@ -93,12 +87,6 @@ tannenbaumbiel/
 - WebSocket Communication
 - Database Integration
 - REST API für Metadaten
-
-### `/shared` - Gemeinsame Definitionen
-
-- Message Protocol Definitionen
-- Gemeinsame Konstanten (Spielregeln, etc.)
-- TypeScript + Python Kompatibilität
 
 ### `/deployment` - Infrastructure as Code
 
@@ -217,11 +205,24 @@ docker-compose -f deployment/docker-compose.prod.yml up -d
 
 ## Asset Management
 
+### Asset Workflow and Directory Structure
+
+- **Source Assets**: Stored in `/tiles/` directory (organized by theme/type)
+  - `/tiles/winter/` - Winter-themed tiles (32x32 pixels)
+  - `/tiles/free-pixel-art-tiny-hero-sprites/` - Character sprites
+- **Deployed Assets**: Copied to `/frontend/src/assets/` for game usage
+  - `/frontend/src/assets/winter/` - Winter tiles used by game
+  - `/frontend/src/assets/sprites/` - Character sprites used by game
+- **Synchronization**: When updating source assets, manually copy to frontend assets directory
+  - Example: `cp tiles/winter/*.png frontend/src/assets/winter/`
+  - Browser refresh (Ctrl+F5) may be needed to clear asset cache
+
 ### Grafische Assets
 
-- **Sprites**: PNG/SVG in `/frontend/assets/sprites/`
+- **Sprites**: PNG/SVG in `/frontend/src/assets/sprites/`
 - **Spritesheets**: Optimiert für Phaser Atlas Loading
-- **Character Assets**: Von `/free-pixel-art-tiny-hero-sprites/` übernehmen
+- **Character Assets**: Von `/tiles/free-pixel-art-tiny-hero-sprites/` übernehmen
+- **Winter Tiles**: 32x32 pixel tiles with intelligent naming (upper_left, upper_middle, upper_right, etc.)
 
 ### Audio Assets
 

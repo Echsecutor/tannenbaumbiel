@@ -1,10 +1,10 @@
 /**
  * Game Scene - Main game world
  */
-import Phaser, { Scene } from 'phaser'
+import Phaser from 'phaser'
 import { NetworkManager } from '../../network/NetworkManager'
 
-export class GameScene extends Scene {
+export class GameScene extends Phaser.Scene {
     private networkManager!: NetworkManager
     private player!: Phaser.Physics.Arcade.Sprite
     private platforms!: Phaser.Physics.Arcade.StaticGroup
@@ -26,6 +26,14 @@ export class GameScene extends Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
     private wasd!: any
     private touchControls!: any
+    
+    // Mobile touch input state
+    private mobileInput = {
+        left: false,
+        right: false,
+        jump: false,
+        shoot: false
+    }
     
     private isOffline = false
     private roomData: any = null
@@ -53,6 +61,22 @@ export class GameScene extends Scene {
     init(data: any) {
         this.isOffline = data.offline || false
         this.roomData = data.roomData || null
+        
+        // Reset world generation state on init to prevent empty world bug
+        this.chunksGenerated.clear()
+        this.visibleChunks.clear()
+        this.platformChunks.clear()
+        this.backgroundElements.clear()
+        
+        // Reset multiplayer state
+        this.networkPlayers.clear()
+        this.networkEnemies.clear()
+        this.networkProjectiles.clear()
+        this.myPlayerId = ''
+        this.roomJoinConfirmed = false
+        this.inputState.clear()
+        
+        console.log('🔄 GameScene state reset completed')
         
         // Store original join parameters for restart functionality
         if (data.roomData && !this.isOffline) {
@@ -126,6 +150,9 @@ export class GameScene extends Scene {
         
         // Start UI scene
         this.scene.launch('UIScene')
+        
+        // Initialize UI with current health and score
+        this.game.events.emit('health-changed', this.player.getData('health'))
     }
 
     update() {
@@ -171,26 +198,28 @@ export class GameScene extends Scene {
             frameHeight: 32
         })
 
-        // Create platform texture (keep simple for now)
-        const platformGraphics = this.add.graphics()
-        platformGraphics.fillStyle(0x27ae60)
-        platformGraphics.fillRect(0, 0, 100, 32)
-        platformGraphics.generateTexture('platform', 100, 32)
-        platformGraphics.destroy()
+        // Load winter-themed assets
+        this.load.image('winter_bg', '/src/assets/winter/winter_bg.png')
+        
+        // Load all winter ground tile variants for intelligent tiling
+        this.load.image('winter_ground_upper_left', '/src/assets/winter/winter_ground_upper_left.png')
+        this.load.image('winter_ground_upper_middle', '/src/assets/winter/winter_ground_upper_middle.png')
+        this.load.image('winter_ground_upper_right', '/src/assets/winter/winter_ground_upper_right.png')
+        this.load.image('winter_ground_inner', '/src/assets/winter/winter_ground_inner.png')
+        this.load.image('winter_ground_lower_left', '/src/assets/winter/winter_ground_lower_left.png')
+        this.load.image('winter_ground_lower_middle', '/src/assets/winter/winter_ground_lower_middle.png')
+        this.load.image('winter_ground_lower_right', '/src/assets/winter/winter_ground_lower_right.png')
+        
+        // Winter decoration assets
+        this.load.image('winter_tree', '/src/assets/winter/winter_tree.png')
+        this.load.image('tree', '/src/assets/winter/tree.png')
 
-        // Create simple projectile
+        // Create simple projectile (keep for now - could be snowball later)
         const projectileGraphics = this.add.graphics()
-        projectileGraphics.fillStyle(0xf39c12)
+        projectileGraphics.fillStyle(0xe8f4fd)  // Light blue/white for snow projectile
         projectileGraphics.fillRect(0, 0, 8, 4)
         projectileGraphics.generateTexture('projectile', 8, 4)
         projectileGraphics.destroy()
-
-        // Create tree texture
-        const treeGraphics = this.add.graphics()
-        treeGraphics.fillStyle(0x2ecc71)
-        treeGraphics.fillRect(0, 0, 200, 150)
-        treeGraphics.generateTexture('tree', 200, 150)
-        treeGraphics.destroy()
     }
 
     private createWorld() {
@@ -310,30 +339,45 @@ export class GameScene extends Scene {
     }
 
     private createTouchControls() {
-        // Simple touch areas for mobile
+        // Simple touch areas for mobile - fixed to camera (don't scroll with world)
         const leftArea = this.add.rectangle(100, this.scale.height - 100, 150, 150, 0x000000, 0.3)
         leftArea.setInteractive()
+        leftArea.setScrollFactor(0)  // Stay fixed to camera
         leftArea.on('pointerdown', () => this.setPlayerInput('left', true))
         leftArea.on('pointerup', () => this.setPlayerInput('left', false))
+        leftArea.on('pointerout', () => this.setPlayerInput('left', false))  // Stop when finger leaves button
 
         const rightArea = this.add.rectangle(250, this.scale.height - 100, 150, 150, 0x000000, 0.3)
         rightArea.setInteractive()
+        rightArea.setScrollFactor(0)  // Stay fixed to camera
         rightArea.on('pointerdown', () => this.setPlayerInput('right', true))
         rightArea.on('pointerup', () => this.setPlayerInput('right', false))
+        rightArea.on('pointerout', () => this.setPlayerInput('right', false))  // Stop when finger leaves button
 
         const jumpArea = this.add.rectangle(this.scale.width - 150, this.scale.height - 100, 150, 150, 0x000000, 0.3)
         jumpArea.setInteractive()
+        jumpArea.setScrollFactor(0)  // Stay fixed to camera
         jumpArea.on('pointerdown', () => this.setPlayerInput('jump', true))
+        jumpArea.on('pointerup', () => this.setPlayerInput('jump', false))
 
         const shootArea = this.add.rectangle(this.scale.width - 300, this.scale.height - 100, 150, 150, 0x000000, 0.3)
         shootArea.setInteractive()
+        shootArea.setScrollFactor(0)  // Stay fixed to camera
         shootArea.on('pointerdown', () => this.setPlayerInput('shoot', true))
+        shootArea.on('pointerup', () => this.setPlayerInput('shoot', false))
 
-        // Add control labels
-        this.add.text(100, this.scale.height - 100, '←', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5)
-        this.add.text(250, this.scale.height - 100, '→', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5)
-        this.add.text(this.scale.width - 150, this.scale.height - 100, '↑', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5)
-        this.add.text(this.scale.width - 300, this.scale.height - 100, '⚡', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5)
+        // Add control labels - also fixed to camera
+        this.add.text(100, this.scale.height - 100, '←', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5).setScrollFactor(0)
+        this.add.text(250, this.scale.height - 100, '→', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5).setScrollFactor(0)
+        this.add.text(this.scale.width - 150, this.scale.height - 100, '↑', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5).setScrollFactor(0)
+        this.add.text(this.scale.width - 300, this.scale.height - 100, '⚡', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5).setScrollFactor(0)
+    }
+    
+    private setPlayerInput(action: string, pressed: boolean) {
+        // Set mobile input state
+        if (action in this.mobileInput) {
+            (this.mobileInput as any)[action] = pressed
+        }
     }
 
     private createPhysics() {
@@ -360,15 +404,15 @@ export class GameScene extends Scene {
         const speed = 200
         const jumpSpeed = 550
 
-        // Horizontal movement
-        if (this.cursors.left.isDown || this.wasd.A.isDown) {
+        // Horizontal movement (include mobile touch input)
+        if (this.cursors.left.isDown || this.wasd.A.isDown || this.mobileInput.left) {
             this.player.setVelocityX(-speed)
             this.player.setData('facingRight', false)
             this.player.setFlipX(true)
             if (this.player.body!.touching.down) {
                 this.player.play('player_run_anim', true)
             }
-        } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+        } else if (this.cursors.right.isDown || this.wasd.D.isDown || this.mobileInput.right) {
             this.player.setVelocityX(speed)
             this.player.setData('facingRight', true)
             this.player.setFlipX(false)
@@ -382,14 +426,17 @@ export class GameScene extends Scene {
             }
         }
 
-        // Jumping
-        if ((this.cursors.up.isDown || this.wasd.W.isDown) && this.player.body!.touching.down) {
+        // Jumping (include mobile touch input)
+        if ((this.cursors.up.isDown || this.wasd.W.isDown || this.mobileInput.jump) && this.player.body!.touching.down) {
             this.player.setVelocityY(-jumpSpeed)
             this.player.play('player_jump_anim', true)
+            // Reset jump input to prevent continuous jumping
+            this.mobileInput.jump = false
         }
 
-        // Shooting
-        if ((this.input.activePointer.isDown && !this.input.activePointer.wasTouch) || this.wasd.SPACE.isDown) {
+        // Shooting (include mobile touch input)
+        const isShootPressed = (this.input.activePointer.isDown && !this.input.activePointer.wasTouch) || this.wasd.SPACE.isDown || this.mobileInput.shoot
+        if (isShootPressed) {
             if (!this.inputState.get('shoot')) {
                 this.inputState.set('shoot', true)
                 this.shootProjectile()
@@ -415,10 +462,10 @@ export class GameScene extends Scene {
         
         // Only send when input state actually changes to reduce network traffic
         const currentInputs = {
-            left: this.cursors.left.isDown || this.wasd.A.isDown,
-            right: this.cursors.right.isDown || this.wasd.D.isDown,
-            jump: this.cursors.up.isDown || this.wasd.W.isDown,
-            shoot: (this.input.activePointer.isDown && !this.input.activePointer.wasTouch) || this.wasd.SPACE.isDown
+            left: this.cursors.left.isDown || this.wasd.A.isDown || this.mobileInput.left,
+            right: this.cursors.right.isDown || this.wasd.D.isDown || this.mobileInput.right,
+            jump: this.cursors.up.isDown || this.wasd.W.isDown || this.mobileInput.jump,
+            shoot: (this.input.activePointer.isDown && !this.input.activePointer.wasTouch) || this.wasd.SPACE.isDown || this.mobileInput.shoot
         }
         
         // Check if any input has changed since last update
@@ -540,6 +587,9 @@ export class GameScene extends Scene {
         const health = player.getData('health') - 25
         player.setData('health', health)
         
+        // Emit health change event for UI update
+        this.game.events.emit('health-changed', health)
+        
         // Knockback
         const direction = player.x < enemy.x ? -1 : 1
         player.setVelocity(direction * 300, -200)
@@ -569,6 +619,9 @@ export class GameScene extends Scene {
         
         if (health <= 0) {
             enemy.destroy()
+            
+            // Emit enemy defeated event for score update
+            this.game.events.emit('enemy-defeated')
             
             // Check if all enemies defeated
             if (this.enemies.countActive() === 0) {
@@ -983,20 +1036,25 @@ export class GameScene extends Scene {
     private gameOver() {
         console.log('Game Over!')
         
+        // Calculate center position relative to current camera view
+        const camera = this.cameras.main
+        const centerX = camera.centerX
+        const centerY = camera.centerY
+        
         // Show game over screen
-        const gameOverText = this.add.text(this.scale.width / 2, this.scale.height / 2, 'Game Over', {
+        const gameOverText = this.add.text(centerX, centerY, 'Game Over', {
             fontSize: '64px',
             color: '#e74c3c',
             backgroundColor: '#2c3e50',
             padding: { x: 20, y: 10 }
-        }).setOrigin(0.5)
+        }).setOrigin(0.5).setScrollFactor(0)
 
-        const restartText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 100, 'Klicken zum Neustart', {
+        const restartText = this.add.text(centerX, centerY + 100, 'Klicken zum Neustart', {
             fontSize: '24px',
             color: '#ffffff',
             backgroundColor: '#3498db',
             padding: { x: 15, y: 8 }
-        }).setOrigin(0.5)
+        }).setOrigin(0.5).setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => {
             this.restartMultiplayerGame()
@@ -1107,30 +1165,35 @@ export class GameScene extends Scene {
     private victory() {
         console.log('Victory!')
         
-        const victoryText = this.add.text(this.scale.width / 2, this.scale.height / 2, 'Sieg!', {
+        // Calculate center position relative to current camera view
+        const camera = this.cameras.main
+        const centerX = camera.centerX
+        const centerY = camera.centerY
+        
+        const victoryText = this.add.text(centerX, centerY, 'Sieg!', {
             fontSize: '64px',
             color: '#27ae60',
             backgroundColor: '#2c3e50',
             padding: { x: 20, y: 10 }
-        }).setOrigin(0.5)
+        }).setOrigin(0.5).setScrollFactor(0)
 
-        const continueText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 100, 'Nächste Welt', {
+        const continueText = this.add.text(centerX, centerY + 100, 'Nächste Welt', {
             fontSize: '24px',
             color: '#ffffff',
             backgroundColor: '#27ae60',
             padding: { x: 15, y: 8 }
-        }).setOrigin(0.5)
+        }).setOrigin(0.5).setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => {
             this.startNextLevel()
         })
 
-        const menuText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 150, 'Zurück zum Menü', {
+        const menuText = this.add.text(centerX, centerY + 150, 'Zurück zum Menü', {
             fontSize: '18px',
             color: '#ffffff',
             backgroundColor: '#34495e',
             padding: { x: 10, y: 5 }
-        }).setOrigin(0.5)
+        }).setOrigin(0.5).setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => {
             this.scene.start('MenuScene')
@@ -1201,17 +1264,27 @@ export class GameScene extends Scene {
     // =================
     
     private createScrollingBackground() {
-        // Create tiled background that extends across the entire world
-        const bgTileWidth = this.scale.width
-        const numBgTiles = Math.ceil((this.rightBoundary - this.leftBoundary) / bgTileWidth) + 2
+        // Create winter background that scales vertically to fit screen and tiles horizontally
+        const bgImage = this.textures.get('winter_bg')
+        const bgOriginalWidth = bgImage.source[0].width   // 288px from winter_bg.png
+        const bgOriginalHeight = bgImage.source[0].height // 208px from winter_bg.png
         
+        // Calculate vertical scale to fit screen height exactly
+        const screenHeight = this.scale.height
+        const verticalScale = screenHeight / bgOriginalHeight
+        
+        // Calculate how many horizontal tiles we need to cover the world width
+        const scaledBgWidth = bgOriginalWidth * verticalScale
+        const numBgTiles = Math.ceil((this.rightBoundary - this.leftBoundary) / scaledBgWidth) + 2
+        
+        // Create horizontally tiled backgrounds, each scaled to fit screen height
         for (let i = 0; i < numBgTiles; i++) {
-            const x = this.leftBoundary + (i * bgTileWidth)
-            const bg = this.add.graphics()
-            bg.fillGradientStyle(0x87ceeb, 0x87ceeb, 0xe0f6ff, 0xe0f6ff)
-            bg.fillRect(0, 0, bgTileWidth, this.scale.height)
-            bg.x = x
-            bg.setScrollFactor(0.5)  // Parallax scrolling effect
+            const x = this.leftBoundary + (i * scaledBgWidth)
+            const y = 0  // Start from top of screen
+            const bg = this.add.image(x, y, 'winter_bg')
+            bg.setOrigin(0, 0)  // Top-left origin for precise positioning
+            bg.setScale(verticalScale, verticalScale)  // Scale uniformly to fit screen height
+            bg.setScrollFactor(0.5)  // Parallax scrolling effect for depth
         }
     }
     
@@ -1243,16 +1316,69 @@ export class GameScene extends Scene {
         console.log(`✅ Generated chunk ${chunkIndex} with ${chunkPlatforms.children.size} platforms`)
     }
     
+    /**
+     * Creates a winter-themed tiled platform using proper tile variants
+     * @param x - Left edge x position
+     * @param y - Top edge y position  
+     * @param width - Platform width in pixels
+     * @param height - Platform height in pixels (defaults to 64px = 2 tiles)
+     * @param platformGroup - Physics group to add platform tiles to
+     */
+    private createWinterTiledPlatform(x: number, y: number, width: number, height: number = 64, platformGroup: Phaser.Physics.Arcade.StaticGroup) {
+        const tileSize = 32  // Each winter tile is 32x32
+        const tilesWide = Math.ceil(width / tileSize)
+        const tilesHigh = Math.ceil(height / tileSize)
+        
+        // Create tiles row by row
+        for (let row = 0; row < tilesHigh; row++) {
+            for (let col = 0; col < tilesWide; col++) {
+                const tileX = x + (col * tileSize)
+                const tileY = y + (row * tileSize)
+                
+                // Determine which tile texture to use based on position
+                let tileTexture: string
+                
+                if (row === 0) {
+                    // Top row - use upper tiles
+                    if (col === 0) {
+                        tileTexture = 'winter_ground_upper_left'
+                    } else if (col === tilesWide - 1) {
+                        tileTexture = 'winter_ground_upper_right'
+                    } else {
+                        tileTexture = 'winter_ground_upper_middle'
+                    }
+                } else if (row === tilesHigh - 1) {
+                    // Bottom row - use lower tiles
+                    if (col === 0) {
+                        tileTexture = 'winter_ground_lower_left'
+                    } else if (col === tilesWide - 1) {
+                        tileTexture = 'winter_ground_lower_right'
+                    } else {
+                        tileTexture = 'winter_ground_lower_middle'
+                    }
+                } else {
+                    // Middle rows - use inner tiles  
+                    tileTexture = 'winter_ground_inner'
+                }
+                
+                // Create the tile sprite with physics
+                const tile = this.platforms.create(tileX, tileY, tileTexture)
+                tile.setOrigin(0, 0)  // Align to top-left for precise positioning
+                tile.refreshBody()
+                platformGroup.add(tile)
+            }
+        }
+    }
+    
     private generateGroundPlatforms(chunkX: number, chunkPlatforms: Phaser.Physics.Arcade.StaticGroup) {
         const groundY = 700
-        const platformWidth = 200
+        const platformWidth = 192  // Changed to 192 (6 tiles * 32px) for proper tiling
+        const platformHeight = 64  // 2 tiles high for substantial ground
         const numGroundPlatforms = Math.floor(this.chunkSize / platformWidth) + 1
         
         for (let i = 0; i < numGroundPlatforms; i++) {
             const x = chunkX + (i * platformWidth)
-            const platform = this.platforms.create(x, groundY, 'platform')
-            platform.setScale(2, 1).refreshBody()
-            chunkPlatforms.add(platform)
+            this.createWinterTiledPlatform(x, groundY, platformWidth, platformHeight, chunkPlatforms)
         }
     }
     
@@ -1261,7 +1387,9 @@ export class GameScene extends Scene {
         const numPlatforms = 3 + Math.floor(Math.random() * 3)
         
         for (let i = 0; i < numPlatforms; i++) {
-            const x = chunkX + 100 + Math.random() * (this.chunkSize - 200)
+            const platformWidth = 96 + Math.random() * 96  // 96-192px wide (3-6 tiles)
+            const platformHeight = 32  // Single row for floating platforms
+            const x = chunkX + 100 + Math.random() * (this.chunkSize - platformWidth - 100)
             const y = 300 + Math.random() * 250  // Random height between 300-550
             
             // Avoid placing platforms too close to each other
@@ -1275,8 +1403,7 @@ export class GameScene extends Scene {
             })
             
             if (validPosition) {
-                const platform = this.platforms.create(x, y, 'platform')
-                chunkPlatforms.add(platform)
+                this.createWinterTiledPlatform(x, y, platformWidth, platformHeight, chunkPlatforms)
             }
         }
     }
@@ -1292,7 +1419,7 @@ export class GameScene extends Scene {
             const y = 400 + Math.random() * 200
             const scale = 0.3 + Math.random() * 0.5
             
-            const tree = this.add.image(x, y, 'tree')
+            const tree = this.add.image(x, y, 'winter_tree')
             tree.setScale(scale)
             tree.setScrollFactor(0.8)  // Parallax effect for depth
             backgroundGroup.add(tree)

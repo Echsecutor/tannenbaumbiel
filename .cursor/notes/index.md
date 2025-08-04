@@ -38,6 +38,13 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 - Frontend/Backend Trennung
 - Development Environment Setup
 
+### [Image Analysis Tools](image_analysis_tools.md)
+
+- Computer Vision Tools für Sprite Sheet Analyse
+- OpenCV und scikit-image basierte Tileset-Erkennung
+- Automatische Asset-Extraktion und Theme-Detektion
+- Verwendung für Season_collection.png Winter Sprites
+
 ### [Game Development Status](game_development_status.md)
 
 - Implementierungsfortschritt
@@ -48,10 +55,11 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 ## Quick Start Links
 
 - Hauptdokument: [README.md](../README.md)
-- Grafische Assets: `/free-pixel-art-tiny-hero-sprites`
+- Grafische Assets: `/tiles/free-pixel-art-tiny-hero-sprites`
 - **Frontend**: http://localhost:3000 (Phaser Game)
 - **Backend**: http://localhost:8000 (FastAPI Server)
 - **Testing**: `cd tools && ./run_test.sh` (Selenium Integration Tests)
+- **Image Analysis**: `cd tools/image_analysis` (Computer Vision Tools)
 
 ## Technische Hauptentscheidungen
 

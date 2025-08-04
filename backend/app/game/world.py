@@ -8,7 +8,7 @@ from datetime import datetime
 from uuid import uuid4
 from random import choice
 
-from shared.protocol import PlayerState, EnemyState, ProjectileState, GameStateData, InputAction
+from app.network.protocol import PlayerState, EnemyState, ProjectileState, GameStateData, InputAction
 
 
 class GameWorld:

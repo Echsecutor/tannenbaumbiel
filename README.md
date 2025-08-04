@@ -94,7 +94,7 @@ docker-compose run --rm test     # Tests ausführen
 ```
 ├── backend/         # Python Game Server (FastAPI)
 ├── frontend/        # Game Client (Phaser 3 + TypeScript)
-├── shared/          # Gemeinsame Protokoll-Definitionen
+
 ├── deployment/      # Docker & DB Setup
 └── tools/          # Test-Scripts (Selenium)
 ```
@@ -139,15 +139,15 @@ docker-compose logs -f frontend        # Frontend spezifisch
 
 ### Neue Features hinzufügen
 
-1. **Protocol** definieren in `shared/protocol.py`
+1. **Protocol** definieren in `backend/app/network/protocol.py`
 2. **Backend** Logic in `backend/app/`
 3. **Frontend** Client in `frontend/src/`
 4. Mit Integration Tests validieren
 
 ### Assets
 
-- **Sprites**: `frontend/assets/sprites/` (Pixel Art Characters)
-- **Audio**: `frontend/assets/audio/` (noch nicht implementiert)
+- **Sprites**: `frontend/src/assets/sprites/` (Pixel Art Characters)
+- **Audio**: `frontend/src/assets/audio/` (noch nicht implementiert)
 - **Loading**: Phaser Scene `preload()` Methode
 
 ## 📚 Weitere Dokumentation

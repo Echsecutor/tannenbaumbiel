@@ -187,7 +187,10 @@ max-line-length = 120
 ### Priorität 1 - Performance & Polish
 
 - [ ] **Sound System**: Hintergrundmusik + Sound Effects
-- [ ] **Enhanced Graphics**: Bessere Platform/Background Textures
+- ✅ **Enhanced Graphics**: Winter-themed sprites and backgrounds - IMPLEMENTED!
+  - Replaced simple generated graphics with beautiful Season_collection.png sprites
+  - Added winter background with parallax scrolling
+  - Implemented ice platform tiles and snowy trees
 - [ ] **Particle Effects**: Verbesserte visual effects
 - [ ] **Game Balance**: Enemy AI improvements
 
@@ -238,6 +241,27 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
 - **Cause**: `updateHealthBar()` method called before `healthText` object was created in `createHealthBar()`
 - **Solution**: Moved `updateHealthBar()` call to after all UI components are properly initialized
 - **Location**: `frontend/src/game/scenes/UIScene.ts` lines 44-64 in `createHealthBar()` method
+
+### Health and Score System Bugs (2025)
+
+- **Problem**: Health bar and score counter were not updating during gameplay
+- **Cause**: Missing event emissions in GameScene when health/score changed - UIScene was listening for events but they were never triggered
+- **Solution**: Added `this.game.events.emit('health-changed', health)` in `hitEnemy()` and `this.game.events.emit('enemy-defeated')` in `projectileHitEnemy()`
+- **Location**: `frontend/src/game/scenes/GameScene.ts` lines 570, 603
+
+### Empty World on Restart Bug (2025)
+
+- **Problem**: Game restart frequently resulted in completely empty world with no platforms or enemies
+- **Cause**: World generation state variables (chunksGenerated, platformChunks, etc.) were not being reset, causing generation to think chunks already existed
+- **Solution**: Added comprehensive state reset in `init()` method - clear all Maps and Sets used for world generation and multiplayer state
+- **Location**: `frontend/src/game/scenes/GameScene.ts` lines 65-79
+
+### Game Over/Victory UI Positioning (2025)
+
+- **Problem**: Game Over and Victory messages could appear off-screen depending on where the world was scrolled
+- **Cause**: UI elements were positioned using fixed screen coordinates instead of camera-relative positioning in side-scrolling world
+- **Solution**: Calculate position relative to camera center using `camera.centerX/centerY` and add `setScrollFactor(0)` to prevent scrolling
+- **Location**: `frontend/src/game/scenes/GameScene.ts` lines 1037-1048, 1167-1176
 
 ### Enhanced Selenium Testing (2025)
 

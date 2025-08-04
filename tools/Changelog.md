@@ -2,6 +2,16 @@
 
 ## WIP
 
+- **NEW FEATURE**: Image Analysis Tools
+
+  - Added `tools/image_analysis/` directory with computer vision tools for sprite sheet analysis
+  - `analyze_tileset.py`: Advanced tileset analyzer using OpenCV and scikit-image
+  - Automated tile boundary detection using Canny edge detection and Hough transforms
+  - Theme-specific region identification (winter/seasonal sprites) using LAB color space analysis
+  - Automatic asset extraction from complex sprite collections
+  - Created for analyzing Season_collection.png to extract proper winter-themed sprites
+  - Includes virtual environment setup and comprehensive documentation
+
 - Added new `--visible` mode for test execution
   - Browser window is visible for debugging without manual pauses
   - `tools/run_test.sh --visible` option for automated visible testing

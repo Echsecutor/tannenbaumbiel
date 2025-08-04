@@ -1,5 +1,5 @@
 """
-Shared protocol definitions for client-server communication
+Protocol definitions for client-server communication
 """
 from enum import Enum
 from typing import Any, Dict, Union, Optional

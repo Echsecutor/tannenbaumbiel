@@ -1,3 +1,5 @@
-free-pixel-art-tiny-hero-sprites/
 tools/venv/
 **/__pycache__
+
+# must not be redistributed
+**/free-pixel-art-tiny-hero-sprites

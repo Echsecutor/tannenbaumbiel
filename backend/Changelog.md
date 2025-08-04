@@ -2,6 +2,12 @@
 
 ## WIP
 
+- **REFACTOR**: Moved protocol definitions from `shared/protocol.py` to `backend/app/network/protocol.py`
+
+  - Protocol file only used by Python backend, moved to appropriate backend location
+  - Updated imports in `app/api/websocket.py` and `app/game/world.py`
+  - Aligns with repository structure guidelines
+
 - **MULTIPLAYER IMPROVEMENT**: Enhanced support for proper game restart synchronization
 
   - Server now properly handles rapid leave/rejoin sequences during game restarts
