@@ -20,10 +20,17 @@ class TannenbaumGame {
 
   private async init() {
     try {
-      // Initialize network connection
+      // Initialize network connection (don't let network failure stop game)
       await this.initializeNetwork();
+    } catch (error) {
+      console.warn(
+        "Network initialization failed, continuing in offline mode:",
+        error
+      );
+    }
 
-      // Start game
+    try {
+      // Start game regardless of network status
       this.startGame();
 
       // Hide loading screen
@@ -56,25 +63,38 @@ class TannenbaumGame {
   }
 
   private startGame() {
-    // Create Phaser game instance
-    this.game = new Phaser.Game({
-      ...GameConfig,
-      parent: "game-container",
-      callbacks: {
-        postBoot: (game) => {
-          // Pass network manager to game
-          game.registry.set("networkManager", this.networkManager);
-        },
-      },
-    });
+    try {
+      console.log("Starting Phaser game...");
 
-    console.log("Tannenbaumbiel game started!");
+      // Create Phaser game instance
+      this.game = new Phaser.Game({
+        ...GameConfig,
+        parent: "game-container",
+        callbacks: {
+          postBoot: (game) => {
+            console.log("Phaser game booted, setting up registry...");
+            // Pass network manager to game
+            game.registry.set("networkManager", this.networkManager);
+            console.log("Network manager added to registry");
+          },
+        },
+      });
+
+      console.log("Tannenbaumbiel game started!");
+    } catch (error) {
+      console.error("Error starting Phaser game:", error);
+      throw error;
+    }
   }
 
   private hideLoading() {
+    console.log("Hiding loading screen...");
     const loadingElement = document.getElementById("loading");
     if (loadingElement) {
       loadingElement.style.display = "none";
+      console.log("Loading screen hidden");
+    } else {
+      console.warn("Loading element not found");
     }
   }
 

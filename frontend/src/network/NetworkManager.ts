@@ -296,28 +296,11 @@ export class NetworkManager {
   private updateConnectionStatus(
     status: "connecting" | "connected" | "disconnected"
   ): void {
-    const statusElement = document.getElementById("connection-status");
-    if (statusElement) {
-      let newText: string;
-      switch (status) {
-        case "connecting":
-          newText = "Verbindung: Verbinde...";
-          break;
-        case "connected":
-          newText = "Verbindung: Verbunden";
-          break;
-        case "disconnected":
-          newText = "Verbindung: Getrennt";
-          break;
-      }
-
-      statusElement.textContent = newText;
-      statusElement.className = status;
-
-      console.log(
-        `📱 Connection Status Updated: '${newText}' (class: ${status})`
-      );
-    }
+    // Connection status is now managed by MenuScene in the form HTML
+    // This method is kept for compatibility but only logs the status change
+    console.log(
+      `📱 NetworkManager: Connection status changed to ${status.toUpperCase()}`
+    );
   }
 
   private getPlayerId(): string {

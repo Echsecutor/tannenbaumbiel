@@ -5,12 +5,21 @@
 - Fixed Docker production build to properly handle Vite environment variables (`VITE_API_URL`, `VITE_WS_URL`) at build time
 - Added comprehensive error handling for WebSocket connection failures
 - Added user-visible error messages when server connection fails
-- Added real-time connection status indicator with "connecting", "connected", and "disconnected" states
+- Added real-time connection status indicator in menu form with "connecting", "connected", and "disconnected" states
 - Improved NetworkManager with connection timeout handling and better error messages
 - Added detailed logging for debugging WebSocket connection issues
 - Fixed TypeScript compilation errors:
   - Fixed variable scope issue with `serverUrl` in main.ts catch block
   - Fixed error type handling in NetworkManager.ts catch block (unknown type safety)
+- Fixed offline game functionality:
+  - Separated network initialization from game startup to prevent network failures from blocking game
+  - Added comprehensive error handling and logging for debugging game initialization issues
+  - Simplified menu system: "Online Spielen" button is now hidden when server is unavailable
+  - "Offline Spielen" button remains always visible for offline gameplay
+  - Improved startOfflineGame to pass proper initialization parameters
+  - Removed complex fallback menu system in favor of simpler hide/show button logic
+  - Cleaned up index.html: removed connection-status element and CSS (now only in menu form)
+  - Simplified NetworkManager connection status handling (no longer updates index.html)
 
 - **Fixed Docker build failure**: Complete TypeScript compilation and Docker configuration fixes
   - Removed `--only=production` flag from npm ci to include devDependencies needed for TypeScript/Vite build
