@@ -7,7 +7,9 @@
   - Updated nginx CSP header to include `connect-src 'self' ws: wss: http: https:` directive
   - Fixed menu form HTML structure to prevent CSP meta tag injection outside document head
   - Moved menu-form.html from src/ to public/ directory for proper static asset serving
-  - Updated nginx configuration to serve .html files and updated MenuScene path reference
+  - Moved all game assets from src/assets/ to public/assets/ for production build inclusion
+  - Updated AssetLoader.ts paths to use /assets/ instead of /src/assets/ 
+  - Updated nginx configuration to serve .html files and updated all asset path references
   - Resolves browser blocking of insecure WebSocket connections on HTTPS sites
 - Fixed Docker production build to properly handle Vite environment variables (`VITE_API_URL`, `VITE_WS_URL`) at build time
 - Added comprehensive error handling for WebSocket connection failures
