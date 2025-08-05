@@ -119,6 +119,31 @@ docker-compose run --rm test     # Tests ausführen
 3. Commit: `git commit -m "feat: add xyz"`
 4. Pull Request erstellen
 
+## 🙏 Acknowledgments
+
+### Open Source Frameworks
+
+Dieses Projekt wäre ohne die großartigen Open Source Frameworks nicht möglich gewesen:
+
+- **[Phaser 3](https://phaser.io/)** - Das HTML5 Game Framework, das unser Frontend antreibt
+- **[FastAPI](https://fastapi.tiangolo.com/)** - Modernes, schnelles Web-Framework für Python APIs
+- **[TypeScript](https://www.typescriptlang.org/)** - Typisierte Programmiersprache basierend auf JavaScript
+- **[Vite](https://vitejs.dev/)** - Build-Tool für moderne Web-Entwicklung
+- **[SQLAlchemy](https://www.sqlalchemy.org/)** - Python SQL Toolkit und ORM
+- **[PostgreSQL](https://www.postgresql.org/)** - Leistungsstarke Open Source Datenbank
+- **[Redis](https://redis.io/)** - In-Memory Datenstruktur-Store
+- **[Docker](https://www.docker.com/)** - Containerisierung und Deployment
+- **[uvicorn](https://www.uvicorn.org/)** - ASGI Server für Python
+
+### Free Game Assets
+
+Vielen Dank an die Künstler und Communities, die ihre Assets frei zur Verfügung stellen:
+
+- **[Super Seasonal Platformer Tiles](https://opengameart.org/content/super-seasonal-platformer-tiles)** by GrafxKid - Wunderschöne saisonale Tileset-Grafiken (CC0 License)
+- **[Free Pixel Art Tiny Hero Sprites](https://craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/)** by CraftPix - 32x32 Charakter-Sprites für unsere Helden
+
+Ohne diese großzügigen Beiträge der Open Source und Creative Commons Communities wäre dieses Projekt nicht möglich gewesen. 🎉
+
 ## License
 
 Copyright 2025 Jonathan, Merle, Ronja und Sebastian Schmittner <sebastian@schmittner.pw>

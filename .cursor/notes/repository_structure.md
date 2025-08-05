@@ -24,7 +24,10 @@ tannenbaumbiel/
 │   ├── dist/                     # Build Output (generated)
 │   ├── package.json
 │   ├── vite.config.ts            # Build Configuration
-│   └── tsconfig.json
+│   ├── tsconfig.json
+│   ├── Dockerfile.dev            # Development Dockerfile
+│   ├── Dockerfile                # Production Dockerfile (multi-stage)
+│   └── nginx.conf                # Production nginx configuration
 ├── backend/                      # Python Game Server
 │   ├── app/
 │   │   ├── __init__.py
@@ -47,16 +50,18 @@ tannenbaumbiel/
 │   │   │   └── settings.py       # App Configuration
 # Note: logging.py not yet implemented
 │   │   └── utils/
-# Note: protocol.py moved from shared/ to app/network/
+# Note: Removed empty shared/ directories (no longer needed)
 │   ├── tests/                    # Unit Tests (empty directory)
 │   ├── requirements.txt          # Python Dependencies
-│   └── Dockerfile
+│   ├── Dockerfile.dev            # Development Dockerfile
+│   └── Dockerfile                # Production Dockerfile
 # Note: .env.example not yet created
 
 ├── deployment/                   # Deployment Configuration
-│   └── postgres/                 # Database initialization
-# Note: docker-compose.yml is at project root, not in deployment/
-# Note: docker-compose.prod.yml, nginx.conf, scripts/ not yet created
+│   ├── postgres/                 # Database initialization
+│   └── README.md                 # Production deployment guide
+# Note: docker-compose.yml is at project root (development)
+# Production files: docker-compose.prod.yml (root), frontend/nginx.conf
 ├── tiles/                        # Game Assets & Tilesets
 │   ├── free-pixel-art-tiny-hero-sprites/  # Character Sprites
 │   ├── winter/                   # Winter Theme Assets
@@ -91,8 +96,9 @@ tannenbaumbiel/
 ### `/deployment` - Infrastructure as Code
 
 - Docker Container Definitionen
-- Development Environment (docker-compose)
-- Production Deployment Configs
+- Development Environment (docker-compose.yml at root)
+- Production Deployment Configs (docker-compose.prod.yml at root)
+- Production deployment guide and environment setup
 - CI/CD Pipeline Definitionen
 
 ## Development Workflow
@@ -200,7 +206,7 @@ cd backend
 docker build -t tannenbaumbiel-backend .
 
 # Full Production Deploy
-docker-compose -f deployment/docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
 ## Asset Management
@@ -276,11 +282,24 @@ VITE_WS_URL=ws://localhost:8000/ws
 ### Production
 
 ```bash
-# Environment Variables über Docker/K8s
-DATABASE_URL=postgresql://prod-db-url
-JWT_SECRET_KEY=secure-random-key
-DEBUG=False
+# Environment Variables in .env.prod file
+POSTGRES_PASSWORD=secure_password_change_me
+SECRET_KEY=your_very_long_random_secret_key_here
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+API_URL=https://api.yourdomain.com
+WS_URL=wss://api.yourdomain.com/ws
 ```
+
+**Production Features:**
+
+- Multi-stage Docker builds (frontend: build + nginx, backend: optimized)
+- No source code mounting (production security)
+- Nginx serving static frontend files with caching and compression
+- Multi-worker backend (4 uvicorn workers)
+- Production database with secure credentials
+- Redis for session storage and caching
+- Health checks for all services
+- Security headers and CORS restrictions
 
 ## Implementierte Datenbank-Architektur
 

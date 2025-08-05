@@ -1,0 +1,109 @@
+version: "3.8"
+
+services:
+  # Backend - Python FastAPI Game Server (Production)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://tannenbaum:${POSTGRES_PASSWORD:-secure_password_change_me}@postgres:5432/tannenbaumbiel_prod
+      - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me-to-random-value}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://yourdomain.com,https://www.yourdomain.com}
+      - CORS_ALLOW_CREDENTIALS=true
+      - LOG_LEVEL=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend - Nginx serving built static files (Production)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=${API_URL:-http://localhost:8000}
+      - VITE_WS_URL=${WS_URL:-ws://localhost:8000/ws}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # PostgreSQL Database (Production)
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=tannenbaumbiel_prod
+      - POSTGRES_USER=tannenbaum
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password_change_me}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./deployment/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tannenbaum -d tannenbaumbiel_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Redis for session storage/caching (optional, for production scaling)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+volumes:
+  postgres_prod_data:
+  redis_data:
+
+networks:
+  default:
+    name: tannenbaumbiel-prod-network

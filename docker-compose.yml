@@ -5,7 +5,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "8000:8000"
     environment:
@@ -16,7 +16,6 @@ services:
       - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
     volumes:
       - ./backend:/app
-      - ./shared:/app/shared
     depends_on:
       - postgres
     restart: unless-stopped
@@ -38,7 +37,6 @@ services:
       - VITE_WS_URL=ws://localhost:8000/ws
     volumes:
       - ./frontend:/app
-      - ./shared:/app/shared
       - /app/node_modules
     depends_on:
       - backend
