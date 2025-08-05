@@ -6,6 +6,14 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Accept build arguments for Vite environment variables
+ARG VITE_API_URL=http://localhost:8000
+ARG VITE_WS_URL=ws://localhost:8000/ws
+
+# Set environment variables for the build process
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_WS_URL=${VITE_WS_URL}
+
 # Copy package files
 COPY package*.json ./
 
@@ -15,7 +23,7 @@ RUN npm ci --silent
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application with environment variables
 RUN npm run build
 
 # Stage 2: Serve with nginx

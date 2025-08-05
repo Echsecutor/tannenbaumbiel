@@ -2,6 +2,13 @@
 
 ## WIP
 
+- Fixed Docker production build to properly handle Vite environment variables (`VITE_API_URL`, `VITE_WS_URL`) at build time
+- Added comprehensive error handling for WebSocket connection failures
+- Added user-visible error messages when server connection fails
+- Added real-time connection status indicator with "connecting", "connected", and "disconnected" states
+- Improved NetworkManager with connection timeout handling and better error messages
+- Added detailed logging for debugging WebSocket connection issues
+
 - **Fixed Docker build failure**: Complete TypeScript compilation and Docker configuration fixes
   - Removed `--only=production` flag from npm ci to include devDependencies needed for TypeScript/Vite build
   - Generated missing `package-lock.json` file required by npm ci

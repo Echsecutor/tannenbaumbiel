@@ -41,10 +41,16 @@ class TannenbaumGame {
       // Connect to game server
       const serverUrl =
         (import.meta as any).env.VITE_WS_URL || "ws://localhost:8000";
+
+      console.log("Attempting to connect to:", `${serverUrl}/game`);
       await this.networkManager.connect(`${serverUrl}/game`);
       console.log("Connected to game server");
+      this.hideError();
     } catch (error) {
       console.warn("Could not connect to game server:", error);
+      this.showError(
+        `Verbindung zum Spielserver fehlgeschlagen. Server-URL: ${serverUrl}/game. Das Spiel funktioniert im Offline-Modus.`
+      );
       // Game can still work in offline mode
     }
   }
@@ -80,6 +86,13 @@ class TannenbaumGame {
     }
 
     this.hideLoading();
+  }
+
+  private hideError() {
+    const errorElement = document.getElementById("error-message");
+    if (errorElement) {
+      errorElement.style.display = "none";
+    }
   }
 
   public destroy() {
