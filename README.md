@@ -106,50 +106,6 @@ docker-compose run --rm test     # Tests ausführen
 3. **State-Relay System** - Server synchronisiert Spielzustände
 4. **Room-basierte Welten** mit bis zu 4 Spielern
 
-## 🔧 Debugging & Troubleshooting
-
-### Häufige Probleme
-
-```bash
-# Port bereits belegt
-docker-compose down && sudo lsof -i :8000
-
-# Container neu bauen
-docker-compose build --no-cache
-
-# Datenbank zurücksetzen
-docker-compose down -v && docker-compose up -d
-
-# WebSocket testen
-wscat -c ws://localhost:8000/ws/game
-
-# API Health Check
-curl http://localhost:8000/api/v1/health
-```
-
-### Logs & Monitoring
-
-```bash
-docker-compose logs                    # Alle Services
-docker-compose logs -f backend         # Backend spezifisch
-docker-compose logs -f frontend        # Frontend spezifisch
-```
-
-## 🚀 Game Development
-
-### Neue Features hinzufügen
-
-1. **Protocol** definieren in `backend/app/network/protocol.py`
-2. **Backend** Logic in `backend/app/`
-3. **Frontend** Client in `frontend/src/`
-4. Mit Integration Tests validieren
-
-### Assets
-
-- **Sprites**: `frontend/src/assets/sprites/` (Pixel Art Characters)
-- **Audio**: `frontend/src/assets/audio/` (noch nicht implementiert)
-- **Loading**: Phaser Scene `preload()` Methode
-
 ## 📚 Weitere Dokumentation
 
 - **Detaillierte Notes**: `.cursor/notes/` Ordner
@@ -162,3 +118,20 @@ docker-compose logs -f frontend        # Frontend spezifisch
 2. Tests durchführen: `cd tools && ./run_test.sh`
 3. Commit: `git commit -m "feat: add xyz"`
 4. Pull Request erstellen
+
+## License
+
+Copyright 2025 Jonathan, Merle, Ronja und Sebastian Schmittner <sebastian@schmittner.pw>
+
+<a href="https://www.gnu.org/licenses/agpl-3.0.html">
+<img alt="AGPLV3" style="border-width:0" src="https://www.gnu.org/graphics/agplv3-with-text-162x68.png" /><br />
+
+All code published in this repository is free software: you can redistribute it and/or modify it under the terms of the Afero
+GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+See https://www.gnu.org/licenses/agpl-3.0.html
+</a>
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
