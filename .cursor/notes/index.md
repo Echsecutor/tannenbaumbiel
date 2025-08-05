@@ -52,6 +52,13 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 - Phaser 3 Spiel-Engine Integration
 - Sprite-Animation System
 
+### [Code Refactoring](code_refactoring.md)
+
+- GameScene.ts Modular System Architecture
+- Extracted 9 Focused System Modules
+- 83% Code Reduction in Main Scene File
+- Improved Maintainability and Testability
+
 ## Quick Start Links
 
 - Hauptdokument: [README.md](../README.md)

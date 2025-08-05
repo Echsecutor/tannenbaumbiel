@@ -4,6 +4,13 @@ This file documents major project-wide changes and restructuring.
 
 ## WIP
 
+- **VISUAL IMPROVEMENTS**: Perfected winter scene parallax depth system
+
+  - **Correct Parallax Hierarchy**: Fixed scroll factors - background (0.1) now slowest, trees increase with proximity (0.2, 0.4, 0.7)
+  - **Accurate Tree Positioning**: Trees constrained to background tree band area (145-190px scaled to screen height)
+  - **Realistic Perspective**: Near trees scaled much larger (up to 1.8x) for proper depth perception
+  - **Seamless Background Tiling**: Fixed horizontal gaps with pixel-perfect positioning
+
 - **ASSET MANAGEMENT**: Fixed winter ground tile synchronization issue
 
   - Synchronized all winter ground tiles (32x32 pixels) between `tiles/winter/` and `frontend/src/assets/winter/`

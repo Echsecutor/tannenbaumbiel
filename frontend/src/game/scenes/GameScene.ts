@@ -248,6 +248,7 @@ export class GameScene extends Phaser.Scene {
         this.player.setCollideWorldBounds(true)
         this.player.setData('health', 100)
         this.player.setData('facingRight', true)
+        this.player.setDepth(10)  // Player in front of trees (depth 1-3) and background (depth 0)
 
         // Create player animations
         this.createPlayerAnimations()
@@ -564,6 +565,7 @@ export class GameScene extends Phaser.Scene {
         const direction = this.player.getData('facingRight') ? 1 : -1
         projectile.setVelocityX(direction * 400)
         projectile.setVelocityY(-50)
+        projectile.setDepth(15)  // Projectiles in front of everything for visibility
         
         // Auto-destroy projectile after 3 seconds
         this.time.delayedCall(3000, () => {
@@ -843,6 +845,7 @@ export class GameScene extends Phaser.Scene {
                     // Create new network enemy sprite
                     const texture = enemyState.enemy_type === 'pink_boss' ? 'pink_enemy_idle' : 'enemy_idle'
                     sprite = this.physics.add.sprite(enemyState.x, enemyState.y, texture)
+                    sprite.setDepth(12)  // Network enemies in front of trees and player
                     
                     // Verify sprite was created successfully
                     if (!sprite) {
@@ -969,6 +972,7 @@ export class GameScene extends Phaser.Scene {
                 try {
                     // Create new network projectile sprite
                     sprite = this.physics.add.sprite(projectileState.x, projectileState.y, 'projectile')
+                    sprite.setDepth(15)  // Network projectiles in front of everything for visibility
                     
                     // Verify sprite was created successfully
                     if (!sprite) {
@@ -1273,18 +1277,18 @@ export class GameScene extends Phaser.Scene {
         const screenHeight = this.scale.height
         const verticalScale = screenHeight / bgOriginalHeight
         
-        // Calculate how many horizontal tiles we need to cover the world width
-        const scaledBgWidth = bgOriginalWidth * verticalScale
+        // Calculate pixel-perfect tile width to avoid gaps
+        const scaledBgWidth = Math.round(bgOriginalWidth * verticalScale)
         const numBgTiles = Math.ceil((this.rightBoundary - this.leftBoundary) / scaledBgWidth) + 2
         
-        // Create horizontally tiled backgrounds, each scaled to fit screen height
+        // Create horizontally tiled backgrounds with seamless pixel-perfect positioning
         for (let i = 0; i < numBgTiles; i++) {
-            const x = this.leftBoundary + (i * scaledBgWidth)
+            const x = Math.round(this.leftBoundary + (i * scaledBgWidth))
             const y = 0  // Start from top of screen
             const bg = this.add.image(x, y, 'winter_bg')
             bg.setOrigin(0, 0)  // Top-left origin for precise positioning
             bg.setScale(verticalScale, verticalScale)  // Scale uniformly to fit screen height
-            bg.setScrollFactor(0.5)  // Parallax scrolling effect for depth
+            bg.setScrollFactor(0.1)  // Background is furthest away - slowest scrolling
         }
     }
     
@@ -1411,19 +1415,66 @@ export class GameScene extends Phaser.Scene {
     private generateBackgroundElements(chunkX: number, chunkIndex: number) {
         const backgroundGroup = this.add.group()
         
-        // Generate 2-4 trees per chunk
-        const numTrees = 2 + Math.floor(Math.random() * 3)
+        // Calculate tree placement area based on background image tree band (145-190px out of 208px total)
+        const screenHeight = this.scale.height
+        const bgOriginalHeight = 208  // winter_bg.png height
+        const treeBandStart = (145 / bgOriginalHeight) * screenHeight  // Where trees start in scaled background
+        const treeBandEnd = (190 / bgOriginalHeight) * screenHeight    // Where trees end in scaled background
+        const treeBandHeight = treeBandEnd - treeBandStart
         
-        for (let i = 0; i < numTrees; i++) {
-            const x = chunkX + 50 + Math.random() * (this.chunkSize - 100)
-            const y = 400 + Math.random() * 200
-            const scale = 0.3 + Math.random() * 0.5
+        // Define depth layers with proper parallax hierarchy (background=0.1 is slowest)
+        const depthLayers = [
+            { 
+                scrollFactor: 0.2,  // Far background trees - slower than background (0.1)
+                scale: { min: 0.4, max: 0.6 },  // Medium size for far trees
+                yRange: { min: treeBandStart, max: treeBandStart + treeBandHeight * 0.8 },  // Upper 80% of tree band
+                count: { min: 1, max: 2 },
+                alpha: 0.6,  // Faded for distance
+                depth: 1  // Behind mid/near trees but in front of background
+            },
+            { 
+                scrollFactor: 0.4,  // Mid background trees - medium speed
+                scale: { min: 0.6, max: 0.9 },  // Larger for middle distance
+                yRange: { min: treeBandStart + treeBandHeight * 0.2, max: treeBandEnd },  // Middle to bottom of tree band
+                count: { min: 1, max: 3 },
+                alpha: 0.8,  // More visible
+                depth: 2  // In front of far trees
+            },
+            { 
+                scrollFactor: 0.7,  // Near trees - fast but still slower than gameplay (1.0)
+                scale: { min: 1.0, max: 1.8 },  // Much larger for close perspective - big trees!
+                yRange: { min: treeBandStart + treeBandHeight * 0.4, max: treeBandEnd + treeBandHeight * 0.3 },  // Can extend slightly below tree band
+                count: { min: 0, max: 2 },  // Sometimes no near trees for variety
+                alpha: 1.0,  // Full opacity for closest trees
+                depth: 3  // In front of other tree layers
+            }
+        ]
+        
+        // Generate trees for each depth layer
+        depthLayers.forEach((layer, layerIndex) => {
+            const numTrees = layer.count.min + Math.floor(Math.random() * (layer.count.max - layer.count.min + 1))
             
-            const tree = this.add.image(x, y, 'winter_tree')
-            tree.setScale(scale)
-            tree.setScrollFactor(0.8)  // Parallax effect for depth
-            backgroundGroup.add(tree)
-        }
+            for (let i = 0; i < numTrees; i++) {
+                // Random position within chunk, avoiding edges
+                const x = chunkX + 100 + Math.random() * (this.chunkSize - 200)
+                const y = layer.yRange.min + Math.random() * (layer.yRange.max - layer.yRange.min)
+                
+                // Random scale within layer's range
+                const scale = layer.scale.min + Math.random() * (layer.scale.max - layer.scale.min)
+                
+                // Randomly choose between winter_tree and tree for variety
+                const treeTexture = Math.random() < 0.6 ? 'winter_tree' : 'tree'
+                
+                // Create tree with depth-appropriate settings
+                const tree = this.add.image(x, y, treeTexture)
+                tree.setScale(scale)
+                tree.setScrollFactor(layer.scrollFactor)
+                tree.setAlpha(layer.alpha)
+                tree.setDepth(layer.depth)  // Use positive depth for proper layering (background=0, trees=1-3, gameplay=10+)
+                
+                backgroundGroup.add(tree)
+            }
+        })
         
         this.backgroundElements.set(chunkIndex, backgroundGroup)
     }
@@ -1447,12 +1498,14 @@ export class GameScene extends Phaser.Scene {
                 enemy.setData('health', 100)
                 enemy.setData('type', 'pink_boss')
                 enemy.setScale(1.5) // Make boss bigger
+                enemy.setDepth(12)  // Enemies in front of trees and player
                 enemy.play('pink_enemy_idle_anim')
                 enemy.setVelocity(Phaser.Math.Between(-100, 100), 20)
             } else {
                 enemy = this.enemies.create(x, y, 'enemy_idle')
                 enemy.setData('health', 50)
                 enemy.setData('type', 'owlet')
+                enemy.setDepth(12)  // Enemies in front of trees and player
                 enemy.play('enemy_idle_anim')
                 enemy.setVelocity(Phaser.Math.Between(-200, 200), 20)
             }

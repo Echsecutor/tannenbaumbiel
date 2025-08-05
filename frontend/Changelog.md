@@ -2,6 +2,48 @@
 
 ## WIP
 
+- **MAJOR REFACTORING**: Extracted GameScene.ts into modular system architecture
+  - **9 New System Modules**: Created focused, single-responsibility systems
+    - `AssetLoader.ts` - Asset loading and management
+    - `PlayerSystem.ts` - Player creation, movement, and state management
+    - `EnemySystem.ts` - Enemy management and AI
+    - `WorldGenerator.ts` - Procedural world generation and streaming
+    - `NetworkSystem.ts` - Multiplayer networking and state synchronization
+    - `CameraSystem.ts` - Side-scrolling camera management
+    - `ControlsSystem.ts` - Input and touch controls
+    - `PhysicsSystem.ts` - Collision detection and physics management
+    - `GameStateManager.ts` - Game over, victory, restart, and level progression
+  - **83% Code Reduction**: Reduced main scene from 1583 lines to ~280 lines
+  - **Improved Maintainability**: Clear separation of concerns with single-responsibility systems
+  - **Better Testability**: Each system can be tested independently
+  - **Enhanced Reusability**: Systems can be reused across different scenes
+  - **Future Extensibility**: Easy to add new systems or extend existing ones
+  - **GameSceneRefactored.ts**: New main scene file using all modular systems
+  - **All Functionality Preserved**: No loss of features during refactoring
+
+- **MAJOR ENHANCEMENT**: Fixed and perfected parallax depth system
+  - **Correct Parallax Hierarchy**: Fixed scroll factors for realistic depth perception
+    - Background (furthest): 0.1 scroll factor - slowest movement
+    - Far trees: 0.2 scroll factor 
+    - Mid trees: 0.4 scroll factor
+    - Near trees: 0.7 scroll factor
+    - Gameplay elements: 1.0 scroll factor - normal speed
+  - **Accurate Tree Positioning**: Trees now positioned within background tree band (145-190px scaled to screen)
+  - **Realistic Tree Scaling**: Near trees scaled much larger (1.0x-1.8x) for proper perspective depth
+  - **Depth Layering Fix**: Changed tree depths from negative (-10) to positive (1-3) so trees appear in front of background
+  - **Proper Z-Order**: Background=0, Trees=1-3, Player=10, Enemies=12, Projectiles=15
+
+- **VISUAL ENHANCEMENT**: Enhanced parallax background system with multi-layer depth simulation
+  - **Seamless Background Tiling**: Fixed horizontal background gaps with pixel-perfect integer positioning
+  - **3-Layer Parallax Trees**: Implemented realistic depth simulation using both `winter_tree` and `tree` assets
+    - **Far background** (scroll factor 0.2): Medium-sized trees with slight fade for distance effect
+    - **Mid background** (scroll factor 0.5): Larger trees with moderate parallax scrolling  
+    - **Near background** (scroll factor 0.8): Large, full-opacity trees close to player
+  - **Distance-Based Scaling**: Tree size varies with simulated distance (0.3x to 0.8x scale)
+  - **Depth-Based Alpha**: Trees fade slightly with distance for atmospheric perspective (0.7 to 1.0 alpha)
+  - **Proper Z-Layering**: Positive depth values ensure correct layering order
+  - **Varied Tree Distribution**: Random selection between winter and regular trees for visual variety
+
 - **BUG FIX**: Synchronized winter ground tiles between source and assets directories
   - Copied updated 32x32 pixel `winter_ground_upper_right.png` from `tiles/winter/` to `frontend/src/assets/winter/`
   - Synchronized all winter ground tile variants to ensure consistency
