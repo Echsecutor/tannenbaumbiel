@@ -4,7 +4,7 @@
 
 - Fixed WebSocket Content Security Policy violation in production:
   - Auto-upgrade WebSocket URLs from `ws://` to `wss://` when page is served over HTTPS
-  - Added explicit CSP header to allow WebSocket connections (`connect-src` directive)
+  - Updated nginx CSP header to include `connect-src 'self' ws: wss: http: https:` directive
   - Resolves browser blocking of insecure WebSocket connections on HTTPS sites
 - Fixed Docker production build to properly handle Vite environment variables (`VITE_API_URL`, `VITE_WS_URL`) at build time
 - Added comprehensive error handling for WebSocket connection failures
