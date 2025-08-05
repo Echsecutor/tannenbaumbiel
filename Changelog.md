@@ -4,6 +4,12 @@ This file documents major project-wide changes and restructuring.
 
 ## WIP
 
+- **DATABASE**: Removed redundant PostgreSQL initialization script
+
+  - Deleted `deployment/postgres/init.sql` as backend handles schema creation via SQLAlchemy models
+  - Removed volume mounts for init.sql from both `docker-compose.yml` and `docker-compose.prod.yml`
+  - Database schema is now fully managed by the backend application during startup
+
 - **DOCUMENTATION**: Added acknowledgments section to README.md
 
   - **Open Source Frameworks**: Added links and thanks to Phaser 3, FastAPI, TypeScript, Vite, SQLAlchemy, PostgreSQL, Docker, uvicorn

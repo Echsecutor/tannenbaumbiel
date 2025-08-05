@@ -51,7 +51,6 @@ services:
       - POSTGRES_PASSWORD=password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./deployment/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tannenbaum -d tannenbaumbiel_dev"]
