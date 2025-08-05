@@ -2,7 +2,34 @@
 
 ## Common Issues and Fixes
 
-### 1. Sprite Undefined Errors
+### 1. WebSocket Content Security Policy (CSP) Violations
+
+**Problem**: `Refused to connect to 'ws://...' because it violates the following Content Security Policy directive`
+
+**Root Cause**: HTTPS sites block insecure WebSocket connections (`ws://`) due to mixed content security policies.
+
+**Symptoms**:
+
+- WebSocket connections fail in production (HTTPS)
+- Works in development (HTTP) but fails in production
+- CSP error mentioning `connect-src` or `default-src` fallback
+
+**Fix**:
+
+- Auto-upgrade `ws://` URLs to `wss://` when page served over HTTPS
+- Add explicit CSP header with `connect-src 'self' ws: wss: http: https:`
+- Ensure backend supports secure WebSocket connections
+
+**Code Pattern**:
+
+```typescript
+// Auto-upgrade to secure WebSocket protocol
+if (window.location.protocol === "https:" && serverUrl.startsWith("ws://")) {
+  serverUrl = serverUrl.replace("ws://", "wss://");
+}
+```
+
+### 2. Sprite Undefined Errors
 
 **Problem**: `TypeError: Cannot read properties of undefined (reading 'setVelocity')`
 

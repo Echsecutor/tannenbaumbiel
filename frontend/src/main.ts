@@ -45,8 +45,17 @@ class TannenbaumGame {
 
   private async initializeNetwork() {
     // Connect to game server
-    const serverUrl =
+    let serverUrl =
       (import.meta as any).env.VITE_WS_URL || "ws://localhost:8000";
+
+    // Auto-upgrade to secure WebSocket (wss://) when page is served over HTTPS
+    if (
+      window.location.protocol === "https:" &&
+      serverUrl.startsWith("ws://")
+    ) {
+      serverUrl = serverUrl.replace("ws://", "wss://");
+      console.log("Upgraded WebSocket URL to secure protocol:", serverUrl);
+    }
 
     try {
       console.log("Attempting to connect to:", `${serverUrl}/game`);

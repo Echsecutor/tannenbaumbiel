@@ -22,22 +22,22 @@ export class MenuScene extends Scene {
 
   create() {
     console.log("MenuScene: Starting create method");
-    
+
     this.networkManager = this.registry.get("networkManager");
     console.log("MenuScene: Network manager obtained:", !!this.networkManager);
 
     this.createBackground();
     console.log("MenuScene: Background created");
-    
+
     this.createMenuForm();
     console.log("MenuScene: Menu form created");
-    
+
     this.createConnectionStatus(); // Called after menuForm is created
     console.log("MenuScene: Connection status created");
 
     this.setupNetworkHandlers();
     console.log("MenuScene: Network handlers set up");
-    
+
     console.log("MenuScene: Create method completed successfully");
   }
 
@@ -88,43 +88,43 @@ export class MenuScene extends Scene {
       .dom(this.scale.width / 2, this.scale.height / 2)
       .createFromCache("menuform");
 
-      // Set default values from localStorage
-      const usernameInput = this.menuForm.getChildByName(
-        "username"
-      ) as HTMLInputElement;
-      const roomnameInput = this.menuForm.getChildByName(
-        "roomname"
-      ) as HTMLInputElement;
-      const joinButton = this.menuForm.getChildByID(
-        "join-game-btn"
-      ) as HTMLButtonElement;
-      const offlineButton = this.menuForm.getChildByID(
-        "offline-game-btn"
-      ) as HTMLButtonElement;
+    // Set default values from localStorage
+    const usernameInput = this.menuForm.getChildByName(
+      "username"
+    ) as HTMLInputElement;
+    const roomnameInput = this.menuForm.getChildByName(
+      "roomname"
+    ) as HTMLInputElement;
+    const joinButton = this.menuForm.getChildByID(
+      "join-game-btn"
+    ) as HTMLButtonElement;
+    const offlineButton = this.menuForm.getChildByID(
+      "offline-game-btn"
+    ) as HTMLButtonElement;
 
-      if (usernameInput) {
-        usernameInput.value = localStorage.getItem("tannenbaum_username") || "";
-      }
+    if (usernameInput) {
+      usernameInput.value = localStorage.getItem("tannenbaum_username") || "";
+    }
 
-      if (roomnameInput) {
-        roomnameInput.value = "Winterwald";
-      }
+    if (roomnameInput) {
+      roomnameInput.value = "Winterwald";
+    }
 
-      // Setup button event listeners
-      if (joinButton) {
-        joinButton.addEventListener("click", () => this.joinGame());
-      }
+    // Setup button event listeners
+    if (joinButton) {
+      joinButton.addEventListener("click", () => this.joinGame());
+    }
 
-      if (offlineButton) {
-        offlineButton.addEventListener("click", () => this.startOfflineGame());
-      }
+    if (offlineButton) {
+      offlineButton.addEventListener("click", () => this.startOfflineGame());
+    }
 
-      // Setup Enter key listener for form submission
-      this.input.keyboard?.on("keydown-ENTER", () => {
-        this.joinGame();
-      });
+    // Setup Enter key listener for form submission
+    this.input.keyboard?.on("keydown-ENTER", () => {
+      this.joinGame();
+    });
 
-          // Update connection status now that the form is created
+    // Update connection status now that the form is created
     this.updateConnectionStatus();
   }
 
@@ -176,7 +176,9 @@ export class MenuScene extends Scene {
       // Hide/show online button based on connection status
       if (onlineButton) {
         onlineButton.style.display = isConnected ? "block" : "none";
-        console.log(`🎮 MenuScene: Online button ${isConnected ? "shown" : "hidden"}`);
+        console.log(
+          `🎮 MenuScene: Online button ${isConnected ? "shown" : "hidden"}`
+        );
       } else {
         console.warn("⚠️ MenuScene: Online button not found in form!");
       }
@@ -266,8 +268,6 @@ export class MenuScene extends Scene {
       originalUsername: "Offline Player",
     });
   }
-
-  
 
   private showError(message: string) {
     // Simple error display
