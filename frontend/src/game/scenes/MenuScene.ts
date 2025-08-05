@@ -182,6 +182,17 @@ export class MenuScene extends Scene {
       } else {
         console.warn("⚠️ MenuScene: Online button not found in form!");
       }
+
+      // Ensure offline button is always visible
+      const offlineButton = this.menuForm.node.querySelector(
+        "#offline-game-btn"
+      ) as HTMLButtonElement;
+      if (offlineButton) {
+        offlineButton.style.display = "block";
+        console.log("🎮 MenuScene: Offline button ensured visible");
+      } else {
+        console.warn("⚠️ MenuScene: Offline button not found in form!");
+      }
     } else {
       console.log(
         "ℹ️ MenuScene: menuForm or DOM node not ready yet, status update skipped"
