@@ -37,11 +37,11 @@ class TannenbaumGame {
   }
 
   private async initializeNetwork() {
-    try {
-      // Connect to game server
-      const serverUrl =
-        (import.meta as any).env.VITE_WS_URL || "ws://localhost:8000";
+    // Connect to game server
+    const serverUrl =
+      (import.meta as any).env.VITE_WS_URL || "ws://localhost:8000";
 
+    try {
       console.log("Attempting to connect to:", `${serverUrl}/game`);
       await this.networkManager.connect(`${serverUrl}/game`);
       console.log("Connected to game server");

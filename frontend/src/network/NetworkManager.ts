@@ -90,9 +90,11 @@ export class NetworkManager {
         };
       } catch (error) {
         this.updateConnectionStatus("disconnected");
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         reject(
           new Error(
-            `Failed to create WebSocket connection to ${url}: ${error.message}`
+            `Failed to create WebSocket connection to ${url}: ${errorMessage}`
           )
         );
       }

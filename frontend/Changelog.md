@@ -8,6 +8,9 @@
 - Added real-time connection status indicator with "connecting", "connected", and "disconnected" states
 - Improved NetworkManager with connection timeout handling and better error messages
 - Added detailed logging for debugging WebSocket connection issues
+- Fixed TypeScript compilation errors:
+  - Fixed variable scope issue with `serverUrl` in main.ts catch block
+  - Fixed error type handling in NetworkManager.ts catch block (unknown type safety)
 
 - **Fixed Docker build failure**: Complete TypeScript compilation and Docker configuration fixes
   - Removed `--only=production` flag from npm ci to include devDependencies needed for TypeScript/Vite build
