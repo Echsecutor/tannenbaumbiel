@@ -297,7 +297,7 @@ WS_URL=wss://api.yourdomain.com/ws
 - Nginx serving static frontend files with caching and compression
 - Multi-worker backend (4 uvicorn workers)
 - Production database with secure credentials
-- Redis for session storage and caching
+- PostgreSQL for all data and session storage
 - Health checks for all services
 - Security headers and CORS restrictions
 

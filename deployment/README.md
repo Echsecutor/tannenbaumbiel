@@ -77,7 +77,7 @@ WS_URL=wss://api.yourdomain.com/ws
 
 ### Additional Services
 
-- **Redis:** Added for session storage and caching (optional)
+- **Session storage:** All handled via PostgreSQL (Redis was removed)
 - **Health checks:** All services have proper health checks
 - **Restart policies:** Services restart automatically on failure
 
@@ -95,7 +95,7 @@ WS_URL=wss://api.yourdomain.com/ws
 
 - **Backend:** Increase worker count or run multiple backend containers
 - **Database:** Consider read replicas for heavy read workloads
-- **Redis:** Can be used for session sharing across multiple backend instances
+- **Session sharing:** PostgreSQL handles all session data across multiple backend instances
 
 ### Load Balancing
 

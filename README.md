@@ -86,7 +86,7 @@ docker-compose run --rm test     # Tests ausführen
 
 - **Frontend**: Phaser 3 + TypeScript + Vite
 - **Backend**: Python FastAPI + WebSockets
-- **Database**: PostgreSQL + Redis
+- **Database**: PostgreSQL
 - **Deployment**: Docker Compose
 
 ### Projekt Struktur
@@ -131,7 +131,7 @@ Dieses Projekt wäre ohne die großartigen Open Source Frameworks nicht möglich
 - **[Vite](https://vitejs.dev/)** - Build-Tool für moderne Web-Entwicklung
 - **[SQLAlchemy](https://www.sqlalchemy.org/)** - Python SQL Toolkit und ORM
 - **[PostgreSQL](https://www.postgresql.org/)** - Leistungsstarke Open Source Datenbank
-- **[Redis](https://redis.io/)** - In-Memory Datenstruktur-Store
+
 - **[Docker](https://www.docker.com/)** - Containerisierung und Deployment
 - **[uvicorn](https://www.uvicorn.org/)** - ASGI Server für Python
 

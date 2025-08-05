@@ -53,14 +53,14 @@
 - ✅ **Session Management**: Connection Manager für Clients
 - ✅ **Room System**: Multi-Player Room Support
 - ✅ **Game State**: Player Input Processing
-- ✅ **Database**: PostgreSQL + Redis Integration
+- ✅ **Database**: PostgreSQL Integration
 - ✅ **Settings**: Konfigurierbare Game Parameters
 
 ### Development Environment
 
 - ✅ **Docker Compose**: Vollständiges Development Setup
 - ✅ **Hot Reload**: Frontend + Backend Auto-Refresh
-- ✅ **Service Orchestration**: Backend, Frontend, DB, Redis
+- ✅ **Service Orchestration**: Backend, Frontend, DB
 - ✅ **Code Formatting**: Autopep8 mit sicherer Konfiguration
 
 ## 🎨 Assets Integration
@@ -87,7 +87,7 @@ frontend/src/assets/sprites/
 
 - **Frontend**: Phaser 3 + TypeScript + Vite
 - **Backend**: Python FastAPI + Uvicorn + WebSockets
-- **Database**: PostgreSQL 15 + Redis 7
+- **Database**: PostgreSQL 15
 - **Containerization**: Docker + Docker Compose
 - **Networking**: WebSocket für Real-time + REST für API
 
@@ -207,14 +207,6 @@ max-line-length = 120
 - [ ] **Power-ups**: Item collection mechanics
 - [ ] **Boss Fights**: Enhanced boss encounters
 - [ ] **Story Mode**: Campaign with progression
-
-## 📊 Development Metrics
-
-- **Lines of Code**: ~1500+ (Frontend + Backend)
-- **Components**: 15+ TypeScript/Python modules
-- **Sprites**: 9+ animation spritesheets integrated
-- **Container Services**: 4 (Frontend, Backend, DB, Redis)
-- **Development Time**: ~2-3 hours setup + implementation
 
 ## 🎪 Demo Features
 

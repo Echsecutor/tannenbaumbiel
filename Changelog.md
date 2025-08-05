@@ -6,7 +6,7 @@ This file documents major project-wide changes and restructuring.
 
 - **DOCUMENTATION**: Added acknowledgments section to README.md
 
-  - **Open Source Frameworks**: Added links and thanks to Phaser 3, FastAPI, TypeScript, Vite, SQLAlchemy, PostgreSQL, Redis, Docker, uvicorn
+  - **Open Source Frameworks**: Added links and thanks to Phaser 3, FastAPI, TypeScript, Vite, SQLAlchemy, PostgreSQL, Docker, uvicorn
   - **Free Game Assets**: Credited OpenGameArt Super Seasonal Platformer Tiles and CraftPix Free Pixel Art Tiny Hero Sprites
   - Properly attributed all major frameworks and free assets used in the project
 
@@ -16,9 +16,10 @@ This file documents major project-wide changes and restructuring.
   - Added production deployment guide in `deployment/README.md`
   - Production environment variables in `.env.prod` format
   - Security features: CORS restrictions, secure credentials, health checks
-  - Additional services: Redis for session storage and caching
+  - Session storage: All handled via PostgreSQL (Redis was removed)
   - **Consistent Docker naming**: Standardized on `Dockerfile` (production) and `Dockerfile.dev` (development) for both frontend and backend
   - **Simplified deployments**: Removed empty `shared/` directories and cleaned up Docker volume mounts
+  - **Removed unused Redis**: Cleaned up leftover Redis service from production Docker Compose (Redis was already removed from application code)
 
 - **VISUAL IMPROVEMENTS**: Perfected winter scene parallax depth system
 
