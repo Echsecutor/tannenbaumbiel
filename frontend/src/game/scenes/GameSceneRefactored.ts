@@ -37,7 +37,7 @@ export class GameSceneRefactored extends Phaser.Scene {
     private inputState: Map<string, boolean> = new Map()
 
     constructor() {
-        super({ key: 'GameSceneRefactored' })
+        super({ key: 'GameScene' })  // Use original key to replace old scene seamlessly
     }
 
     init(data: any) {

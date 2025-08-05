@@ -2,7 +2,7 @@
  * Phaser Game Configuration
  */
 import { Types } from 'phaser'
-import { GameScene } from './scenes/GameScene'
+import { GameSceneRefactored as GameScene } from './scenes/GameSceneRefactored'
 import { MenuScene } from './scenes/MenuScene'
 import { UIScene } from './scenes/UIScene'
 
