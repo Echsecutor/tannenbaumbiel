@@ -54,11 +54,13 @@ if (window.location.protocol === "https:" && serverUrl.startsWith("ws://")) {
 **Code Patterns**:
 
 ```typescript
-// BAD: Development path that won't work in production
+// BAD: Development paths that won't work in production
 this.load.html("menuform", "/src/game/forms/menu-form.html");
+this.scene.load.spritesheet('player_idle', '/src/assets/sprites/dude_monster/Dude_Monster_Idle_4.png', ...);
 
-// GOOD: Public path that works in both dev and production
+// GOOD: Public paths that work in both dev and production
 this.load.html("menuform", "/game/forms/menu-form.html");
+this.scene.load.spritesheet('player_idle', '/assets/sprites/dude_monster/Dude_Monster_Idle_4.png', ...);
 ```
 
 ```nginx
