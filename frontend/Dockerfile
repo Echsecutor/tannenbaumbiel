@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production --silent
+RUN npm ci --silent
 
 # Copy source code
 COPY . .
@@ -28,8 +28,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Create non-root user
-RUN addgroup -g 1001 -S nginx \
-    && adduser -S frontend -u 1001 -G nginx \
+RUN adduser -S frontend -u 1001 -G nginx \
     && chown -R frontend:nginx /usr/share/nginx/html \
     && chown -R frontend:nginx /var/cache/nginx \
     && chown -R frontend:nginx /var/log/nginx \

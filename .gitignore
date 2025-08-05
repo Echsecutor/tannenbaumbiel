@@ -210,3 +210,5 @@ venv/
 
 # must not be redistributed
 free-pixel-art-tiny-hero-sprites/
+
+node_modules/

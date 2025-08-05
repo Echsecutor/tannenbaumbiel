@@ -2,6 +2,16 @@
 
 ## WIP
 
+- **Fixed Docker build failure**: Complete TypeScript compilation and Docker configuration fixes
+  - Removed `--only=production` flag from npm ci to include devDependencies needed for TypeScript/Vite build
+  - Generated missing `package-lock.json` file required by npm ci
+  - Fixed 24+ TypeScript compilation errors:
+    - Added null checking for `scene.input.keyboard` access across Player.ts, ControlsSystem.ts, PlayerSystem.ts
+    - Removed unused variable declarations across all system files
+    - Fixed Phaser callback type mismatches with proper `ArcadePhysicsCallback` types
+    - Fixed ImportMeta.env access with type assertion
+    - Updated property type declarations to allow undefined keyboard inputs
+  - Fixed Docker nginx user creation conflict with existing nginx group
 - **MAJOR REFACTORING**: Extracted GameScene.ts into modular system architecture
   - **9 New System Modules**: Created focused, single-responsibility systems
     - `AssetLoader.ts` - Asset loading and management
@@ -24,7 +34,7 @@
 - **MAJOR ENHANCEMENT**: Fixed and perfected parallax depth system
   - **Correct Parallax Hierarchy**: Fixed scroll factors for realistic depth perception
     - Background (furthest): 0.1 scroll factor - slowest movement
-    - Far trees: 0.2 scroll factor 
+    - Far trees: 0.2 scroll factor
     - Mid trees: 0.4 scroll factor
     - Near trees: 0.7 scroll factor
     - Gameplay elements: 1.0 scroll factor - normal speed
@@ -37,7 +47,7 @@
   - **Seamless Background Tiling**: Fixed horizontal background gaps with pixel-perfect integer positioning
   - **3-Layer Parallax Trees**: Implemented realistic depth simulation using both `winter_tree` and `tree` assets
     - **Far background** (scroll factor 0.2): Medium-sized trees with slight fade for distance effect
-    - **Mid background** (scroll factor 0.5): Larger trees with moderate parallax scrolling  
+    - **Mid background** (scroll factor 0.5): Larger trees with moderate parallax scrolling
     - **Near background** (scroll factor 0.8): Large, full-opacity trees close to player
   - **Distance-Based Scaling**: Tree size varies with simulated distance (0.3x to 0.8x scale)
   - **Depth-Based Alpha**: Trees fade slightly with distance for atmospheric perspective (0.7 to 1.0 alpha)
@@ -57,7 +67,7 @@
     - **Parallax effect**: 0.5x scroll factor for depth perception
   - Implemented intelligent winter ground tiling system using properly extracted 32x32 tiles:
     - `winter_ground_upper_left/middle/right.png` - For platform top edges with proper corners
-    - `winter_ground_inner.png` - For platform interior areas  
+    - `winter_ground_inner.png` - For platform interior areas
     - `winter_ground_lower_left/middle/right.png` - For platform bottom edges
   - Created `createWinterTiledPlatform()` method for seamless multi-tile platform construction
   - Updated ground platforms: 192px wide (6 tiles) × 64px high (2 tiles) for substantial terrain
@@ -67,7 +77,7 @@
 
 - **BUG FIX**: Fixed Game Over and Victory messages positioning
   - Game Over and Victory screens now always appear in center of visible screen area
-  - Messages are positioned relative to camera center instead of fixed screen coordinates  
+  - Messages are positioned relative to camera center instead of fixed screen coordinates
   - Added `setScrollFactor(0)` to prevent UI elements from scrolling with camera
   - Fixed issue where messages could appear off-screen when world was scrolled
 
