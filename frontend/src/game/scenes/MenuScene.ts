@@ -17,7 +17,7 @@ export class MenuScene extends Scene {
     this.createMenuAssets();
 
     // Load HTML form for menu inputs
-    this.load.html("menuform", "/src/game/forms/menu-form.html");
+    this.load.html("menuform", "/game/forms/menu-form.html");
   }
 
   create() {

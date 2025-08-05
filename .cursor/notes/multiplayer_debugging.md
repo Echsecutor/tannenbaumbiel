@@ -29,7 +29,47 @@ if (window.location.protocol === "https:" && serverUrl.startsWith("ws://")) {
 }
 ```
 
-### 2. Sprite Undefined Errors
+### 2. Static Asset Serving Issues (404 on HTML/Assets)
+
+**Problem**: Frontend tries to load static assets but gets 404 or wrong content (index.html instead)
+
+**Root Cause**:
+
+- Vite development paths (`/src/...`) don't work in production builds
+- nginx client-side routing fallback (`try_files $uri $uri/ /index.html`) serves index.html for missing files
+- Static assets need to be in `public/` directory to be included in production build
+
+**Symptoms**:
+
+- Development works but production fails to load assets
+- URLs like `/src/game/forms/menu-form.html` return index.html content
+- Browser console shows 404 errors or unexpected content
+
+**Fix**:
+
+- Move static assets from `src/` to `public/` directory
+- Update code references to use public paths (remove `/src` prefix)
+- Ensure nginx serves static file types properly
+
+**Code Patterns**:
+
+```typescript
+// BAD: Development path that won't work in production
+this.load.html("menuform", "/src/game/forms/menu-form.html");
+
+// GOOD: Public path that works in both dev and production
+this.load.html("menuform", "/game/forms/menu-form.html");
+```
+
+```nginx
+# Ensure nginx serves HTML files as static assets
+location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|html)$ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+```
+
+### 3. Sprite Undefined Errors
 
 **Problem**: `TypeError: Cannot read properties of undefined (reading 'setVelocity')`
 
