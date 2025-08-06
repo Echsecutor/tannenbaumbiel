@@ -222,13 +222,6 @@ class TannenbaumGame {
     this.hideLoading();
   }
 
-  private hideError() {
-    const errorElement = document.getElementById("error-message");
-    if (errorElement) {
-      errorElement.style.display = "none";
-    }
-  }
-
   public destroy() {
     if (this.game) {
       this.game.destroy(true);

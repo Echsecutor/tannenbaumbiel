@@ -237,7 +237,8 @@ export class UIScene extends Scene {
 
     // Format scores for display
     const scoreLines = otherPlayerScores.map(
-      (player, index) => `${player.username}: ${player.score}`
+      (player: { playerId: string; username: string; score: number }) =>
+        `${player.username}: ${player.score}`
     );
 
     this.multiplayerScoreText.setText(

@@ -11,6 +11,9 @@
   - Fixed offline mode score display not showing initial score of 0
   - Removed conflicting event listeners that prevented proper score updates
   - Added comprehensive debug logging for score system troubleshooting
+  - Fixed TypeScript compilation errors in UIScene.ts and main.ts for production builds
+  - Added setScrollFactor(0) to all UI elements to prevent camera scrolling issues
+  - Implemented proper depth layering for UI element visibility
 - Changed server URL configuration from environment variables to UI input:
   - Added server URL input field to menu form with default value `https://server.tannenbaumbiel.echsecutables.de/`
   - Server URL is now saved in localStorage for persistence

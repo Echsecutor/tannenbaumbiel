@@ -59,6 +59,13 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 - 83% Code Reduction in Main Scene File
 - Improved Maintainability and Testability
 
+### [Development Best Practices](development_best_practices.md)
+
+- ⚠️ **Critical Build Verification Workflow**
+- TypeScript Compilation Standards
+- UI Development Guidelines (setScrollFactor, setDepth)
+- Common Build Issues and Solutions
+
 ## Quick Start Links
 
 - Hauptdokument: [README.md](../README.md)
