@@ -8,11 +8,10 @@ WORKDIR /app
 
 # Accept build arguments for Vite environment variables
 ARG VITE_API_URL=http://localhost:8000
-ARG VITE_WS_URL=ws://localhost:8000/ws
 
 # Set environment variables for the build process
+# Note: VITE_WS_URL is no longer used - server URL is configured via UI
 ENV VITE_API_URL=${VITE_API_URL}
-ENV VITE_WS_URL=${VITE_WS_URL}
 
 # Copy package files
 COPY package*.json ./

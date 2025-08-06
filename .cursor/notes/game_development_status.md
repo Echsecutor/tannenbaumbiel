@@ -21,6 +21,7 @@
 - **Dual-Mode Support**: Same Phaser physics for both offline and multiplayer modes
 - **Enemy AI System**: Local Phaser physics with synchronized state across clients
 - **Shooting System**: Local projectiles with network synchronization and visual tints
+- **Score Synchronization**: Real-time score tracking and display for all players in multiplayer games
 - **Automatic Cleanup**: Disconnected players werden automatisch entfernt
 
 ### ✅ **WebSocket-Verbindung**: Erfolgreich repariert!
@@ -39,7 +40,7 @@
 - ✅ **Kampf-System**: Projectile Shooting + Enemy Health
 - ✅ **Animationen**: Sprite-basierte Character Animationen
 - ✅ **Mobile Support**: Touch Controls für Bewegung/Sprung/Schießen, Fullscreen Landscape Mode
-- ✅ **UI Elements**: Health Display, Control Instructions, Fully HTML-based Menu Interface
+- ✅ **UI Elements**: Health Display, Score System, Control Instructions, Fully HTML-based Menu Interface
 - ✅ **Input System**: Complete HTML form with buttons, inputs, and connection status
 - ✅ **Menu Interface**: Headlines, buttons, and connection status all in HTML form (no mixed Phaser/HTML layout)
 - ✅ **Button System**: HTML buttons with CSS styling, hover effects, and JavaScript event handling
@@ -106,6 +107,7 @@ frontend/src/assets/sprites/
 - **Jumping**: Physics-basierte Sprungmechanik
 - **Combat**: Projectile-basiertes Kampfsystem
 - **Health**: Health Points mit Visual Feedback
+- **Score System**: Player scores with 10 points per enemy defeated, multiplayer score synchronization
 - **Animations**: State-basierte Sprite Animationen
 
 ### Camera System

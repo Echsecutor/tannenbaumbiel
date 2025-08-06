@@ -2,6 +2,11 @@
 
 ## WIP
 
+- **FEATURE**: Added score tracking to multiplayer game state
+  - Extended `PlayerState` model with score field for player score tracking
+  - Updated `GameWorld` player creation and state synchronization to include score
+  - Score is now properly synchronized between server and clients in multiplayer games
+  - Backend supports score updates from client and distributes to all players
 - **REFACTOR**: Moved protocol definitions from `shared/protocol.py` to `backend/app/network/protocol.py`
 
   - Protocol file only used by Python backend, moved to appropriate backend location

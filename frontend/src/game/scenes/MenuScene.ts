@@ -95,6 +95,9 @@ export class MenuScene extends Scene {
     const roomnameInput = this.menuForm.getChildByName(
       "roomname"
     ) as HTMLInputElement;
+    const serverUrlInput = this.menuForm.getChildByName(
+      "serverurl"
+    ) as HTMLInputElement;
     const joinButton = this.menuForm.getChildByID(
       "join-game-btn"
     ) as HTMLButtonElement;
@@ -108,6 +111,12 @@ export class MenuScene extends Scene {
 
     if (roomnameInput) {
       roomnameInput.value = "Winterwald";
+    }
+
+    if (serverUrlInput) {
+      serverUrlInput.value =
+        localStorage.getItem("tannenbaum_serverurl") ||
+        "https://server.tannenbaumbiel.echsecutables.de/";
     }
 
     // Setup button event listeners
@@ -243,9 +252,15 @@ export class MenuScene extends Scene {
     const roomnameInput = this.menuForm.getChildByName(
       "roomname"
     ) as HTMLInputElement;
+    const serverUrlInput = this.menuForm.getChildByName(
+      "serverurl"
+    ) as HTMLInputElement;
 
     const username = usernameInput?.value.trim() || "";
     const roomName = roomnameInput?.value.trim() || "Winterwald";
+    const serverUrl =
+      serverUrlInput?.value.trim() ||
+      "https://server.tannenbaumbiel.echsecutables.de/";
 
     if (!username) {
       this.showError("Bitte geben Sie einen Spielernamen ein");
@@ -257,16 +272,32 @@ export class MenuScene extends Scene {
       return;
     }
 
-    // Save username
-    localStorage.setItem("tannenbaum_username", username);
-
-    if (this.networkManager && this.networkManager.getConnectionStatus()) {
-      // Join multiplayer game
-      this.networkManager.joinRoom(roomName, username);
-    } else {
-      // Start offline game
-      this.startOfflineGame();
+    if (!serverUrl) {
+      this.showError("Bitte geben Sie eine Server-URL ein");
+      return;
     }
+
+    // Save form values
+    localStorage.setItem("tannenbaum_username", username);
+    localStorage.setItem("tannenbaum_serverurl", serverUrl);
+
+    // Try to connect to the server with the provided URL
+    this.connectToServer(serverUrl)
+      .then(() => {
+        if (this.networkManager && this.networkManager.getConnectionStatus()) {
+          // Join multiplayer game
+          this.networkManager.joinRoom(roomName, username);
+        } else {
+          // Start offline game
+          this.startOfflineGame();
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to connect to server:", error);
+        this.showError(
+          `Verbindung zum Server fehlgeschlagen: ${error.message}`
+        );
+      });
   }
 
   private startOfflineGame() {
@@ -278,6 +309,37 @@ export class MenuScene extends Scene {
       originalRoomName: "Offline Mode",
       originalUsername: "Offline Player",
     });
+  }
+
+  private async connectToServer(serverUrl: string): Promise<void> {
+    if (!this.networkManager) {
+      throw new Error("Network manager not available");
+    }
+
+    // Convert HTTP URLs to WebSocket URLs
+    let wsUrl = serverUrl;
+    if (serverUrl.startsWith("http://")) {
+      wsUrl = serverUrl.replace("http://", "ws://");
+    } else if (serverUrl.startsWith("https://")) {
+      wsUrl = serverUrl.replace("https://", "wss://");
+    }
+
+    // Ensure the URL ends with /game for WebSocket endpoint
+    if (!wsUrl.endsWith("/game")) {
+      wsUrl = wsUrl.endsWith("/") ? wsUrl + "game" : wsUrl + "/game";
+    }
+
+    console.log("Attempting to connect to:", wsUrl);
+
+    try {
+      await this.networkManager.connect(wsUrl);
+      console.log("Successfully connected to server");
+      this.updateConnectionStatus();
+    } catch (error) {
+      console.error("Failed to connect to server:", error);
+      this.updateConnectionStatus();
+      throw error;
+    }
   }
 
   private showError(message: string) {

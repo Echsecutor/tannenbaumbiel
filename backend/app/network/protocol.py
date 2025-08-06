@@ -56,6 +56,7 @@ class PlayerState(BaseModel):
     velocity_x: float = 0.0
     velocity_y: float = 0.0
     health: int = 100
+    score: int = 0
     facing_right: bool = True
     is_grounded: bool = False
     is_jumping: bool = False

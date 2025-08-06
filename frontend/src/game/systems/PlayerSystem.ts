@@ -19,6 +19,7 @@ export class PlayerSystem {
     this.player.setBounce(0.2);
     this.player.setCollideWorldBounds(true);
     this.player.setData("health", 100);
+    this.player.setData("score", 0);
     this.player.setData("facingRight", true);
     this.player.setDepth(10); // Player in front of trees and background
 
@@ -155,6 +156,7 @@ export class PlayerSystem {
       is_grounded: this.player.body!.touching.down,
       is_jumping: this.player.body!.velocity.y < -10,
       health: this.player.getData("health") || 100,
+      score: this.player.getData("score") || 0,
     };
   }
 
@@ -166,8 +168,6 @@ export class PlayerSystem {
   setControlsSystem(controlsSystem: any) {
     this.controlsSystem = controlsSystem;
   }
-
-
 
   takeDamage(amount: number): number {
     if (!this.player) return 0;
@@ -183,6 +183,21 @@ export class PlayerSystem {
     });
 
     return newHealth;
+  }
+
+  addScore(amount: number): number {
+    if (!this.player) return 0;
+
+    const currentScore = this.player.getData("score") || 0;
+    const newScore = currentScore + amount;
+    this.player.setData("score", newScore);
+
+    return newScore;
+  }
+
+  getScore(): number {
+    if (!this.player) return 0;
+    return this.player.getData("score") || 0;
   }
 
   applyKnockback(direction: number) {

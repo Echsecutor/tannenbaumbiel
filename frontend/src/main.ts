@@ -152,17 +152,10 @@ class TannenbaumGame {
 
   private async init() {
     try {
-      // Initialize network connection (don't let network failure stop game)
-      await this.initializeNetwork();
-    } catch (error) {
-      console.warn(
-        "Network initialization failed, continuing in offline mode:",
-        error
-      );
-    }
+      // Network connection will be initiated from the MenuScene when user provides server URL
+      // No automatic connection on startup
 
-    try {
-      // Start game regardless of network status
+      // Start game in offline mode initially
       this.startGame();
 
       // Hide loading screen
@@ -180,34 +173,6 @@ class TannenbaumGame {
       this.showError(
         "Fehler beim Laden des Spiels. Bitte laden Sie die Seite neu."
       );
-    }
-  }
-
-  private async initializeNetwork() {
-    // Connect to game server
-    let serverUrl =
-      (import.meta as any).env.VITE_WS_URL || "ws://localhost:8000";
-
-    // Auto-upgrade to secure WebSocket (wss://) when page is served over HTTPS
-    if (
-      window.location.protocol === "https:" &&
-      serverUrl.startsWith("ws://")
-    ) {
-      serverUrl = serverUrl.replace("ws://", "wss://");
-      console.log("Upgraded WebSocket URL to secure protocol:", serverUrl);
-    }
-
-    try {
-      console.log("Attempting to connect to:", `${serverUrl}/game`);
-      await this.networkManager.connect(`${serverUrl}/game`);
-      console.log("Connected to game server");
-      this.hideError();
-    } catch (error) {
-      console.warn("Could not connect to game server:", error);
-      this.showError(
-        `Verbindung zum Spielserver fehlgeschlagen. Server-URL: ${serverUrl}/game. Das Spiel funktioniert im Offline-Modus.`
-      );
-      // Game can still work in offline mode
     }
   }
 

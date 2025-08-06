@@ -9,6 +9,7 @@ export class UIScene extends Scene {
   private healthBar!: Phaser.GameObjects.Graphics;
   private healthText!: Phaser.GameObjects.Text;
   private scoreText!: Phaser.GameObjects.Text;
+  private multiplayerScoreText!: Phaser.GameObjects.Text;
   private connectionText!: Phaser.GameObjects.Text;
   private menuButton!: Phaser.GameObjects.Text;
 
@@ -24,6 +25,7 @@ export class UIScene extends Scene {
 
     this.createHealthBar();
     this.createScoreDisplay();
+    this.createMultiplayerScoreDisplay();
     this.createConnectionStatus();
     this.createMenuButton();
     this.createAudioToggle();
@@ -36,6 +38,7 @@ export class UIScene extends Scene {
       delay: 1000, // Check every second
       callback: () => {
         this.updateConnectionStatus();
+        this.updateMultiplayerScores();
       },
       loop: true,
     });
@@ -48,30 +51,63 @@ export class UIScene extends Scene {
       .fillStyle(0x2c3e50)
       .fillRect(20, 20, 204, 24)
       .lineStyle(2, 0xffffff)
-      .strokeRect(20, 20, 204, 24);
+      .strokeRect(20, 20, 204, 24)
+      .setDepth(997)
+      .setScrollFactor(0); // Don't scroll with camera
 
     // Health bar fill
-    this.healthBar = this.add.graphics();
+    this.healthBar = this.add.graphics().setDepth(998).setScrollFactor(0); // Don't scroll with camera
 
     // Health text
-    this.healthText = this.add.text(30, 25, `Leben: ${this.health}`, {
-      fontSize: "16px",
-      color: "#ffffff",
-      fontFamily: "Arial",
-    });
+    this.healthText = this.add
+      .text(30, 25, `Leben: ${this.health}`, {
+        fontSize: "16px",
+        color: "#ffffff",
+        fontFamily: "Arial",
+      })
+      .setDepth(999)
+      .setScrollFactor(0); // Don't scroll with camera
 
     // Update health bar after all components are created
     this.updateHealthBar();
   }
 
   private createScoreDisplay() {
+    const x = this.scale.width - 20;
+    const y = 20;
+    console.log(
+      `🎯 UIScene: Creating score display at (${x}, ${y}), screen size: ${this.scale.width}x${this.scale.height}`
+    );
+
     this.scoreText = this.add
-      .text(this.scale.width - 20, 20, `Punkte: ${this.score}`, {
+      .text(x, y, `Punkte: ${this.score}`, {
         fontSize: "18px",
         color: "#ffffff",
         fontFamily: "Arial",
+        backgroundColor: "#000000", // Add black background for visibility
+        padding: { x: 5, y: 2 },
       })
-      .setOrigin(1, 0);
+      .setOrigin(1, 0)
+      .setDepth(1000) // High depth to ensure it's on top
+      .setScrollFactor(0); // Don't scroll with camera
+
+    console.log(
+      `🎯 UIScene: Score text created at position:`,
+      this.scoreText.x,
+      this.scoreText.y
+    );
+  }
+
+  private createMultiplayerScoreDisplay() {
+    this.multiplayerScoreText = this.add
+      .text(this.scale.width - 20, 50, "", {
+        fontSize: "14px",
+        color: "#95a5a6",
+        fontFamily: "Arial",
+      })
+      .setOrigin(1, 0)
+      .setDepth(999)
+      .setScrollFactor(0); // Don't scroll with camera
   }
 
   private createConnectionStatus() {
@@ -81,7 +117,9 @@ export class UIScene extends Scene {
         color: "#95a5a6",
         fontFamily: "Arial",
       })
-      .setOrigin(0.5, 0);
+      .setOrigin(0.5, 0)
+      .setDepth(998)
+      .setScrollFactor(0); // Don't scroll with camera
 
     this.updateConnectionStatus();
 
@@ -102,6 +140,7 @@ export class UIScene extends Scene {
       })
       .setInteractive({ useHandCursor: true })
       .setDepth(100) // Lower than mobile controls (depth 1000)
+      .setScrollFactor(0) // Don't scroll with camera
       .on("pointerdown", () => this.returnToMenu())
       .on("pointerover", () =>
         this.menuButton.setStyle({ backgroundColor: "#2c3e50" })
@@ -122,6 +161,7 @@ export class UIScene extends Scene {
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
       .setDepth(100) // Lower than mobile controls (depth 1000)
+      .setScrollFactor(0) // Don't scroll with camera
       .on("pointerdown", () => this.toggleAudio(audioButton))
       .on("pointerover", () =>
         audioButton.setStyle({ backgroundColor: "#2c3e50" })
@@ -139,13 +179,16 @@ export class UIScene extends Scene {
     });
 
     this.game.events.on("score-changed", (newScore: number) => {
+      console.log(
+        `🎯 UIScene: Received score-changed event with score: ${newScore}`
+      );
       this.score = newScore;
       this.updateScoreDisplay();
     });
 
-    this.game.events.on("enemy-defeated", () => {
-      this.score += 100;
-      this.updateScoreDisplay();
+    // Listen for network game state updates to refresh multiplayer scores
+    this.game.events.on("network-state-updated", () => {
+      this.updateMultiplayerScores();
     });
   }
 
@@ -165,7 +208,41 @@ export class UIScene extends Scene {
   }
 
   private updateScoreDisplay() {
-    this.scoreText.setText(`Punkte: ${this.score}`);
+    console.log(`🎯 UIScene: Updating score display to ${this.score} points`);
+    if (this.scoreText) {
+      this.scoreText.setText(`Punkte: ${this.score}`);
+      console.log(`🎯 UIScene: Score display updated successfully`);
+    } else {
+      console.warn(`⚠️ UIScene: scoreText object not initialized!`);
+    }
+  }
+
+  private updateMultiplayerScores() {
+    // Get NetworkSystem from the game scene
+    const gameScene = this.scene.get("GameScene");
+    if (!gameScene || !gameScene.scene.settings.data) return;
+
+    // Access network system through the game scene's data
+    const networkSystem = (gameScene as any).networkSystem;
+    if (!networkSystem || !networkSystem.isOnline()) {
+      this.multiplayerScoreText.setText("");
+      return;
+    }
+
+    const otherPlayerScores = networkSystem.getAllPlayerScores();
+    if (otherPlayerScores.length === 0) {
+      this.multiplayerScoreText.setText("");
+      return;
+    }
+
+    // Format scores for display
+    const scoreLines = otherPlayerScores.map(
+      (player, index) => `${player.username}: ${player.score}`
+    );
+
+    this.multiplayerScoreText.setText(
+      "Andere Spieler:\n" + scoreLines.join("\n")
+    );
   }
 
   public updateConnectionStatus() {

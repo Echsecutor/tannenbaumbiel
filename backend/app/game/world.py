@@ -53,6 +53,7 @@ class GameWorld:
             velocity_x=0,
             velocity_y=0,
             health=100,
+            score=0,
             facing_right=True,
             is_grounded=True,
             is_jumping=False,
@@ -313,6 +314,7 @@ class GameWorld:
         player.is_grounded = client_player_data.get('is_grounded', player.is_grounded)
         player.is_jumping = client_player_data.get('is_jumping', player.is_jumping)
         player.health = client_player_data.get('health', player.health)
+        player.score = client_player_data.get('score', player.score)
 
     def update_enemy_from_client(self, enemy_id: str, client_enemy_data: dict):
         """Update enemy state from client (only if client has authority)"""

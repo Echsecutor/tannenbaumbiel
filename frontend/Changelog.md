@@ -2,6 +2,23 @@
 
 ## WIP
 
+- Implemented multiplayer score system:
+  - Changed score reward from 100 to 10 points per enemy defeated
+  - Added score tracking to player state for network synchronization
+  - Added multiplayer score display showing other players' scores in real-time
+  - Extended UI to show both current player score and other players' scores
+  - Score is now synchronized across all players in multiplayer games
+  - Fixed offline mode score display not showing initial score of 0
+  - Removed conflicting event listeners that prevented proper score updates
+  - Added comprehensive debug logging for score system troubleshooting
+- Changed server URL configuration from environment variables to UI input:
+  - Added server URL input field to menu form with default value `https://server.tannenbaumbiel.echsecutables.de/`
+  - Server URL is now saved in localStorage for persistence
+  - Removed dependency on `VITE_WS_URL` environment variable
+  - Connection is initiated when user clicks "Online Spielen" instead of on application startup
+  - Automatic conversion from HTTP/HTTPS URLs to WS/WSS protocols
+  - Updated Dockerfile to remove unused `VITE_WS_URL` build argument
+  - Updated both docker-compose.yml and docker-compose.prod.yml to remove `VITE_WS_URL` references
 - Added fullscreen landscape mode support for mobile devices:
   - Automatic fullscreen mode activation on mobile devices after game loads
   - Cross-browser fullscreen API support (WebKit, standard, MS implementations)

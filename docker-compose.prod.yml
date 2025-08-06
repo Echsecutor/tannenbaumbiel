@@ -31,7 +31,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${API_URL:-http://localhost:8000}
-        VITE_WS_URL: ${WS_URL:-ws://localhost:8000/ws}
+        # Note: VITE_WS_URL removed - server URL is now configured via UI
     ports:
       - "8080:80"
     depends_on:

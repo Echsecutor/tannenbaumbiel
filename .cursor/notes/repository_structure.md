@@ -275,8 +275,8 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/tannenbaumbiel_dev
 DEBUG=True
 
 # Frontend .env
+# Note: VITE_WS_URL is no longer used - server URL is now configured via UI
 VITE_API_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000/ws
 ```
 
 ### Production
@@ -287,8 +287,18 @@ POSTGRES_PASSWORD=secure_password_change_me
 SECRET_KEY=your_very_long_random_secret_key_here
 ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 API_URL=https://api.yourdomain.com
-WS_URL=wss://api.yourdomain.com/ws
+# Note: WS_URL is no longer set via environment - users configure it in the game menu
 ```
+
+### Server URL Configuration
+
+**NEW**: Server URL is now configured via UI instead of environment variables.
+
+- Users can enter server URL in the game menu form
+- Default URL: `https://server.tannenbaumbiel.echsecutables.de/`
+- URL is saved in localStorage for persistence
+- Automatic conversion from HTTP/HTTPS to WS/WSS protocols
+- Connection is initiated when user clicks "Online Spielen"
 
 **Production Features:**
 

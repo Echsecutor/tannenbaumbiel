@@ -97,6 +97,9 @@ export class NetworkSystem {
 
     if (gameState.players && Array.isArray(gameState.players)) {
       this.updateAllPlayersFromServer(gameState.players);
+
+      // Emit event to notify UI about network state updates
+      this.scene.game.events.emit("network-state-updated");
     }
   }
 
@@ -132,6 +135,8 @@ export class NetworkSystem {
 
         sprite.setTint(0x00ff00); // Green tint
         sprite.setData("health", playerState.health);
+        sprite.setData("score", playerState.score || 0);
+        sprite.setData("username", playerState.username || "Unknown");
         sprite.setData("facingRight", playerState.facing_right);
         sprite.setBounce(0.2);
         sprite.setCollideWorldBounds(true);
@@ -149,6 +154,8 @@ export class NetworkSystem {
         sprite.setPosition(playerState.x, playerState.y);
         sprite.setFlipX(!playerState.facing_right);
         sprite.setData("health", playerState.health);
+        sprite.setData("score", playerState.score || 0);
+        sprite.setData("username", playerState.username || "Unknown");
 
         // Update animation
         if (Math.abs(playerState.velocity_x) > 10) {
@@ -289,5 +296,29 @@ export class NetworkSystem {
     this.roomJoinConfirmed = false;
     this.inputState.clear();
     this.clearNetworkEntities();
+  }
+
+  getNetworkPlayers(): Map<string, Phaser.Physics.Arcade.Sprite> {
+    return this.networkPlayers;
+  }
+
+  getAllPlayerScores(): Array<{
+    playerId: string;
+    username: string;
+    score: number;
+  }> {
+    const scores: Array<{ playerId: string; username: string; score: number }> =
+      [];
+
+    // Add network players' scores
+    for (const [playerId, sprite] of this.networkPlayers) {
+      scores.push({
+        playerId,
+        username: sprite.getData("username") || "Unknown",
+        score: sprite.getData("score") || 0,
+      });
+    }
+
+    return scores;
   }
 }

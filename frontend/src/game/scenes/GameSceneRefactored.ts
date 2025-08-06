@@ -113,9 +113,12 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Start UI scene
     this.scene.launch("UIScene");
 
-    // Initialize UI with current health
+    // Initialize UI with current health and score
     const player = this.playerSystem.getPlayer();
+    const initialScore = player.getData("score") || 0;
+    console.log(`🎯 GameScene: Emitting initial score: ${initialScore}`);
     this.game.events.emit("health-changed", player.getData("health"));
+    this.game.events.emit("score-changed", initialScore);
   }
 
   private createGameSystems(_networkManager: NetworkManager) {
@@ -245,8 +248,12 @@ export class GameSceneRefactored extends Phaser.Scene {
     const result = this.enemySystem.hitEnemy(enemy, 25);
 
     if (result.destroyed) {
-      // Emit enemy defeated event for score update
-      this.game.events.emit("enemy-defeated");
+      // Add score to player
+      const newScore = this.playerSystem.addScore(10);
+      console.log(`🎯 GameScene: Enemy defeated! New score: ${newScore}`);
+
+      // Emit score changed event for UI update
+      this.game.events.emit("score-changed", newScore);
 
       // Check if all enemies defeated
       if (this.enemySystem.countActiveEnemies() === 0) {
