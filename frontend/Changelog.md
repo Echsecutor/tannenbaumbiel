@@ -2,12 +2,36 @@
 
 ## WIP
 
+- Replaced player projectiles with animated fireball sprites:
+  - Copied blue fireball keyframe images from `tiles/fireballoga/blue/keyframes/` to frontend assets
+  - Updated AssetLoader to load 6 fireball animation frames and create left/right facing animations
+  - Replaced simple white pixel projectile texture with fully animated fireball sprites in PhysicsSystem
+  - Added proper direction handling with animation mirroring (setFlipX) for right-facing shots
+  - Scaled fireball projectiles to 10% size (0.1 scale) for optimal visibility while remaining bullet-like
+  - Added more upward trajectory to projectiles (increased vertical velocity from -50 to -120) for better shooting arc
+  - Applied fireball animations to both local and network multiplayer projectiles with red tint for remote players
+  - Fireball animations run at 12 FPS for smooth flame effect while maintaining performance
+- Enhanced platform generation for better accessibility:
+  - Completely redesigned floating platform system with tiered architecture for progressive climbing
+  - Added low-tier platforms (y=570-620) easily reachable from ground level with single jump
+  - Added mid-tier platforms (y=450-520) accessible from low-tier platforms for intermediate climbing
+  - Added high-tier platforms (y=320-400) for advanced traversal and exploration rewards
+  - Increased platform density from 3-6 to 5-7 platforms per chunk for better navigation options
+  - Improved platform spacing and overlap prevention with better collision detection algorithms
+  - Added moving platforms to normal levels (40% spawn chance, 1-2 per chunk)
+  - Moving platforms operate at three different height ranges (low/mid/high tiers) with up/down movement
+  - Moving platforms use physics-based movement system for smooth vertical traversal challenges
+  - Enhanced platform validation to prevent overlapping and ensure adequate spacing between all platform types
 - Fixed boss implementation issues:
   - Fixed tree boss falling through ground by adding proper gravity control and collision bounds
-  - Fixed flickering up/down floating platforms by synchronizing physics body position with tween animations
+  - Fixed flickering up/down floating platforms by replacing tweens with physics-based movement system
   - Tree boss now properly anchors to ground level with `setGravityY(0)` and `setCollideWorldBounds(true)`
-  - Moving platforms now use `onUpdate` callback to sync physics body position, eliminating visual flickering
+  - Moving platforms now use velocity-based movement with boundary detection instead of conflicting tweens
+  - Platforms smoothly move between min/max Y positions using `setVelocityY()` and direction reversal logic
   - Boss remains immovable by other objects while properly handling world collision boundaries
+  - Fixed moving platforms falling down instead of moving up/down by properly configuring physics group settings
+  - Added `allowGravity: false` to moving platforms group configuration to prevent world gravity interference
+  - Fixed velocity setting to use `platform.body.setVelocityY()` instead of `platform.setVelocityY()` for proper physics integration
 - Added victory music functionality:
   - Integrated "Viktor Kraus - Victory!.mp3" as dedicated victory music
   - Victory music automatically plays when level completion is achieved, replacing background music

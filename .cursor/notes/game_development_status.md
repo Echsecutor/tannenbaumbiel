@@ -37,7 +37,7 @@
 - ✅ **Physics Engine**: Arcade Physics mit Kollisionserkennung
 - ✅ **Plattform-Spiel**: Springbare Plattformen und Hindernisse
 - ✅ **Gegner-System**: Owlet Monster + Pink Monster Boss
-- ✅ **Kampf-System**: Projectile Shooting + Enemy Health
+- ✅ **Kampf-System**: Animated Fireball Projectiles + Enemy Health (replaced white pixel with 6-frame animated sprites)
 - ✅ **Animationen**: Sprite-basierte Character Animationen
 - ✅ **Mobile Support**: Touch Controls für Bewegung/Sprung/Schießen, Fullscreen Landscape Mode
 - ✅ **UI Elements**: Health Display, Score System, Control Instructions, Fully HTML-based Menu Interface
@@ -347,11 +347,15 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
   - Boss remains `immovable = true` to prevent being pushed by other objects while still colliding with platforms
   - Boss properly anchors to ground level and maintains position during stone throwing attacks
 - **Moving Platform Flickering Fixed**: Eliminated visual flickering on up/down floating platforms
-  - Added physics body synchronization in tween `onUpdate` callback using `body.updateFromGameObject()`
-  - Disabled gravity on moving platforms with `setGravityY(0)` to prevent conflicts with tween animation
-  - Platforms now move smoothly without visual artifacts or position desync
+  - Replaced conflicting tween system with physics-based velocity movement
+  - Implemented boundary detection system that reverses direction when platforms reach min/max Y positions
+  - Platforms use `setVelocityY()` for smooth movement with proper collision detection
+  - Added platform movement state tracking with Map-based storage for each platform's bounds and direction
+  - Platforms now move smoothly without visual artifacts or position conflicts between tween and physics systems
 - **Technical Implementation**:
   - Boss collision handled through existing PhysicsSystem enemy-platform collision setup
-  - Moving platform tweens now properly sync with Phaser physics system
-  - No changes needed to collision detection logic, only entity configuration
-- **Location**: `frontend/src/game/systems/EnemySystem.ts` (`createTreeBoss` method), `frontend/src/game/systems/WorldGenerator.ts` (`createMovingPlatform` method)
+  - Moving platforms use velocity-based physics movement instead of tweens to eliminate system conflicts
+  - Added `updateMovingPlatforms()` method called from main game loop to handle boundary detection and direction changes
+  - Platform state tracking uses Map with unique IDs for each platform's movement parameters
+  - No changes needed to collision detection logic, platforms remain fully collidable during movement
+- **Location**: `frontend/src/game/systems/EnemySystem.ts` (`createTreeBoss` method), `frontend/src/game/systems/WorldGenerator.ts` (`createMovingPlatform`, `updateMovingPlatforms` methods), `frontend/src/game/scenes/GameSceneRefactored.ts` (`updateSystems` method)

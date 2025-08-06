@@ -63,12 +63,25 @@ export class PhysicsSystem {
     startY: number,
     direction: number,
     speed: number = 400,
-    verticalSpeed: number = -50
+    verticalSpeed: number = -120
   ): Phaser.Physics.Arcade.Sprite {
-    const projectile = this.projectiles.create(startX, startY, "projectile");
+    // Create fireball with first frame as default texture
+    const projectile = this.projectiles.create(startX, startY, "fireball_1");
     projectile.setVelocityX(direction * speed);
     projectile.setVelocityY(verticalSpeed);
     projectile.setDepth(15); // Projectiles in front of everything
+
+    // Scale fireball to be smaller than player (player is 32px, make fireball ~3px height)
+    projectile.setScale(0.1);
+
+    // Set appropriate animation based on direction
+    const animationKey = direction > 0 ? "fireball_right" : "fireball_left";
+    projectile.play(animationKey);
+
+    // Handle direction mirroring for right-facing fireballs
+    if (direction > 0) {
+      projectile.setFlipX(true);
+    }
 
     // Auto-destroy projectile after 3 seconds
     this.scene.time.delayedCall(3000, () => {

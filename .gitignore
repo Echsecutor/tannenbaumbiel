@@ -212,3 +212,4 @@ venv/
 free-pixel-art-tiny-hero-sprites/
 
 node_modules/
+/tiles/

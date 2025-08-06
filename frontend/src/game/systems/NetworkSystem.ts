@@ -189,12 +189,17 @@ export class NetworkSystem {
           sprite = this.scene.physics.add.sprite(
             projectileState.x,
             projectileState.y,
-            "projectile"
+            "fireball_1"
           );
           if (!sprite || !sprite.body) continue;
 
           sprite.setDepth(15);
           sprite.setTint(0xff0000); // Red tint for network projectiles
+
+          // Scale and animate fireball
+          sprite.setScale(0.1);
+          // Default to left-facing animation, will be updated based on velocity
+          sprite.play("fireball_left");
 
           // Add collisions
           this.scene.physics.add.overlap(
@@ -231,6 +236,12 @@ export class NetworkSystem {
             projectileState.velocity_x,
             projectileState.velocity_y
           );
+
+          // Update fireball animation and direction based on velocity
+          const animationKey =
+            projectileState.velocity_x > 0 ? "fireball_right" : "fireball_left";
+          sprite.play(animationKey, true);
+          sprite.setFlipX(projectileState.velocity_x > 0);
         } catch (error) {
           console.error(`❌ Error updating network projectile:`, error);
         }

@@ -15,7 +15,7 @@ export class AssetLoader {
     this.loadEnemySprites();
     this.loadWinterAssets();
     this.loadAudioAssets();
-    this.createProjectileTexture();
+    this.loadFireballSprites();
   }
 
   private loadPlayerSprites() {
@@ -133,12 +133,49 @@ export class AssetLoader {
     );
   }
 
-  private createProjectileTexture() {
-    // Create simple projectile texture
-    const projectileGraphics = this.scene.add.graphics();
-    projectileGraphics.fillStyle(0xe8f4fd); // Light blue/white for snow projectile
-    projectileGraphics.fillRect(0, 0, 8, 4);
-    projectileGraphics.generateTexture("projectile", 8, 4);
-    projectileGraphics.destroy();
+  private loadFireballSprites() {
+    // Load fireball animation frames
+    for (let i = 1; i <= 6; i++) {
+      this.scene.load.image(
+        `fireball_${i}`,
+        `/assets/sprites/fireball/${i}.png`
+      );
+    }
+  }
+
+  createFireballAnimations() {
+    // Create fireball animation facing left (original direction of sprites)
+    if (!this.scene.anims.exists("fireball_left")) {
+      this.scene.anims.create({
+        key: "fireball_left",
+        frames: [
+          { key: "fireball_1" },
+          { key: "fireball_2" },
+          { key: "fireball_3" },
+          { key: "fireball_4" },
+          { key: "fireball_5" },
+          { key: "fireball_6" },
+        ],
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+
+    // Create fireball animation facing right (flipped)
+    if (!this.scene.anims.exists("fireball_right")) {
+      this.scene.anims.create({
+        key: "fireball_right",
+        frames: [
+          { key: "fireball_1" },
+          { key: "fireball_2" },
+          { key: "fireball_3" },
+          { key: "fireball_4" },
+          { key: "fireball_5" },
+          { key: "fireball_6" },
+        ],
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
   }
 }

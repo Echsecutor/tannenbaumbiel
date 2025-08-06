@@ -119,6 +119,9 @@ export class GameSceneRefactored extends Phaser.Scene {
   create() {
     const networkManager = this.registry.get("networkManager");
 
+    // Create fireball animations after assets are loaded
+    this.assetLoader.createFireballAnimations();
+
     // Initialize systems in dependency order
     this.createGameSystems(networkManager);
     this.setupPhysicsCollisions();
@@ -252,6 +255,9 @@ export class GameSceneRefactored extends Phaser.Scene {
   private updateSystems() {
     // Update enemy AI
     this.enemySystem.updateEnemies();
+
+    // Update moving platforms
+    this.worldGenerator.updateMovingPlatforms();
 
     // Update side-scrolling camera and world streaming
     this.cameraSystem.updateSideScrollingCamera();

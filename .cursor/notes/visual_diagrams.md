@@ -118,9 +118,63 @@ To render these diagrams:
 2. Use any Mermaid renderer (GitHub, VS Code extensions, online tools)
 3. Or use the `create_diagram` tool in development conversations
 
+## Moving Platform System Flow
+
+Shows the physics-based movement system for moving platforms that eliminates flickering:
+
+```mermaid
+flowchart TD
+    A["🎮 Game Scene Update Loop"] --> B["updateSystems()"]
+    B --> C["🔄 updateMovingPlatforms()"]
+
+    C --> D{"For each platform"}
+    D --> E["📍 Get platform position"]
+    E --> F["📊 Check movement data"]
+    F --> G["🔍 Check boundaries"]
+
+    G --> H{"At minY boundary?<br/>Moving up?"}
+    H -->|Yes| I["⬇️ Reverse to down<br/>setVelocityY(+speed)"]
+
+    G --> J{"At maxY boundary?<br/>Moving down?"}
+    J -->|Yes| K["⬆️ Reverse to up<br/>setVelocityY(-speed)"]
+
+    I --> L["✅ Continue movement"]
+    K --> L
+    H -->|No| L
+    J -->|No| L
+
+    L --> M{"More platforms?"}
+    M -->|Yes| D
+    M -->|No| N["🏁 Update complete"]
+
+    subgraph "Platform State Storage"
+        O["📝 Map<platformId, data><br/>- minY/maxY bounds<br/>- speed value<br/>- direction (-1/+1)"]
+    end
+
+    F -.-> O
+    I -.-> O
+    K -.-> O
+
+    subgraph "Physics System"
+        P["⚡ Physics Body<br/>- setVelocityY()<br/>- immovable = true<br/>- gravity = 0"]
+    end
+
+    I -.-> P
+    K -.-> P
+
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#e8f5e8
+    style I fill:#ffebee
+    style K fill:#fff3e0
+    style O fill:#f1f8e9
+    style P fill:#fce4ec
+```
+
 ## References
 
 - Boss Arena System: Implemented in `WorldGenerator.ts` and `EnemySystem.ts`
 - Level Progression: Managed by `GameStateManager.ts`
 - Audio System: Implemented in `GameSceneRefactored.ts`
+- Moving Platform System: Implemented in `WorldGenerator.ts` and `GameSceneRefactored.ts`
 - Architecture: Modular system design across all game systems
