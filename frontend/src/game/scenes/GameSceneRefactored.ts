@@ -34,6 +34,10 @@ export class GameSceneRefactored extends Phaser.Scene {
   private myPlayerId: string = "";
   private levelCompleted = false;
 
+  // Audio
+  private backgroundMusic: Phaser.Sound.BaseSound | null = null;
+  private victoryMusic: Phaser.Sound.BaseSound | null = null;
+
   // Input state tracking
   private inputState: Map<string, boolean> = new Map();
 
@@ -44,6 +48,10 @@ export class GameSceneRefactored extends Phaser.Scene {
   init(data: any) {
     this.isOffline = data.offline || false;
     this.roomData = data.roomData || null;
+
+    // Reset level completion flag for new level/restart
+    this.levelCompleted = false;
+    console.log("🔄 Level completion flag reset for new level");
 
     // Initialize systems
     this.initializeSystems();
@@ -118,6 +126,23 @@ export class GameSceneRefactored extends Phaser.Scene {
 
     // Start UI scene
     this.scene.launch("UIScene");
+
+    // Start background music
+    this.startBackgroundMusic();
+
+    // Listen for audio toggle events from UI
+    this.sound.on("mute", this.handleAudioMute, this);
+    this.sound.on("unmute", this.handleAudioUnmute, this);
+
+    // Listen for victory cheat from UI
+    this.game.events.on(
+      "victory-cheat-triggered",
+      this.handleVictoryCheat,
+      this
+    );
+
+    // Listen for scene shutdown to clean up
+    this.events.once("shutdown", this.cleanupAudio, this);
 
     // Initialize UI with current health, score, and level
     const player = this.playerSystem.getPlayer();
@@ -361,7 +386,106 @@ export class GameSceneRefactored extends Phaser.Scene {
     }
   }
 
+  private startBackgroundMusic() {
+    // Check if audio is enabled in settings
+    const audioEnabled = localStorage.getItem("tannenbaum_audio");
+    const shouldPlayAudio = audioEnabled !== "disabled";
+
+    if (shouldPlayAudio && !this.backgroundMusic) {
+      this.backgroundMusic = this.sound.add("background_music", {
+        volume: 0.3, // Set volume to 30%
+        loop: true, // Loop the music continuously
+      });
+
+      // Check if sound system is not muted globally
+      if (!this.sound.mute) {
+        this.backgroundMusic.play();
+        console.log("🎵 Background music started");
+      }
+    }
+  }
+
+  private handleAudioMute() {
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.pause();
+      console.log("🔇 Background music paused (audio muted)");
+    }
+  }
+
+  private handleAudioUnmute() {
+    if (this.backgroundMusic && !this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.resume();
+      console.log("🔊 Background music resumed (audio unmuted)");
+    }
+  }
+
+  private handleVictoryCheat() {
+    // Prevent multiple cheat activations if level is already completed
+    if (this.levelCompleted) {
+      console.log("🚫 Victory cheat ignored - level already completed");
+      return;
+    }
+
+    console.log("🎉 Victory cheat handler called - triggering victory!");
+
+    // Set level as completed to prevent normal completion logic
+    this.levelCompleted = true;
+
+    // Trigger the victory through GameStateManager
+    this.gameStateManager.triggerVictoryCheat();
+  }
+
+  // Audio control methods for victory and background music
+  playVictoryMusic() {
+    // Check if audio is enabled in settings
+    const audioEnabled = localStorage.getItem("tannenbaum_audio");
+    const shouldPlayAudio = audioEnabled !== "disabled";
+
+    if (!shouldPlayAudio) {
+      console.log("🔇 Victory music disabled by user settings");
+      return;
+    }
+
+    // Stop background music if playing
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.stop();
+      console.log("🎵 Background music stopped for victory");
+    }
+
+    // Play victory music
+    if (!this.victoryMusic) {
+      this.victoryMusic = this.sound.add("victory_music", {
+        volume: 0.4, // Slightly louder than background music for celebration
+        loop: false, // Don't loop victory music
+      });
+    }
+
+    // Check if sound system is not muted globally
+    if (!this.sound.mute) {
+      this.victoryMusic.play();
+      console.log("🎉 Victory music started!");
+    }
+  }
+
+  restoreBackgroundMusic() {
+    // Stop victory music if playing
+    if (this.victoryMusic && this.victoryMusic.isPlaying) {
+      this.victoryMusic.stop();
+      console.log("🎵 Victory music stopped");
+    }
+
+    // Restart background music
+    this.startBackgroundMusic();
+    console.log("🎵 Background music restored");
+  }
+
   private restart() {
+    // Stop background music on restart
+    if (this.backgroundMusic) {
+      this.backgroundMusic.stop();
+      this.backgroundMusic = null;
+    }
+
     // Restart logic is handled by GameStateManager
     console.log("🔄 Game restart initiated");
   }
@@ -369,5 +493,30 @@ export class GameSceneRefactored extends Phaser.Scene {
   private nextLevel() {
     // Next level logic is handled by GameStateManager
     console.log("🎮 Next level initiated");
+  }
+
+  private cleanupAudio() {
+    // Clean up background music
+    if (this.backgroundMusic) {
+      this.backgroundMusic.stop();
+      this.backgroundMusic = null;
+    }
+
+    // Clean up victory music
+    if (this.victoryMusic) {
+      this.victoryMusic.stop();
+      this.victoryMusic = null;
+    }
+
+    // Remove audio event listeners
+    this.sound.off("mute", this.handleAudioMute, this);
+    this.sound.off("unmute", this.handleAudioUnmute, this);
+
+    // Remove victory cheat event listener
+    this.game.events.off(
+      "victory-cheat-triggered",
+      this.handleVictoryCheat,
+      this
+    );
   }
 }

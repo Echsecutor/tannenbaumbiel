@@ -91,6 +91,11 @@ export class GameStateManager {
   showVictory(onNextLevel: () => void, onMenu: () => void) {
     console.log("Victory!");
 
+    // Play victory music instead of background music
+    if ((this.scene as any).playVictoryMusic) {
+      (this.scene as any).playVictoryMusic();
+    }
+
     // Get camera center for positioning
     const camera = this.scene.cameras.main;
     const centerX = camera.centerX;
@@ -120,7 +125,7 @@ export class GameStateManager {
       .text(
         centerX,
         centerY + 100,
-        `Continue to Level ${this.currentLevel + 1}`,
+        `Weiter zum Level ${this.currentLevel + 1}`,
         {
           fontSize: "24px",
           color: "#ffffff",
@@ -153,6 +158,11 @@ export class GameStateManager {
   private restartGame(onRestart: () => void) {
     console.log("🔄 Starting game restart...");
 
+    // Restore background music for restart (stops victory music if playing)
+    if ((this.scene as any).restoreBackgroundMusic) {
+      (this.scene as any).restoreBackgroundMusic();
+    }
+
     if (!this.isOffline && this.networkSystem.isOnline()) {
       console.log(
         "🏠 Leaving room before restart for proper synchronization..."
@@ -180,6 +190,11 @@ export class GameStateManager {
 
   private startNextLevel(onNextLevel: () => void) {
     console.log("🎮 Starting next level...");
+
+    // Restore background music for next level
+    if ((this.scene as any).restoreBackgroundMusic) {
+      (this.scene as any).restoreBackgroundMusic();
+    }
 
     // Advance to next level
     this.nextLevel();
@@ -329,5 +344,22 @@ export class GameStateManager {
     if (gameState.originalUsername) {
       this.scene.registry.set("originalUsername", gameState.originalUsername);
     }
+  }
+
+  // Victory cheat - triggers instant level completion
+  triggerVictoryCheat() {
+    console.log("🎉 Victory cheat activated! Triggering level completion...");
+
+    // Use the existing victory flow to ensure consistency
+    // The callback passed to showVictory will be called by the "Continue" button
+    this.showVictory(
+      () => {
+        console.log("✅ Cheat victory - proceeding to next level");
+      },
+      () => {
+        // Return to menu option
+        this.scene.scene.start("MenuScene");
+      }
+    );
   }
 }

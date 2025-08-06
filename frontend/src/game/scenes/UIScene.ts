@@ -18,6 +18,11 @@ export class UIScene extends Scene {
   private health = 100;
   private currentLevel = 1;
 
+  // Victory cheat properties
+  private levelClickCount = 0;
+  private lastClickTime = 0;
+  private readonly CLICK_RESET_TIMEOUT = 2000; // Reset clicks after 2 seconds of inactivity
+
   constructor() {
     super({ key: "UIScene" });
   }
@@ -118,7 +123,16 @@ export class UIScene extends Scene {
       })
       .setOrigin(0.5, 0)
       .setDepth(1000) // High depth to ensure it's on top
-      .setScrollFactor(0); // Don't scroll with camera
+      .setScrollFactor(0) // Don't scroll with camera
+      .setInteractive({ useHandCursor: true }) // Make clickable for cheat
+      .on("pointerdown", () => this.handleLevelClick())
+      .on("pointerover", () => {
+        // Subtle hover effect for cheat discoverability
+        this.levelText.setStyle({ backgroundColor: "#34495e" });
+      })
+      .on("pointerout", () => {
+        this.levelText.setStyle({ backgroundColor: "#2c3e50" });
+      });
 
     console.log(
       `🎮 UIScene: Level text created at position:`,
@@ -268,6 +282,45 @@ export class UIScene extends Scene {
       console.log(`🎮 UIScene: Level display updated successfully`);
     } else {
       console.warn(`⚠️ UIScene: levelText object not initialized!`);
+    }
+  }
+
+  private handleLevelClick() {
+    const currentTime = Date.now();
+
+    // Reset click count if too much time passed since last click
+    if (currentTime - this.lastClickTime > this.CLICK_RESET_TIMEOUT) {
+      this.levelClickCount = 0;
+    }
+
+    this.levelClickCount++;
+    this.lastClickTime = currentTime;
+
+    console.log(`🎮 Level clicked ${this.levelClickCount}/5 times`);
+
+    // Add visual feedback for each click
+    this.levelText.setScale(1.1, 1.1);
+    this.time.delayedCall(100, () => {
+      if (this.levelText) {
+        this.levelText.setScale(1, 1);
+      }
+    });
+
+    // Trigger victory cheat if clicked 5 times
+    if (this.levelClickCount >= 5) {
+      console.log("🎉 Victory cheat activated!");
+      this.levelClickCount = 0; // Reset for next use
+
+      // Emit event to trigger victory in the game scene
+      this.game.events.emit("victory-cheat-triggered");
+
+      // Visual feedback for cheat activation
+      this.levelText.setTint(0x00ff00); // Green tint
+      this.time.delayedCall(500, () => {
+        if (this.levelText) {
+          this.levelText.clearTint();
+        }
+      });
     }
   }
 

@@ -45,6 +45,7 @@
 - ✅ **Menu Interface**: Headlines, buttons, and connection status all in HTML form (no mixed Phaser/HTML layout)
 - ✅ **Button System**: HTML buttons with CSS styling, hover effects, and JavaScript event handling
 - ✅ **Unified Layout**: All menu elements consolidated in embedded HTML form for consistent presentation
+- ✅ **Audio System**: Background music support with "Run Game 2.mp3", victory music with "Viktor Kraus - Victory!.mp3", respects audio toggle settings, real-time mute/unmute control, seamless audio switching during level transitions
 - ✅ **Spiel-Zustand**: Game Over, Victory Screens
 
 ### Backend (FastAPI Server)
@@ -91,6 +92,7 @@ frontend/src/assets/sprites/
 - **Database**: PostgreSQL 15
 - **Containerization**: Docker + Docker Compose
 - **Networking**: WebSocket für Real-time + REST für API
+- **See**: [Game Architecture Diagram](visual_diagrams.md#game-architecture-overview)
 
 ### Kommunikation
 
@@ -217,6 +219,7 @@ max-line-length = 120
   - Boss throws stone projectiles with physics targeting and collision
   - Special arena with climbing platforms and moving platforms for vertical navigation
   - Boss-only victory condition (defeat boss vs reach world end)
+  - **See**: [Boss Arena Flow Diagram](visual_diagrams.md#boss-arena-system-flow)
 - [ ] **Power-ups**: Item collection mechanics
 - [ ] **Boss Fights**: Enhanced boss encounters
 - [ ] **Story Mode**: Campaign with progression

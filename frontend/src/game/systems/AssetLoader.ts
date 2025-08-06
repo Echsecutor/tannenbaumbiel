@@ -14,6 +14,7 @@ export class AssetLoader {
     this.loadPlayerSprites();
     this.loadEnemySprites();
     this.loadWinterAssets();
+    this.loadAudioAssets();
     this.createProjectileTexture();
   }
 
@@ -116,6 +117,20 @@ export class AssetLoader {
     this.scene.load.image("winter_tree", "/assets/winter/winter_tree.png");
     this.scene.load.image("tree", "/assets/winter/tree.png");
     this.scene.load.image("stone", "/assets/winter/stone.png");
+  }
+
+  private loadAudioAssets() {
+    // Load background music
+    this.scene.load.audio(
+      "background_music",
+      "/assets/sounds/chicken-run-music/Run Game 2.mp3"
+    );
+
+    // Load victory music
+    this.scene.load.audio(
+      "victory_music",
+      "/assets/sounds/Viktor Kraus - Victory!.mp3"
+    );
   }
 
   private createProjectileTexture() {

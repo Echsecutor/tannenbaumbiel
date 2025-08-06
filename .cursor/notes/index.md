@@ -66,6 +66,14 @@ Tannenbaumbiel ist ein Browser-Spiel für mobile Endgeräte - ein 2D Platformer/
 - UI Development Guidelines (setScrollFactor, setDepth)
 - Common Build Issues and Solutions
 
+### [Visual Diagrams](visual_diagrams.md)
+
+- Boss Arena System Flow (Mermaid)
+- Level Progression Fix Flow (Mermaid)
+- Audio System Management Flow (Mermaid)
+- Game Architecture Overview (Mermaid)
+- Diagram Usage Instructions and References
+
 ## Quick Start Links
 
 - Hauptdokument: [README.md](../README.md)
