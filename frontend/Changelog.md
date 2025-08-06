@@ -2,6 +2,12 @@
 
 ## WIP
 
+- Fixed boss implementation issues:
+  - Fixed tree boss falling through ground by adding proper gravity control and collision bounds
+  - Fixed flickering up/down floating platforms by synchronizing physics body position with tween animations
+  - Tree boss now properly anchors to ground level with `setGravityY(0)` and `setCollideWorldBounds(true)`
+  - Moving platforms now use `onUpdate` callback to sync physics body position, eliminating visual flickering
+  - Boss remains immovable by other objects while properly handling world collision boundaries
 - Added victory music functionality:
   - Integrated "Viktor Kraus - Victory!.mp3" as dedicated victory music
   - Victory music automatically plays when level completion is achieved, replacing background music

@@ -110,9 +110,14 @@ export class EnemySystem {
     boss.setData("maxHealth", 300);
     boss.setDepth(15); // Higher depth than regular enemies
 
-    // Boss doesn't move
+    // Boss is immovable by other objects but still collides with world
     boss.body.immovable = true;
     boss.setVelocity(0, 0);
+    boss.body.setGravityY(0); // No gravity for the boss
+
+    // Ensure the boss has proper collision bounds
+    boss.setCollideWorldBounds(true);
+    boss.setBounce(0); // No bouncing
 
     // Initialize boss stone throwing
     this.bossStoneThrowTimer = 0;

@@ -338,3 +338,20 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
   - Smooth orientation change handling with game scale refresh
 - **Browser Compatibility**: Supports modern mobile browsers with fallbacks for older implementations
 - **Location**: `frontend/src/main.ts` (TannenbaumGame class), `frontend/src/game/config.ts`, `frontend/index.html`
+
+### Boss System Implementation Fixes (2025)
+
+- **Tree Boss Physics Issues Fixed**: Resolved critical problems with tree boss falling through ground
+  - Added `setGravityY(0)` to prevent boss from being affected by gravity
+  - Added `setCollideWorldBounds(true)` to ensure proper collision detection with world boundaries
+  - Boss remains `immovable = true` to prevent being pushed by other objects while still colliding with platforms
+  - Boss properly anchors to ground level and maintains position during stone throwing attacks
+- **Moving Platform Flickering Fixed**: Eliminated visual flickering on up/down floating platforms
+  - Added physics body synchronization in tween `onUpdate` callback using `body.updateFromGameObject()`
+  - Disabled gravity on moving platforms with `setGravityY(0)` to prevent conflicts with tween animation
+  - Platforms now move smoothly without visual artifacts or position desync
+- **Technical Implementation**:
+  - Boss collision handled through existing PhysicsSystem enemy-platform collision setup
+  - Moving platform tweens now properly sync with Phaser physics system
+  - No changes needed to collision detection logic, only entity configuration
+- **Location**: `frontend/src/game/systems/EnemySystem.ts` (`createTreeBoss` method), `frontend/src/game/systems/WorldGenerator.ts` (`createMovingPlatform` method)

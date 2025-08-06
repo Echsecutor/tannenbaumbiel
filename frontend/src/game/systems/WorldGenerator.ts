@@ -360,10 +360,14 @@ export class WorldGenerator {
     platform.body.setSize(platform.width, 16); // Thin collision box
     platform.setDepth(10);
 
+    // Disable gravity for moving platforms to prevent conflicts with tween
+    platform.body.setGravityY(0);
+    platform.body.setVelocity(0, 0);
+
     // Add to moving platforms group
     this.movingPlatforms.add(platform);
 
-    // Create tween for up/down movement
+    // Create tween for up/down movement with physics body sync
     this.scene.tweens.add({
       targets: platform,
       y: { from: maxY, to: minY },
@@ -371,6 +375,12 @@ export class WorldGenerator {
       ease: "Sine.easeInOut",
       yoyo: true,
       repeat: -1,
+      onUpdate: () => {
+        // Sync physics body position with tween position to prevent flickering
+        if (platform.body) {
+          platform.body.updateFromGameObject();
+        }
+      },
     });
 
     console.log(
