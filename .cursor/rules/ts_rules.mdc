@@ -1,0 +1,14 @@
+---
+globs: *.ts,*.js,*.html
+alwaysApply: false
+---
+
+# ⚠️ **ALWAYS Verify Build After Code Changes**
+
+**MANDATORY**: After making any code changes, always run the build process to ensure compilation success:
+
+```bash
+# Frontend Build Check
+cd frontend && npm run build
+
+```

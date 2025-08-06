@@ -12,9 +12,11 @@ export class UIScene extends Scene {
   private multiplayerScoreText!: Phaser.GameObjects.Text;
   private connectionText!: Phaser.GameObjects.Text;
   private menuButton!: Phaser.GameObjects.Text;
+  private levelText!: Phaser.GameObjects.Text;
 
   private score = 0;
   private health = 100;
+  private currentLevel = 1;
 
   constructor() {
     super({ key: "UIScene" });
@@ -25,6 +27,7 @@ export class UIScene extends Scene {
 
     this.createHealthBar();
     this.createScoreDisplay();
+    this.createLevelDisplay();
     this.createMultiplayerScoreDisplay();
     this.createConnectionStatus();
     this.createMenuButton();
@@ -98,6 +101,32 @@ export class UIScene extends Scene {
     );
   }
 
+  private createLevelDisplay() {
+    const x = this.scale.width / 2;
+    const y = 20;
+    console.log(
+      `🎮 UIScene: Creating level display at center-top (${x}, ${y})`
+    );
+
+    this.levelText = this.add
+      .text(x, y, `Level ${this.currentLevel}`, {
+        fontSize: "24px",
+        color: "#ffffff",
+        fontFamily: "Arial",
+        backgroundColor: "#2c3e50", // Dark blue background
+        padding: { x: 15, y: 8 },
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(1000) // High depth to ensure it's on top
+      .setScrollFactor(0); // Don't scroll with camera
+
+    console.log(
+      `🎮 UIScene: Level text created at position:`,
+      this.levelText.x,
+      this.levelText.y
+    );
+  }
+
   private createMultiplayerScoreDisplay() {
     this.multiplayerScoreText = this.add
       .text(this.scale.width - 20, 50, "", {
@@ -112,7 +141,7 @@ export class UIScene extends Scene {
 
   private createConnectionStatus() {
     this.connectionText = this.add
-      .text(this.scale.width / 2, 20, "", {
+      .text(this.scale.width / 2, 60, "", {
         fontSize: "14px",
         color: "#95a5a6",
         fontFamily: "Arial",
@@ -186,6 +215,14 @@ export class UIScene extends Scene {
       this.updateScoreDisplay();
     });
 
+    this.game.events.on("level-changed", (newLevel: number) => {
+      console.log(
+        `🎮 UIScene: Received level-changed event with level: ${newLevel}`
+      );
+      this.currentLevel = newLevel;
+      this.updateLevelDisplay();
+    });
+
     // Listen for network game state updates to refresh multiplayer scores
     this.game.events.on("network-state-updated", () => {
       this.updateMultiplayerScores();
@@ -214,6 +251,18 @@ export class UIScene extends Scene {
       console.log(`🎯 UIScene: Score display updated successfully`);
     } else {
       console.warn(`⚠️ UIScene: scoreText object not initialized!`);
+    }
+  }
+
+  private updateLevelDisplay() {
+    console.log(
+      `🎮 UIScene: Updating level display to Level ${this.currentLevel}`
+    );
+    if (this.levelText) {
+      this.levelText.setText(`Level ${this.currentLevel}`);
+      console.log(`🎮 UIScene: Level display updated successfully`);
+    } else {
+      console.warn(`⚠️ UIScene: levelText object not initialized!`);
     }
   }
 

@@ -8,6 +8,7 @@ export class WorldGenerator {
   private scene: Phaser.Scene;
   private enemySystem: EnemySystem;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
+  private currentLevel: number = 1;
 
   // World configuration
   private leftBoundary: number = -2000;
@@ -24,6 +25,15 @@ export class WorldGenerator {
   constructor(scene: Phaser.Scene, enemySystem: EnemySystem) {
     this.scene = scene;
     this.enemySystem = enemySystem;
+  }
+
+  setLevel(level: number) {
+    this.currentLevel = level;
+    console.log(`🌍 WorldGenerator: Level set to ${this.currentLevel}`);
+  }
+
+  getRightBoundary(): number {
+    return this.rightBoundary;
   }
 
   createWorld(): Phaser.Physics.Arcade.StaticGroup {
@@ -79,8 +89,7 @@ export class WorldGenerator {
     if (this.chunksGenerated.has(chunkIndex)) return;
 
     const chunkX = chunkIndex * this.chunkSize;
-    console.log(`🏗️ Generating chunk ${chunkIndex} at x=${chunkX}`);
-
+    // Generate chunk content
     const chunkPlatforms = this.scene.physics.add.staticGroup();
 
     this.generateGroundPlatforms(chunkX, chunkPlatforms);
@@ -90,10 +99,6 @@ export class WorldGenerator {
 
     this.platformChunks.set(chunkIndex, chunkPlatforms);
     this.chunksGenerated.add(chunkIndex);
-
-    console.log(
-      `✅ Generated chunk ${chunkIndex} with ${chunkPlatforms.children.size} platforms`
-    );
   }
 
   private createWinterTiledPlatform(
@@ -204,88 +209,35 @@ export class WorldGenerator {
     }
   }
 
-  private generateBackgroundElements(chunkX: number, chunkIndex: number) {
+  private generateBackgroundElements(_chunkX: number, chunkIndex: number) {
+    // Simplified background - no perspective tree layers
+    // The main background image provides sufficient visual depth
     const backgroundGroup = this.scene.add.group();
-
-    const screenHeight = this.scene.scale.height;
-    const bgOriginalHeight = 208;
-    const treeBandStart = (145 / bgOriginalHeight) * screenHeight;
-    const treeBandEnd = (190 / bgOriginalHeight) * screenHeight;
-    const treeBandHeight = treeBandEnd - treeBandStart;
-
-    const depthLayers = [
-      {
-        scrollFactor: 0.2,
-        scale: { min: 0.4, max: 0.6 },
-        yRange: {
-          min: treeBandStart,
-          max: treeBandStart + treeBandHeight * 0.8,
-        },
-        count: { min: 1, max: 2 },
-        alpha: 0.6,
-        depth: 1,
-      },
-      {
-        scrollFactor: 0.4,
-        scale: { min: 0.6, max: 0.9 },
-        yRange: { min: treeBandStart + treeBandHeight * 0.2, max: treeBandEnd },
-        count: { min: 1, max: 3 },
-        alpha: 0.8,
-        depth: 2,
-      },
-      {
-        scrollFactor: 0.7,
-        scale: { min: 1.0, max: 1.8 },
-        yRange: {
-          min: treeBandStart + treeBandHeight * 0.4,
-          max: treeBandEnd + treeBandHeight * 0.3,
-        },
-        count: { min: 0, max: 2 },
-        alpha: 1.0,
-        depth: 3,
-      },
-    ];
-
-    depthLayers.forEach((layer) => {
-      const numTrees =
-        layer.count.min +
-        Math.floor(Math.random() * (layer.count.max - layer.count.min + 1));
-
-      for (let i = 0; i < numTrees; i++) {
-        const x = chunkX + 100 + Math.random() * (this.chunkSize - 200);
-        const y =
-          layer.yRange.min +
-          Math.random() * (layer.yRange.max - layer.yRange.min);
-        const scale =
-          layer.scale.min + Math.random() * (layer.scale.max - layer.scale.min);
-        const treeTexture = Math.random() < 0.6 ? "winter_tree" : "tree";
-
-        const tree = this.scene.add.image(x, y, treeTexture);
-        tree.setScale(scale);
-        tree.setScrollFactor(layer.scrollFactor);
-        tree.setAlpha(layer.alpha);
-        tree.setDepth(layer.depth);
-
-        backgroundGroup.add(tree);
-      }
-    });
-
     this.backgroundElements.set(chunkIndex, backgroundGroup);
   }
 
   private generateChunkEnemies(chunkX: number, chunkIndex: number) {
-    const numEnemies = 1 + Math.floor(Math.random() * 3);
+    // Scale number of enemies with level (1-2 at level 1, up to 4-6 at higher levels)
+    const baseEnemies = 1 + Math.floor(Math.random() * 2);
+    const levelBonus = Math.floor((this.currentLevel - 1) / 2); // +1 enemy every 2 levels
+    const numEnemies = Math.min(baseEnemies + levelBonus, 6); // Cap at 6 enemies per chunk
+
+    console.log(
+      `👹 Generating ${numEnemies} enemies for level ${this.currentLevel}, chunk ${chunkIndex}`
+    );
 
     for (let i = 0; i < numEnemies; i++) {
       const x = chunkX + 150 + Math.random() * (this.chunkSize - 300);
       const y = 650;
 
-      const enemyTypes = ["owlet", "owlet", "pink_boss"];
+      // Higher levels have more boss enemies
+      const bossChance = Math.min(0.1 + (this.currentLevel - 1) * 0.05, 0.4); // 10% base, +5% per level, cap at 40%
+      const enemyTypes =
+        Math.random() < bossChance ? ["pink_boss"] : ["owlet", "owlet"];
       const enemyType =
         enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
 
       this.enemySystem.createEnemy(x, y, enemyType, chunkIndex);
-      console.log(`👹 Generated ${enemyType} enemy in chunk ${chunkIndex}`);
     }
   }
 
@@ -361,7 +313,7 @@ export class WorldGenerator {
     this.chunksGenerated.delete(chunkIndex);
     this.visibleChunks.delete(chunkIndex);
 
-    console.log(`🗑️ Unloaded chunk ${chunkIndex}`);
+    // Chunk unloaded
   }
 
   getPlatforms(): Phaser.Physics.Arcade.StaticGroup {

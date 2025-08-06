@@ -32,6 +32,7 @@ export class GameSceneRefactored extends Phaser.Scene {
   private isOffline = false;
   private roomData: any = null;
   private myPlayerId: string = "";
+  private levelCompleted = false;
 
   // Input state tracking
   private inputState: Map<string, boolean> = new Map();
@@ -47,6 +48,10 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Initialize systems
     this.initializeSystems();
 
+    // Set the level from data
+    const level = data.level || 1;
+    this.gameStateManager.setLevel(level);
+
     // Get player ID directly from scene data
     if (data.myPlayerId) {
       this.myPlayerId = data.myPlayerId;
@@ -60,6 +65,7 @@ export class GameSceneRefactored extends Phaser.Scene {
       offline: this.isOffline,
       roomData: this.roomData,
       myPlayerId: this.myPlayerId,
+      level: level,
     });
   }
 
@@ -113,19 +119,27 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Start UI scene
     this.scene.launch("UIScene");
 
-    // Initialize UI with current health and score
+    // Initialize UI with current health, score, and level
     const player = this.playerSystem.getPlayer();
     const initialScore = player.getData("score") || 0;
     console.log(`🎯 GameScene: Emitting initial score: ${initialScore}`);
     this.game.events.emit("health-changed", player.getData("health"));
     this.game.events.emit("score-changed", initialScore);
+    this.game.events.emit(
+      "level-changed",
+      this.gameStateManager.getCurrentLevel()
+    );
   }
 
   private createGameSystems(_networkManager: NetworkManager) {
     // Create core game objects
     this.enemySystem.createEnemyGroup();
     this.physicsSystem.createProjectileGroup();
+
+    // Set the current level in the world generator for enemy scaling
+    this.worldGenerator.setLevel(this.gameStateManager.getCurrentLevel());
     this.worldGenerator.createWorld();
+
     const player = this.playerSystem.createPlayer();
     const controls = this.controlsSystem.createControls();
 
@@ -201,6 +215,27 @@ export class GameSceneRefactored extends Phaser.Scene {
     this.cameraSystem.updateSideScrollingCamera();
     const player = this.playerSystem.getPlayer();
     this.worldGenerator.updateWorldStreaming(player.x);
+
+    // Check for level completion (reached the end of the world)
+    this.checkLevelCompletion(player);
+  }
+
+  private checkLevelCompletion(player: Phaser.Physics.Arcade.Sprite) {
+    // Prevent multiple level completion triggers
+    if (this.levelCompleted) return;
+
+    const rightBoundary = this.worldGenerator.getRightBoundary();
+    const completionZone = rightBoundary - 200; // 200px before the end
+
+    // Check if player reached the end of the level
+    if (player.x >= completionZone) {
+      this.levelCompleted = true;
+      console.log("🏁 Player reached the end of the level!");
+      this.gameStateManager.showVictory(
+        () => this.nextLevel(),
+        () => this.scene.start("MenuScene")
+      );
+    }
   }
 
   private shootProjectile() {

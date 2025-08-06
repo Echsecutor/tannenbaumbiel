@@ -21,7 +21,7 @@ export class PlayerSystem {
     this.player.setData("health", 100);
     this.player.setData("score", 0);
     this.player.setData("facingRight", true);
-    this.player.setDepth(10); // Player in front of trees and background
+    this.player.setDepth(10); // Player in front of background
 
     this.createPlayerAnimations();
     this.player.play("player_idle_anim");

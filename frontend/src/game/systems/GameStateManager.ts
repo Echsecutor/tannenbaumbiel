@@ -9,6 +9,7 @@ export class GameStateManager {
   private networkSystem: NetworkSystem;
   private isOffline: boolean;
   private roomData: any = null;
+  private currentLevel: number = 1;
 
   constructor(
     scene: Phaser.Scene,
@@ -22,6 +23,24 @@ export class GameStateManager {
 
   setRoomData(roomData: any) {
     this.roomData = roomData;
+  }
+
+  getCurrentLevel(): number {
+    return this.currentLevel;
+  }
+
+  setLevel(level: number) {
+    this.currentLevel = level;
+    console.log(`🎮 Level set to: ${this.currentLevel}`);
+    // Emit level change event for UI update
+    this.scene.game.events.emit("level-changed", this.currentLevel);
+  }
+
+  nextLevel() {
+    this.currentLevel++;
+    console.log(`🎮 Advanced to level: ${this.currentLevel}`);
+    // Emit level change event for UI update
+    this.scene.game.events.emit("level-changed", this.currentLevel);
   }
 
   showGameOver(onRestart: () => void) {
@@ -70,8 +89,8 @@ export class GameStateManager {
     const centerY = camera.centerY;
 
     this.scene.add
-      .text(centerX, centerY, "Sieg!", {
-        fontSize: "64px",
+      .text(centerX, centerY - 50, `Level ${this.currentLevel} Complete!`, {
+        fontSize: "48px",
         color: "#27ae60",
         backgroundColor: "#2c3e50",
         padding: { x: 20, y: 10 },
@@ -80,12 +99,27 @@ export class GameStateManager {
       .setScrollFactor(0);
 
     this.scene.add
-      .text(centerX, centerY + 100, "Nächste Welt", {
-        fontSize: "24px",
-        color: "#ffffff",
-        backgroundColor: "#27ae60",
+      .text(centerX, centerY + 20, "🎉 Victory! 🎉", {
+        fontSize: "32px",
+        color: "#f1c40f",
+        backgroundColor: "#2c3e50",
         padding: { x: 15, y: 8 },
       })
+      .setOrigin(0.5)
+      .setScrollFactor(0);
+
+    this.scene.add
+      .text(
+        centerX,
+        centerY + 100,
+        `Continue to Level ${this.currentLevel + 1}`,
+        {
+          fontSize: "24px",
+          color: "#ffffff",
+          backgroundColor: "#27ae60",
+          padding: { x: 15, y: 8 },
+        }
+      )
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setInteractive({ useHandCursor: true })
@@ -139,10 +173,13 @@ export class GameStateManager {
   private startNextLevel(onNextLevel: () => void) {
     console.log("🎮 Starting next level...");
 
+    // Advance to next level
+    this.nextLevel();
+
     if (this.isOffline) {
-      // Offline mode - restart with offline flag preserved
+      // Offline mode - restart with offline flag preserved and current level
       console.log("🎮 Next level in offline mode...");
-      this.scene.scene.restart({ offline: true });
+      this.scene.scene.restart({ offline: true, level: this.currentLevel });
     } else {
       // Online mode - handle multiplayer level transition
       console.log("🎮 Next level in multiplayer mode...");
@@ -155,13 +192,13 @@ export class GameStateManager {
         this.setRejoinFlags();
 
         // Restart scene - will automatically rejoin the room
-        this.scene.scene.restart();
+        this.scene.scene.restart({ level: this.currentLevel });
       } else {
         // Connection lost - fallback to offline mode
         console.log(
           "⚠️ Connection lost, switching to offline mode for next level"
         );
-        this.scene.scene.restart({ offline: true });
+        this.scene.scene.restart({ offline: true, level: this.currentLevel });
       }
     }
 
@@ -266,6 +303,7 @@ export class GameStateManager {
     return {
       isOffline: this.isOffline,
       roomData: this.roomData,
+      currentLevel: this.currentLevel,
       originalRoomName: this.scene.registry.get("originalRoomName"),
       originalUsername: this.scene.registry.get("originalUsername"),
     };
@@ -275,6 +313,7 @@ export class GameStateManager {
   restoreGameState(gameState: any) {
     this.isOffline = gameState.isOffline || false;
     this.roomData = gameState.roomData || null;
+    this.currentLevel = gameState.currentLevel || 1;
 
     if (gameState.originalRoomName) {
       this.scene.registry.set("originalRoomName", gameState.originalRoomName);
