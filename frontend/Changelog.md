@@ -28,6 +28,12 @@
   - Tree boss now properly anchors to ground level with `setGravityY(0)` and `setCollideWorldBounds(true)`
   - Moving platforms now use velocity-based movement with boundary detection instead of conflicting tweens
   - Platforms smoothly move between min/max Y positions using `setVelocityY()` and direction reversal logic
+- Fixed moving platforms falling through bottom:
+  - Converted moving platform physics from conflicting dynamic/immovable setup to proper kinematic bodies
+  - Platforms now use `body.moves = true` with `body.setImmovable(true)` for correct physics behavior
+  - Removed contradictory physics settings that caused platforms to fall through world boundaries
+  - Moving platforms now properly respect gravity disable and maintain controlled vertical movement
+  - Reduced debug logging in updateMovingPlatforms to prevent console spam during normal operation
   - Boss remains immovable by other objects while properly handling world collision boundaries
   - Fixed moving platforms falling down instead of moving up/down by properly configuring physics group settings
   - Added `allowGravity: false` to moving platforms group configuration to prevent world gravity interference
