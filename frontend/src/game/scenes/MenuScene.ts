@@ -128,6 +128,9 @@ export class MenuScene extends Scene {
       offlineButton.addEventListener("click", () => this.startOfflineGame());
     }
 
+    // Setup sprite selection
+    this.setupSpriteSelection();
+
     // Setup Enter key listener for form submission
     this.input.keyboard?.on("keydown-ENTER", () => {
       this.joinGame();
@@ -135,6 +138,47 @@ export class MenuScene extends Scene {
 
     // Update connection status now that the form is created
     this.updateConnectionStatus();
+  }
+
+  private setupSpriteSelection() {
+    if (!this.menuForm || !this.menuForm.node) return;
+
+    const spriteButtons = this.menuForm.node.querySelectorAll(".sprite-button");
+
+    // Load selected sprite from localStorage or default to dude_monster
+    const savedSprite =
+      localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+
+    spriteButtons.forEach((button) => {
+      const htmlButton = button as HTMLElement;
+      const spriteType = htmlButton.getAttribute("data-sprite");
+
+      // Set initial selection
+      if (spriteType === savedSprite) {
+        htmlButton.classList.add("selected");
+      } else {
+        htmlButton.classList.remove("selected");
+      }
+
+      // Add click handler
+      htmlButton.addEventListener("click", () => {
+        // Remove selected class from all buttons
+        spriteButtons.forEach((btn) => btn.classList.remove("selected"));
+
+        // Add selected class to clicked button
+        htmlButton.classList.add("selected");
+
+        // Save selection to localStorage
+        if (spriteType) {
+          localStorage.setItem("tannenbaum_selected_sprite", spriteType);
+          console.log("🎨 MenuScene: Player sprite selected:", spriteType);
+        }
+      });
+    });
+  }
+
+  private getSelectedSprite(): string {
+    return localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
   }
 
   private createConnectionStatus() {
@@ -234,6 +278,7 @@ export class MenuScene extends Scene {
           myPlayerId: data.your_player_id,
           originalRoomName: originalRoomName,
           originalUsername: originalUsername,
+          selectedSprite: this.getSelectedSprite(),
         });
       });
 
@@ -308,6 +353,7 @@ export class MenuScene extends Scene {
       myPlayerId: "offline_player",
       originalRoomName: "Offline Mode",
       originalUsername: "Offline Player",
+      selectedSprite: this.getSelectedSprite(),
     });
   }
 

@@ -13,15 +13,19 @@ export class AssetLoader {
   loadAllAssets() {
     this.loadPlayerSprites();
     this.loadEnemySprites();
+    this.loadAdventurerSprites();
+    this.loadSlimeSprites();
     this.loadWinterAssets();
     this.loadAudioAssets();
     this.loadFireballSprites();
   }
 
   private loadPlayerSprites() {
-    // Load Dude Monster sprites for player
+    // Load all player sprite options
+
+    // Dude Monster sprites
     this.scene.load.spritesheet(
-      "player_idle",
+      "dude_monster_idle",
       "/assets/sprites/dude_monster/Dude_Monster_Idle_4.png",
       {
         frameWidth: 32,
@@ -30,7 +34,7 @@ export class AssetLoader {
     );
 
     this.scene.load.spritesheet(
-      "player_run",
+      "dude_monster_run",
       "/assets/sprites/dude_monster/Dude_Monster_Run_6.png",
       {
         frameWidth: 32,
@@ -39,8 +43,64 @@ export class AssetLoader {
     );
 
     this.scene.load.spritesheet(
-      "player_jump",
+      "dude_monster_jump",
       "/assets/sprites/dude_monster/Dude_Monster_Jump_8.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+
+    // Owlet Monster sprites
+    this.scene.load.spritesheet(
+      "owlet_monster_idle",
+      "/assets/sprites/owlet_monster/Owlet_Monster_Idle_4.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+
+    this.scene.load.spritesheet(
+      "owlet_monster_run",
+      "/assets/sprites/owlet_monster/Owlet_Monster_Walk_6.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+
+    this.scene.load.spritesheet(
+      "owlet_monster_jump",
+      "/assets/sprites/owlet_monster/Owlet_Monster_Jump_8.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+
+    // Pink Monster sprites
+    this.scene.load.spritesheet(
+      "pink_monster_idle",
+      "/assets/sprites/pink_monster/Pink_Monster_Idle_4.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+
+    this.scene.load.spritesheet(
+      "pink_monster_run",
+      "/assets/sprites/pink_monster/Pink_Monster_Walk_6.png",
+      {
+        frameWidth: 32,
+        frameHeight: 32,
+      }
+    );
+
+    this.scene.load.spritesheet(
+      "pink_monster_jump",
+      "/assets/sprites/pink_monster/Pink_Monster_Jump_8.png",
       {
         frameWidth: 32,
         frameHeight: 32,
@@ -49,7 +109,7 @@ export class AssetLoader {
   }
 
   private loadEnemySprites() {
-    // Load Owlet Monster sprites for enemies
+    // Load Owlet Monster sprites for enemies (kept for later use)
     this.scene.load.spritesheet(
       "enemy_idle",
       "/assets/sprites/owlet_monster/Owlet_Monster_Idle_4.png",
@@ -68,7 +128,7 @@ export class AssetLoader {
       }
     );
 
-    // Load Pink Monster sprites for special enemies
+    // Load Pink Monster sprites for special enemies (kept for later use)
     this.scene.load.spritesheet(
       "pink_enemy_idle",
       "/assets/sprites/pink_monster/Pink_Monster_Idle_4.png",
@@ -77,6 +137,94 @@ export class AssetLoader {
         frameHeight: 32,
       }
     );
+  }
+
+  private loadAdventurerSprites() {
+    // Load ADVENTURER sprites for small boss enemies
+
+    // Load idle frames
+    for (let i = 0; i <= 11; i++) {
+      this.scene.load.image(
+        `adventurer_idle_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/adventurer/FR_Adventurer_Idle_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load run frames
+    for (let i = 0; i <= 9; i++) {
+      this.scene.load.image(
+        `adventurer_run_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/adventurer/FR_Adventurer_Run_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load slash frames
+    for (let i = 0; i <= 7; i++) {
+      this.scene.load.image(
+        `adventurer_slash_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/adventurer/FR_Adventurer_Slash_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load hurt frames
+    for (let i = 0; i <= 5; i++) {
+      this.scene.load.image(
+        `adventurer_hurt_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/adventurer/FR_Adventurer_Hurt_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load death frames
+    for (let i = 0; i <= 8; i++) {
+      this.scene.load.image(
+        `adventurer_dead_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/adventurer/FR_Adventurer_Dead_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+  }
+
+  private loadSlimeSprites() {
+    // Load SLIME sprites for normal enemies
+
+    // Load idle frames
+    for (let i = 0; i <= 11; i++) {
+      this.scene.load.image(
+        `slime_idle_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/slime/FR_Slime4_Idle_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load move frames
+    for (let i = 0; i <= 9; i++) {
+      this.scene.load.image(
+        `slime_move_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/slime/FR_Slime4_Move_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load attack frames
+    for (let i = 0; i <= 7; i++) {
+      this.scene.load.image(
+        `slime_attack_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/slime/FR_Slime4_Attack_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load hurt frames
+    for (let i = 0; i <= 5; i++) {
+      this.scene.load.image(
+        `slime_hurt_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/slime/FR_Slime4_Hurt_${i.toString().padStart(3, "0")}.png`
+      );
+    }
+
+    // Load death frames
+    for (let i = 0; i <= 5; i++) {
+      this.scene.load.image(
+        `slime_dead_${i.toString().padStart(3, "0")}`,
+        `/assets/sprites/slime/FR_Slime4_Dead_${i.toString().padStart(3, "0")}.png`
+      );
+    }
   }
 
   private loadWinterAssets() {
@@ -175,6 +323,166 @@ export class AssetLoader {
         ],
         frameRate: 12,
         repeat: -1,
+      });
+    }
+  }
+
+  createAdventurerAnimations() {
+    // Create ADVENTURER animations for small boss enemies
+
+    // Idle animation
+    if (!this.scene.anims.exists("adventurer_idle")) {
+      const idleFrames = [];
+      for (let i = 0; i <= 11; i++) {
+        idleFrames.push({
+          key: `adventurer_idle_${i.toString().padStart(3, "0")}`,
+        });
+      }
+      this.scene.anims.create({
+        key: "adventurer_idle",
+        frames: idleFrames,
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
+
+    // Run animation
+    if (!this.scene.anims.exists("adventurer_run")) {
+      const runFrames = [];
+      for (let i = 0; i <= 9; i++) {
+        runFrames.push({
+          key: `adventurer_run_${i.toString().padStart(3, "0")}`,
+        });
+      }
+      this.scene.anims.create({
+        key: "adventurer_run",
+        frames: runFrames,
+        frameRate: 12,
+        repeat: -1,
+      });
+    }
+
+    // Slash animation
+    if (!this.scene.anims.exists("adventurer_slash")) {
+      const slashFrames = [];
+      for (let i = 0; i <= 7; i++) {
+        slashFrames.push({
+          key: `adventurer_slash_${i.toString().padStart(3, "0")}`,
+        });
+      }
+      this.scene.anims.create({
+        key: "adventurer_slash",
+        frames: slashFrames,
+        frameRate: 15,
+        repeat: 0, // Play once
+      });
+    }
+
+    // Hurt animation
+    if (!this.scene.anims.exists("adventurer_hurt")) {
+      const hurtFrames = [];
+      for (let i = 0; i <= 5; i++) {
+        hurtFrames.push({
+          key: `adventurer_hurt_${i.toString().padStart(3, "0")}`,
+        });
+      }
+      this.scene.anims.create({
+        key: "adventurer_hurt",
+        frames: hurtFrames,
+        frameRate: 10,
+        repeat: 0, // Play once
+      });
+    }
+
+    // Death animation
+    if (!this.scene.anims.exists("adventurer_dead")) {
+      const deadFrames = [];
+      for (let i = 0; i <= 8; i++) {
+        deadFrames.push({
+          key: `adventurer_dead_${i.toString().padStart(3, "0")}`,
+        });
+      }
+      this.scene.anims.create({
+        key: "adventurer_dead",
+        frames: deadFrames,
+        frameRate: 8,
+        repeat: 0, // Play once
+      });
+    }
+  }
+
+  createSlimeAnimations() {
+    // Create SLIME animations for normal enemies
+
+    // Idle animation
+    if (!this.scene.anims.exists("slime_idle")) {
+      const idleFrames = [];
+      for (let i = 0; i <= 11; i++) {
+        idleFrames.push({ key: `slime_idle_${i.toString().padStart(3, "0")}` });
+      }
+      this.scene.anims.create({
+        key: "slime_idle",
+        frames: idleFrames,
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
+
+    // Move animation
+    if (!this.scene.anims.exists("slime_move")) {
+      const moveFrames = [];
+      for (let i = 0; i <= 9; i++) {
+        moveFrames.push({ key: `slime_move_${i.toString().padStart(3, "0")}` });
+      }
+      this.scene.anims.create({
+        key: "slime_move",
+        frames: moveFrames,
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
+
+    // Attack animation
+    if (!this.scene.anims.exists("slime_attack")) {
+      const attackFrames = [];
+      for (let i = 0; i <= 7; i++) {
+        attackFrames.push({
+          key: `slime_attack_${i.toString().padStart(3, "0")}`,
+        });
+      }
+      this.scene.anims.create({
+        key: "slime_attack",
+        frames: attackFrames,
+        frameRate: 12,
+        repeat: 0, // Play once
+      });
+    }
+
+    // Hurt animation
+    if (!this.scene.anims.exists("slime_hurt")) {
+      const hurtFrames = [];
+      for (let i = 0; i <= 5; i++) {
+        hurtFrames.push({ key: `slime_hurt_${i.toString().padStart(3, "0")}` });
+      }
+      this.scene.anims.create({
+        key: "slime_hurt",
+        frames: hurtFrames,
+        frameRate: 10,
+        repeat: 0, // Play once
+      });
+    }
+
+    // Death animation
+    if (!this.scene.anims.exists("slime_dead")) {
+      const deadFrames = [];
+      for (let i = 0; i <= 5; i++) {
+        deadFrames.push({ key: `slime_dead_${i.toString().padStart(3, "0")}` });
+      }
+      this.scene.anims.create({
+        key: "slime_dead",
+        frames: deadFrames,
+        frameRate: 8,
+        repeat: 0, // Play once
       });
     }
   }

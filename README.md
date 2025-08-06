@@ -141,6 +141,9 @@ Vielen Dank an die Künstler und Communities, die ihre Assets frei zur Verfügun
 
 - **[Super Seasonal Platformer Tiles](https://opengameart.org/content/super-seasonal-platformer-tiles)** by GrafxKid - Wunderschöne saisonale Tileset-Grafiken (CC0 License)
 - **[Free Pixel Art Tiny Hero Sprites](https://craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/)** by CraftPix - 32x32 Charakter-Sprites für unsere Helden
+- **[High res fire ball](https://opengameart.org/content/high-res-fire-ball)** by Game Developer Studio - Hochauflösende animierte Feuerball-Effekte (CC-BY 3.0 License)
+- **[Pacman-clone Background Music](https://opengameart.org/content/pacman-clone-background-music)** by remaxim - Hintergrundmusik für kinderfreundliche Spiele (CC-BY-SA 3.0 License)
+- **[Victory!](https://opengameart.org/content/victory-1)** by Viktor Kraus - Siegesmusik im Retro-Stil für Erfolgsmomente (CC-BY 3.0 License)
 
 Ohne diese großzügigen Beiträge der Open Source und Creative Commons Communities wäre dieses Projekt nicht möglich gewesen. 🎉
 

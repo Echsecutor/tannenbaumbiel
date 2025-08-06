@@ -9,32 +9,44 @@ export class PlayerSystem {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private wasd!: any;
   private controlsSystem!: any; // Reference to ControlsSystem for mobile input
+  private spriteType: string = "dude_monster"; // Default sprite type
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, spriteType: string = "dude_monster") {
     this.scene = scene;
+    this.spriteType = spriteType;
   }
 
   createPlayer(): Phaser.Physics.Arcade.Sprite {
-    this.player = this.scene.physics.add.sprite(100, 450, "player_idle");
+    const idleTexture = `${this.spriteType}_idle`;
+    this.player = this.scene.physics.add.sprite(100, 450, idleTexture);
     this.player.setBounce(0.2);
     this.player.setCollideWorldBounds(true);
     this.player.setData("health", 100);
     this.player.setData("score", 0);
     this.player.setData("facingRight", true);
+    this.player.setData("spriteType", this.spriteType);
     this.player.setDepth(10); // Player in front of background
 
     this.createPlayerAnimations();
-    this.player.play("player_idle_anim");
+    this.player.play(`${this.spriteType}_idle_anim`);
 
     return this.player;
   }
 
   private createPlayerAnimations() {
+    const idleAnimKey = `${this.spriteType}_idle_anim`;
+    const runAnimKey = `${this.spriteType}_run_anim`;
+    const jumpAnimKey = `${this.spriteType}_jump_anim`;
+
+    const idleTexture = `${this.spriteType}_idle`;
+    const runTexture = `${this.spriteType}_run`;
+    const jumpTexture = `${this.spriteType}_jump`;
+
     // Idle animation
-    if (!this.scene.anims.exists("player_idle_anim")) {
+    if (!this.scene.anims.exists(idleAnimKey)) {
       this.scene.anims.create({
-        key: "player_idle_anim",
-        frames: this.scene.anims.generateFrameNumbers("player_idle", {
+        key: idleAnimKey,
+        frames: this.scene.anims.generateFrameNumbers(idleTexture, {
           start: 0,
           end: 3,
         }),
@@ -44,10 +56,10 @@ export class PlayerSystem {
     }
 
     // Run animation
-    if (!this.scene.anims.exists("player_run_anim")) {
+    if (!this.scene.anims.exists(runAnimKey)) {
       this.scene.anims.create({
-        key: "player_run_anim",
-        frames: this.scene.anims.generateFrameNumbers("player_run", {
+        key: runAnimKey,
+        frames: this.scene.anims.generateFrameNumbers(runTexture, {
           start: 0,
           end: 5,
         }),
@@ -57,10 +69,10 @@ export class PlayerSystem {
     }
 
     // Jump animation
-    if (!this.scene.anims.exists("player_jump_anim")) {
+    if (!this.scene.anims.exists(jumpAnimKey)) {
       this.scene.anims.create({
-        key: "player_jump_anim",
-        frames: this.scene.anims.generateFrameNumbers("player_jump", {
+        key: jumpAnimKey,
+        frames: this.scene.anims.generateFrameNumbers(jumpTexture, {
           start: 0,
           end: 7,
         }),
@@ -93,7 +105,7 @@ export class PlayerSystem {
       this.player.setData("facingRight", false);
       this.player.setFlipX(true);
       if (this.player.body!.touching.down) {
-        this.player.play("player_run_anim", true);
+        this.player.play(`${this.spriteType}_run_anim`, true);
       }
       inputDetected = true;
     } else if (currentInputs.right) {
@@ -101,20 +113,20 @@ export class PlayerSystem {
       this.player.setData("facingRight", true);
       this.player.setFlipX(false);
       if (this.player.body!.touching.down) {
-        this.player.play("player_run_anim", true);
+        this.player.play(`${this.spriteType}_run_anim`, true);
       }
       inputDetected = true;
     } else {
       this.player.setVelocityX(0);
       if (this.player.body!.touching.down) {
-        this.player.play("player_idle_anim", true);
+        this.player.play(`${this.spriteType}_idle_anim`, true);
       }
     }
 
     // Jumping
     if (currentInputs.jump && this.player.body!.touching.down) {
       this.player.setVelocityY(-jumpSpeed);
-      this.player.play("player_jump_anim", true);
+      this.player.play(`${this.spriteType}_jump_anim`, true);
       // Reset mobile jump input to prevent continuous jumping
       if (this.controlsSystem) {
         this.controlsSystem.resetMobileJump();

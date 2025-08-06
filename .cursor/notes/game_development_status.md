@@ -70,18 +70,32 @@
 ### Sprites erfolgreich integriert:
 
 - **Player Character**: Dude Monster (Idle, Run, Jump)
-- **Enemies**: Owlet Monster (Idle, Walk)
-- **Boss Enemy**: Pink Monster (Idle, vergrößert)
-- **Asset Structure**: `/frontend/src/assets/sprites/`
+- **Normal Enemies**: SLIME sprites (Idle, Move, Attack, Hurt, Death)
+- **Small Boss Enemies**: ADVENTURER sprites (Idle, Run, Slash, Hurt, Death)
+- **Boss Enemy**: Tree Boss (Winter theme)
+- **Legacy Enemies**: Owlet Monster, Pink Monster (kept for future use)
+- **Asset Structure**: `/frontend/public/assets/sprites/`
 
 ### Sprite-Verzeichnisse:
 
 ```
-frontend/src/assets/sprites/
+frontend/public/assets/sprites/
 ├── dude_monster/    # Player Character
-├── owlet_monster/   # Standard Enemies
-└── pink_monster/    # Boss Enemies
+├── slime/          # Normal Enemies (SLIME04 sprites)
+├── adventurer/     # Small Boss Enemies (ADVENTURER sprites)
+├── owlet_monster/   # Legacy enemies (kept for later)
+├── pink_monster/    # Legacy enemies (kept for later)
+└── fireball/       # Projectile sprites
 ```
+
+### Enemy Animation System:
+
+- **State-based Animations**: Enemies track states (idle, running, attacking, hurt, dying)
+- **Automatic Animation Switching**: Movement triggers run/move animations
+- **Combat Animations**: Attack animation when hitting player, hurt animation when hit
+- **Death Sequences**: Full death animation before enemy removal
+- **Dead Enemy Behavior**: Dying enemies stop moving, disable physics interactions, and cannot hurt players during death animation
+- **Sprite Flipping**: All sprites auto-flip based on movement direction (left-facing by default)
 
 ## 🚀 Architektur
 

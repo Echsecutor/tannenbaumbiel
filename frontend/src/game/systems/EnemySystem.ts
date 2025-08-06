@@ -9,6 +9,7 @@ export class EnemySystem {
   private networkEnemies: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
   private bossStones!: Phaser.Physics.Arcade.Group;
   private bossStoneThrowTimer: number = 0;
+  private enemyStates: Map<string, string> = new Map(); // Track enemy states: idle, running, attacking, hurt, dying
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -17,49 +18,7 @@ export class EnemySystem {
   createEnemyGroup(): Phaser.Physics.Arcade.Group {
     this.enemies = this.scene.physics.add.group();
     this.bossStones = this.scene.physics.add.group();
-    this.createEnemyAnimations();
     return this.enemies;
-  }
-
-  private createEnemyAnimations() {
-    // Enemy idle animation
-    if (!this.scene.anims.exists("enemy_idle_anim")) {
-      this.scene.anims.create({
-        key: "enemy_idle_anim",
-        frames: this.scene.anims.generateFrameNumbers("enemy_idle", {
-          start: 0,
-          end: 3,
-        }),
-        frameRate: 6,
-        repeat: -1,
-      });
-    }
-
-    // Enemy walk animation
-    if (!this.scene.anims.exists("enemy_walk_anim")) {
-      this.scene.anims.create({
-        key: "enemy_walk_anim",
-        frames: this.scene.anims.generateFrameNumbers("enemy_walk", {
-          start: 0,
-          end: 5,
-        }),
-        frameRate: 8,
-        repeat: -1,
-      });
-    }
-
-    // Pink enemy idle animation
-    if (!this.scene.anims.exists("pink_enemy_idle_anim")) {
-      this.scene.anims.create({
-        key: "pink_enemy_idle_anim",
-        frames: this.scene.anims.generateFrameNumbers("pink_enemy_idle", {
-          start: 0,
-          end: 3,
-        }),
-        frameRate: 6,
-        repeat: -1,
-      });
-    }
   }
 
   createEnemy(
@@ -69,30 +28,168 @@ export class EnemySystem {
     chunkIndex: number
   ): Phaser.Physics.Arcade.Sprite {
     let enemy: Phaser.Physics.Arcade.Sprite;
+    let enemyId = `enemy_${x}_${y}_${chunkIndex}`;
 
-    if (enemyType === "pink_boss") {
-      enemy = this.enemies.create(x, y, "pink_enemy_idle");
+    if (enemyType === "adventurer") {
+      // Small boss enemy using ADVENTURER sprites
+      enemy = this.enemies.create(x, y, "adventurer_idle_000");
       enemy.setData("health", 100);
-      enemy.setData("type", "pink_boss");
-      enemy.setScale(1.5); // Make boss bigger
+      enemy.setData("type", "adventurer");
+      enemy.setScale(0.1); // Scale down to match slimes and player size
       enemy.setDepth(12);
-      enemy.play("pink_enemy_idle_anim");
+      enemy.play("adventurer_idle");
       enemy.setVelocity(Phaser.Math.Between(-100, 100), 20);
+      this.enemyStates.set(enemyId, "idle");
     } else {
-      enemy = this.enemies.create(x, y, "enemy_idle");
+      // Normal enemy using SLIME sprites
+      enemy = this.enemies.create(x, y, "slime_idle_000");
       enemy.setData("health", 50);
-      enemy.setData("type", "owlet");
+      enemy.setData("type", "slime");
+      enemy.setScale(0.1); // Scale down much smaller to match player size
       enemy.setDepth(12);
-      enemy.play("enemy_idle_anim");
-      enemy.setVelocity(Phaser.Math.Between(-200, 200), 20);
+      enemy.play("slime_idle");
+      enemy.setVelocity(Phaser.Math.Between(-150, 150), 20);
+      this.enemyStates.set(enemyId, "idle");
     }
 
     enemy.setBounce(1);
     enemy.setCollideWorldBounds(true);
     enemy.setData("facingRight", true);
     enemy.setData("chunkIndex", chunkIndex);
+    enemy.setData("enemyId", enemyId);
 
     return enemy;
+  }
+
+  private updateEnemyAnimation(enemy: Phaser.Physics.Arcade.Sprite) {
+    const enemyId = enemy.getData("enemyId");
+    const currentState = this.enemyStates.get(enemyId) || "idle";
+    const enemyType = enemy.getData("type");
+    const velocity = enemy.body?.velocity;
+
+    // Update facing direction based on velocity
+    if (velocity && velocity.x !== 0) {
+      const facingRight = velocity.x > 0;
+      enemy.setData("facingRight", facingRight);
+
+      // Handle sprite flipping - both SLIME and ADVENTURER sprites are right-facing by default
+      enemy.setFlipX(facingRight);
+    }
+
+    // Determine animation based on state and movement
+    if (
+      currentState === "hurt" ||
+      currentState === "attacking" ||
+      currentState === "dying"
+    ) {
+      // Don't override special animations
+      return;
+    }
+
+    const isMoving = velocity && Math.abs(velocity.x) > 10;
+
+    if (enemyType === "adventurer") {
+      if (isMoving) {
+        enemy.play("adventurer_run", true);
+        this.enemyStates.set(enemyId, "running");
+      } else {
+        enemy.play("adventurer_idle", true);
+        this.enemyStates.set(enemyId, "idle");
+      }
+    } else if (enemyType === "slime") {
+      if (isMoving) {
+        enemy.play("slime_move", true);
+        this.enemyStates.set(enemyId, "running");
+      } else {
+        enemy.play("slime_idle", true);
+        this.enemyStates.set(enemyId, "idle");
+      }
+    }
+  }
+
+  private playEnemyHurtAnimation(enemy: Phaser.Physics.Arcade.Sprite) {
+    const enemyId = enemy.getData("enemyId");
+    const enemyType = enemy.getData("type");
+
+    this.enemyStates.set(enemyId, "hurt");
+
+    if (enemyType === "adventurer") {
+      enemy.play("adventurer_hurt");
+    } else if (enemyType === "slime") {
+      enemy.play("slime_hurt");
+    }
+
+    // Return to normal animation after hurt animation completes
+    this.scene.time.delayedCall(600, () => {
+      if (this.enemyStates.get(enemyId) === "hurt") {
+        this.enemyStates.set(enemyId, "idle");
+        this.updateEnemyAnimation(enemy);
+      }
+    });
+  }
+
+  private playEnemyDeathAnimation(
+    enemy: Phaser.Physics.Arcade.Sprite,
+    callback?: () => void
+  ) {
+    const enemyId = enemy.getData("enemyId");
+    const enemyType = enemy.getData("type");
+
+    this.enemyStates.set(enemyId, "dying");
+
+    // Stop movement and disable bouncing during death animation
+    enemy.setVelocity(0, 0);
+    enemy.setBounce(0); // Disable bouncing to prevent post-death movement
+    if (enemy.body) {
+      enemy.body.immovable = true; // Make enemy immovable to prevent physics interactions
+    }
+
+    if (enemyType === "adventurer") {
+      enemy.play("adventurer_dead");
+      // Remove enemy after death animation completes (8 frames at 8 fps = 1000ms)
+      this.scene.time.delayedCall(1000, () => {
+        this.enemyStates.delete(enemyId);
+        enemy.destroy();
+        if (callback) callback();
+      });
+    } else if (enemyType === "slime") {
+      enemy.play("slime_dead");
+      // Remove enemy after death animation completes (6 frames at 8 fps = 750ms)
+      this.scene.time.delayedCall(750, () => {
+        this.enemyStates.delete(enemyId);
+        enemy.destroy();
+        if (callback) callback();
+      });
+    }
+  }
+
+  private playEnemyAttackAnimation(enemy: Phaser.Physics.Arcade.Sprite) {
+    const enemyId = enemy.getData("enemyId");
+    const enemyType = enemy.getData("type");
+
+    this.enemyStates.set(enemyId, "attacking");
+
+    if (enemyType === "adventurer") {
+      enemy.play("adventurer_slash");
+      // Return to normal animation after attack completes
+      this.scene.time.delayedCall(530, () => {
+        // 8 frames at 15 fps
+        if (this.enemyStates.get(enemyId) === "attacking") {
+          this.enemyStates.set(enemyId, "idle");
+          this.updateEnemyAnimation(enemy);
+        }
+      });
+    } else if (enemyType === "slime") {
+      enemy.play("slime_attack");
+      // Return to normal animation after attack completes
+      this.scene.time.delayedCall(670, () => {
+        // 8 frames at 12 fps
+        if (this.enemyStates.get(enemyId) === "attacking") {
+          this.enemyStates.set(enemyId, "idle");
+          this.updateEnemyAnimation(enemy);
+        }
+      });
+    }
   }
 
   createTreeBoss(x: number, y: number): Phaser.Physics.Arcade.Sprite {
@@ -130,6 +227,14 @@ export class EnemySystem {
 
   updateEnemies() {
     this.enemies.children.entries.forEach((enemy: any) => {
+      const enemyId = enemy.getData("enemyId");
+      const currentState = this.enemyStates.get(enemyId);
+
+      // Skip AI updates for dead/dying enemies
+      if (currentState === "dying") {
+        return;
+      }
+
       if (enemy.getData("type") === "tree_boss") {
         // Boss behavior: throw stones at regular intervals
         this.updateTreeBoss(enemy);
@@ -140,6 +245,9 @@ export class EnemySystem {
         }
       }
     });
+
+    // Update enemy animations based on movement and state
+    this.updateEnemyAnimations();
 
     // Update boss stone projectiles
     this.updateBossStones();
@@ -202,21 +310,68 @@ export class EnemySystem {
     enemy: any,
     damage: number = 25
   ): { destroyed: boolean; health: number } {
-    const health = enemy.getData("health") - damage;
-    enemy.setData("health", health);
+    const enemyId = enemy.getData("enemyId");
+    const currentState = this.enemyStates.get(enemyId);
 
-    // Visual feedback
-    enemy.setTint(0xff0000);
-    this.scene.time.delayedCall(200, () => {
-      enemy.setTint(0xe74c3c);
-    });
-
-    if (health <= 0) {
-      enemy.destroy();
+    // Don't hit enemy if it's already dying
+    if (currentState === "dying") {
       return { destroyed: true, health: 0 };
     }
 
+    const health = enemy.getData("health") - damage;
+    enemy.setData("health", health);
+
+    if (health <= 0) {
+      // Play death animation and remove enemy after it completes
+      this.playEnemyDeathAnimation(enemy);
+      return { destroyed: true, health: 0 };
+    } else {
+      // Play hurt animation
+      this.playEnemyHurtAnimation(enemy);
+
+      // Visual feedback with red tint
+      enemy.setTint(0xff0000);
+      this.scene.time.delayedCall(200, () => {
+        enemy.clearTint();
+      });
+    }
+
     return { destroyed: false, health };
+  }
+
+  enemyHitPlayer(enemy: any): void {
+    // Play attack animation when enemy hits player
+    const enemyId = enemy.getData("enemyId");
+    const currentState = this.enemyStates.get(enemyId);
+
+    // Dead/dying enemies cannot hurt the player
+    if (currentState === "dying") {
+      return;
+    }
+
+    // Only play attack if not already in special state
+    if (currentState === "idle" || currentState === "running") {
+      this.playEnemyAttackAnimation(enemy);
+    }
+  }
+
+  updateEnemyAnimations(): void {
+    // Update animations for all active enemies
+    this.enemies.children.entries.forEach((enemy: any) => {
+      if (enemy.active) {
+        const enemyId = enemy.getData("enemyId");
+        const currentState = this.enemyStates.get(enemyId);
+
+        // Only update if not in special animation state
+        if (
+          currentState !== "hurt" &&
+          currentState !== "attacking" &&
+          currentState !== "dying"
+        ) {
+          this.updateEnemyAnimation(enemy);
+        }
+      }
+    });
   }
 
   getEnemyGroup(): Phaser.Physics.Arcade.Group {
@@ -262,10 +417,17 @@ export class EnemySystem {
 
       if (!sprite) {
         try {
-          const texture =
-            enemyState.enemy_type === "pink_boss"
-              ? "pink_enemy_idle"
-              : "enemy_idle";
+          let texture: string;
+          if (enemyState.enemy_type === "adventurer") {
+            texture = "adventurer_idle_000";
+          } else if (enemyState.enemy_type === "slime") {
+            texture = "slime_idle_000";
+          } else if (enemyState.enemy_type === "pink_boss") {
+            texture = "pink_enemy_idle"; // Keep old boss for backwards compatibility
+          } else {
+            texture = "slime_idle_000"; // Default to slime
+          }
+
           sprite = this.scene.physics.add.sprite(
             enemyState.x,
             enemyState.y,
@@ -283,13 +445,23 @@ export class EnemySystem {
           sprite.setData("health", enemyState.health);
           sprite.setData("type", enemyState.enemy_type);
           sprite.setData("facingRight", enemyState.facing_right);
+          sprite.setData("enemyId", enemyState.enemy_id);
 
-          if (enemyState.enemy_type === "pink_boss") {
+          if (enemyState.enemy_type === "adventurer") {
+            sprite.setScale(0.1); // Scale down to match slimes and player size
+            sprite.setTint(0x8a2be2); // Purple tint for network adventurers
+          } else if (enemyState.enemy_type === "slime") {
+            sprite.setScale(0.1); // Scale down much smaller to match player size
+            sprite.setTint(0x32cd32); // Green tint for network slimes
+          } else if (enemyState.enemy_type === "pink_boss") {
             sprite.setScale(1.5);
             sprite.setTint(0xff69b4);
           } else {
-            sprite.setTint(0xffa500);
+            sprite.setScale(0.1); // Default to slime scaling
+            sprite.setTint(0x32cd32); // Default green tint
           }
+
+          this.enemyStates.set(enemyState.enemy_id, "idle");
 
           sprite.setBounce(0);
           sprite.setCollideWorldBounds(true);
@@ -322,24 +494,51 @@ export class EnemySystem {
       if (sprite && sprite.body) {
         try {
           sprite.setPosition(enemyState.x, enemyState.y);
-          sprite.setVelocity(enemyState.velocity_x, enemyState.velocity_y);
-          sprite.setFlipX(!enemyState.facing_right);
-          sprite.setData("health", enemyState.health);
 
-          // Update animation
-          if (Math.abs(enemyState.velocity_x) > 10) {
-            const walkAnim =
-              enemyState.enemy_type === "pink_boss"
-                ? "pink_enemy_walk_anim"
-                : "enemy_walk_anim";
-            sprite.play(walkAnim, true);
+          // Check if enemy is dead (health <= 0)
+          const isDead = enemyState.health <= 0;
+
+          if (isDead) {
+            // Dead enemies don't move and play death animation
+            sprite.setVelocity(0, 0);
+            this.enemyStates.set(enemyState.enemy_id, "dying");
+
+            // Play death animation
+            if (enemyState.enemy_type === "adventurer") {
+              sprite.play("adventurer_dead", true);
+            } else if (enemyState.enemy_type === "slime") {
+              sprite.play("slime_dead", true);
+            } else if (enemyState.enemy_type === "pink_boss") {
+              sprite.play("pink_enemy_idle_anim", true); // Old boss type doesn't have death animation
+            }
           } else {
-            const idleAnim =
-              enemyState.enemy_type === "pink_boss"
-                ? "pink_enemy_idle_anim"
-                : "enemy_idle_anim";
-            sprite.play(idleAnim, true);
+            // Only update movement and animations for living enemies
+            sprite.setVelocity(enemyState.velocity_x, enemyState.velocity_y);
+
+            // Handle sprite flipping - both SLIME and ADVENTURER sprites are right-facing by default
+            sprite.setFlipX(enemyState.facing_right);
+
+            // Update animation based on enemy type and movement
+            if (Math.abs(enemyState.velocity_x) > 10) {
+              if (enemyState.enemy_type === "adventurer") {
+                sprite.play("adventurer_run", true);
+              } else if (enemyState.enemy_type === "slime") {
+                sprite.play("slime_move", true);
+              } else if (enemyState.enemy_type === "pink_boss") {
+                sprite.play("pink_enemy_idle_anim", true); // Old boss type
+              }
+            } else {
+              if (enemyState.enemy_type === "adventurer") {
+                sprite.play("adventurer_idle", true);
+              } else if (enemyState.enemy_type === "slime") {
+                sprite.play("slime_idle", true);
+              } else if (enemyState.enemy_type === "pink_boss") {
+                sprite.play("pink_enemy_idle_anim", true); // Old boss type
+              }
+            }
           }
+
+          sprite.setData("health", enemyState.health);
         } catch (error) {
           console.error(
             `❌ Error updating enemy ${enemyState.enemy_id}:`,
@@ -354,6 +553,7 @@ export class EnemySystem {
       if (!activeEnemyIds.has(enemyId)) {
         sprite.destroy();
         this.networkEnemies.delete(enemyId);
+        this.enemyStates.delete(enemyId); // Clean up enemy state
       }
     }
   }
@@ -361,6 +561,10 @@ export class EnemySystem {
   removeEnemiesInChunk(chunkIndex: number) {
     this.enemies.children.entries.forEach((enemy: any) => {
       if (enemy.getData("chunkIndex") === chunkIndex) {
+        const enemyId = enemy.getData("enemyId");
+        if (enemyId) {
+          this.enemyStates.delete(enemyId); // Clean up enemy state
+        }
         enemy.destroy();
       }
     });
@@ -371,9 +575,14 @@ export class EnemySystem {
   }
 
   clearNetworkEnemies() {
-    for (const [_enemyId, sprite] of this.networkEnemies) {
+    for (const [enemyId, sprite] of this.networkEnemies) {
       sprite.destroy();
+      this.enemyStates.delete(enemyId); // Clean up enemy state
     }
     this.networkEnemies.clear();
+  }
+
+  getEnemyStates(): Map<string, string> {
+    return this.enemyStates;
   }
 }

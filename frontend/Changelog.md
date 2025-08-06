@@ -2,6 +2,42 @@
 
 ## WIP
 
+- Replaced all enemy sprites with new animation systems:
+  - **Normal Enemies**: Replaced Owlet Monster with SLIME sprites featuring full animation set (idle, move, attack, hurt, death)
+  - **Small Boss Enemies**: Replaced Pink Monster with ADVENTURER sprites featuring combat animations (idle, run, slash, hurt, death)
+  - **Sprite Source**: Copied 47 ADVENTURER frames and 42 SLIME frames from `tiles/free_rpg_sprites/` to frontend assets
+  - **State-based Animation System**: Added comprehensive enemy state tracking (idle, running, attacking, hurt, dying)
+  - **Combat Animations**: Enemies play attack animation when hitting player, hurt animation when taking damage
+  - **Death Sequences**: Full death animation plays before enemy removal (1000ms for ADVENTURER, 750ms for SLIME)
+  - **Smart Sprite Flipping**: Sprites auto-flip based on movement direction (both ADVENTURER and SLIME are right-facing by default, flip when moving left)
+  - **Animation Performance**: Optimized frame rates (ADVENTURER slash: 15fps, SLIME attack: 12fps, movement: 8fps)
+  - **Uniform Enemy Scaling**: Scaled down both SLIME and ADVENTURER sprites to 0.1 scale for consistent player-sized enemies
+  - **Complete Sprite Optimization**: Batch-trimmed transparent padding from all 89 enemy sprites using ImageMagick
+    - **SLIME sprites**: 42 frames optimized, 21% file size reduction (1.4MB → 1.1MB)
+    - **ADVENTURER sprites**: 47 frames optimized, 7% file size reduction (5.6MB → 5.2MB)
+    - **Benefits**: Eliminated floating appearance, improved collision detection, reduced asset loading time
+  - **Sprite Orientation Fix**: Corrected ADVENTURER sprite flipping logic to match natural right-facing orientation
+  - **Network Compatibility**: Updated multiplayer enemy synchronization with color-coded tints (purple ADVENTURER, green SLIME)
+  - **Dead Enemy Behavior Fix**: Dead/dying enemies now properly stop moving and cannot hurt players
+    - **Movement Prevention**: Dying enemies skip AI updates in `updateEnemies()` method to remain stationary during death animation
+    - **Physics Interaction Disabled**: Dead enemies have bouncing disabled (`setBounce(0)`) and become immovable to prevent post-death physics interactions
+    - **Collision Handler Fix**: `handlePlayerEnemyHit()` now checks enemy state before applying damage, preventing dead enemies from hurting players
+    - **Damage Prevention**: Dead enemies cannot trigger `enemyHitPlayer()` method to prevent posthumous damage to players
+      - **Network Synchronization**: Network enemies with health <= 0 are handled correctly with death animations and no movement
+    - **State Management**: Proper "dying" state tracking prevents dead enemies from affecting gameplay
+    - **Legacy Preservation**: Kept original Owlet and Pink Monster sprites in assets for future alternative player characters
+    - **Asset Loading**: Enhanced AssetLoader with individual frame loading for smooth animation transitions
+- **Player Character Selection System**: Complete implementation of selectable player sprites
+  - **Menu Interface**: Added animated sprite selection UI with three character options (Held/Dude, Eule/Owlet, Rosa/Pink)
+  - **Visual Design**: Implemented hover animations, selection indicators, and sprite previews with pulsing animations
+  - **Persistence**: Player sprite selection saved to localStorage and restored on menu load
+  - **Dynamic Asset Loading**: Updated AssetLoader to load all three player sprite variants (dude_monster, owlet_monster, pink_monster)
+  - **PlayerSystem Integration**: Modified PlayerSystem constructor to accept dynamic sprite types and update all animations accordingly
+  - **Game Flow Integration**: Pass selected sprite from MenuScene through GameScene to PlayerSystem initialization
+  - **State Preservation**: Updated GameStateManager to preserve sprite selection across level transitions and game restarts
+  - **Network Compatibility**: Updated NetworkSystem to handle different sprite types (defaults to dude_monster for network players)
+  - **Animation System**: Dynamic animation keys based on sprite type (e.g., "dude_monster_idle_anim", "owlet_monster_run_anim")
+  - **Restart Preservation**: All restart scenarios (offline/online, level transitions, connection loss) maintain selected sprite
 - Replaced player projectiles with animated fireball sprites:
   - Copied blue fireball keyframe images from `tiles/fireballoga/blue/keyframes/` to frontend assets
   - Updated AssetLoader to load 6 fireball animation frames and create left/right facing animations

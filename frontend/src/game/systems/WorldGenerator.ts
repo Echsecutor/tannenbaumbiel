@@ -405,7 +405,7 @@ export class WorldGenerator {
       // Higher levels have more boss enemies
       const bossChance = Math.min(0.1 + (this.currentLevel - 1) * 0.05, 0.4); // 10% base, +5% per level, cap at 40%
       const enemyTypes =
-        Math.random() < bossChance ? ["pink_boss"] : ["owlet", "owlet"];
+        Math.random() < bossChance ? ["adventurer"] : ["slime", "slime"];
       const enemyType =
         enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
 
@@ -522,11 +522,11 @@ export class WorldGenerator {
     platform.body.setImmovable(true); // Won't be pushed by collisions
     platform.body.moves = true; // But can move under script control
     platform.body.setSize(platform.width, 16); // Thin collision box
-    
+
     // Completely disable gravity - kinematic bodies shouldn't be affected by world forces
     platform.body.allowGravity = false;
     platform.body.setGravityY(0);
-    
+
     platform.setDepth(10);
 
     // Set initial velocity

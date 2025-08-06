@@ -33,6 +33,7 @@ export class GameSceneRefactored extends Phaser.Scene {
   private roomData: any = null;
   private myPlayerId: string = "";
   private levelCompleted = false;
+  private selectedSprite: string = "dude_monster";
 
   // Audio
   private backgroundMusic: Phaser.Sound.BaseSound | null = null;
@@ -48,6 +49,7 @@ export class GameSceneRefactored extends Phaser.Scene {
   init(data: any) {
     this.isOffline = data.offline || false;
     this.roomData = data.roomData || null;
+    this.selectedSprite = data.selectedSprite || "dude_monster";
 
     // Reset level completion flag for new level/restart
     this.levelCompleted = false;
@@ -74,6 +76,7 @@ export class GameSceneRefactored extends Phaser.Scene {
       roomData: this.roomData,
       myPlayerId: this.myPlayerId,
       level: level,
+      selectedSprite: this.selectedSprite,
     });
   }
 
@@ -85,7 +88,7 @@ export class GameSceneRefactored extends Phaser.Scene {
     this.cameraSystem = new CameraSystem(this);
     this.controlsSystem = new ControlsSystem(this);
     this.physicsSystem = new PhysicsSystem(this);
-    this.playerSystem = new PlayerSystem(this);
+    this.playerSystem = new PlayerSystem(this, this.selectedSprite);
     this.gameStateManager = new GameStateManager(
       this,
       this.networkSystem,
@@ -119,8 +122,10 @@ export class GameSceneRefactored extends Phaser.Scene {
   create() {
     const networkManager = this.registry.get("networkManager");
 
-    // Create fireball animations after assets are loaded
+    // Create animations after assets are loaded
     this.assetLoader.createFireballAnimations();
+    this.assetLoader.createAdventurerAnimations();
+    this.assetLoader.createSlimeAnimations();
 
     // Initialize systems in dependency order
     this.createGameSystems(networkManager);
@@ -333,7 +338,19 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   // Collision handlers
   private handlePlayerEnemyHit(player: any, enemy: any) {
+    // Check if enemy is dead - dead enemies cannot hurt the player
+    const enemyId = enemy.getData("enemyId");
+    const enemyStates = this.enemySystem.getEnemyStates();
+    const currentState = enemyStates.get(enemyId);
+
+    if (currentState === "dying") {
+      return; // Dead enemies cannot hurt the player
+    }
+
     const health = this.playerSystem.takeDamage(25);
+
+    // Play enemy attack animation
+    this.enemySystem.enemyHitPlayer(enemy);
 
     // Emit health change event for UI update
     this.game.events.emit("health-changed", health);

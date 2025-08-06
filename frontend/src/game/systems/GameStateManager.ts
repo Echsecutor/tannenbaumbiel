@@ -177,12 +177,16 @@ export class GameStateManager {
       // Wait for leave message to be processed
       setTimeout(() => {
         console.log("🎮 Restarting scene after leaving room...");
-        this.scene.scene.restart();
+        const selectedSprite =
+          localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+        this.scene.scene.restart({ selectedSprite });
       }, 100);
     } else {
       // Offline mode - restart with offline flag preserved
       console.log("🎮 Offline restart - preserving offline mode...");
-      this.scene.scene.restart({ offline: true });
+      const selectedSprite =
+        localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+      this.scene.scene.restart({ offline: true, selectedSprite });
     }
 
     onRestart();
@@ -202,7 +206,13 @@ export class GameStateManager {
     if (this.isOffline) {
       // Offline mode - restart with offline flag preserved and current level
       console.log("🎮 Next level in offline mode...");
-      this.scene.scene.restart({ offline: true, level: this.currentLevel });
+      const selectedSprite =
+        localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+      this.scene.scene.restart({
+        offline: true,
+        level: this.currentLevel,
+        selectedSprite,
+      });
     } else {
       // Online mode - handle multiplayer level transition
       console.log("🎮 Next level in multiplayer mode...");
@@ -215,13 +225,21 @@ export class GameStateManager {
         this.setRejoinFlags();
 
         // Restart scene - will automatically rejoin the room
-        this.scene.scene.restart({ level: this.currentLevel });
+        const selectedSprite =
+          localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+        this.scene.scene.restart({ level: this.currentLevel, selectedSprite });
       } else {
         // Connection lost - fallback to offline mode
         console.log(
           "⚠️ Connection lost, switching to offline mode for next level"
         );
-        this.scene.scene.restart({ offline: true, level: this.currentLevel });
+        const selectedSprite =
+          localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+        this.scene.scene.restart({
+          offline: true,
+          level: this.currentLevel,
+          selectedSprite,
+        });
       }
     }
 

@@ -157,6 +157,123 @@
         margin: 20px 0;
         text-align: left;
     }
+
+    .sprite-selection {
+        margin: 25px 0;
+        text-align: center;
+    }
+
+    .sprite-selection h3 {
+        color: #ecf0f1;
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .sprite-options {
+        display: flex;
+        justify-content: space-around;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .sprite-button {
+        flex: 1;
+        min-width: 80px;
+        max-width: 120px;
+        padding: 15px 10px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+        background: rgba(52, 73, 94, 0.7);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sprite-button:hover {
+        border-color: rgba(52, 152, 219, 0.8);
+        background: rgba(52, 152, 219, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .sprite-button.selected {
+        border-color: #27ae60;
+        background: rgba(39, 174, 96, 0.3);
+        box-shadow: 0 0 15px rgba(39, 174, 96, 0.5);
+        transform: scale(1.05);
+    }
+
+    .sprite-button.selected::before {
+        content: '✓';
+        position: absolute;
+        top: 5px;
+        right: 8px;
+        color: #27ae60;
+        font-size: 16px;
+        font-weight: bold;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .sprite-preview {
+        width: 40px;
+        height: 40px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        margin: 0 auto 8px auto;
+        border-radius: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        animation: spriteIdle 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes spriteIdle {
+        from {
+            transform: scale(1);
+        }
+
+        to {
+            transform: scale(1.1);
+        }
+    }
+
+    .sprite-button:hover .sprite-preview {
+        animation: spriteHover 0.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes spriteHover {
+        from {
+            transform: scale(1.1) rotate(-2deg);
+        }
+
+        to {
+            transform: scale(1.2) rotate(2deg);
+        }
+    }
+
+    .sprite-name {
+        color: #ecf0f1;
+        font-size: 12px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .dude-preview {
+        background-image: url('/assets/sprites/dude_monster/Dude_Monster_Idle_4.png');
+    }
+
+    .owlet-preview {
+        background-image: url('/assets/sprites/owlet_monster/Owlet_Monster_Idle_4.png');
+    }
+
+    .pink-preview {
+        background-image: url('/assets/sprites/pink_monster/Pink_Monster_Idle_4.png');
+    }
 </style>
 
 <div id="menu-form">
@@ -173,6 +290,24 @@
         <label for="serverurl">Server-URL:</label>
         <input type="text" name="serverurl" id="serverurl" placeholder="https://server.tannenbaumbiel.echsecutables.de/"
             value="https://server.tannenbaumbiel.echsecutables.de/" maxlength="100" />
+    </div>
+
+    <div class="sprite-selection">
+        <h3>Wähle deinen Charakter:</h3>
+        <div class="sprite-options">
+            <div class="sprite-button selected" data-sprite="dude_monster">
+                <div class="sprite-preview dude-preview"></div>
+                <div class="sprite-name">Held</div>
+            </div>
+            <div class="sprite-button" data-sprite="owlet_monster">
+                <div class="sprite-preview owlet-preview"></div>
+                <div class="sprite-name">Eule</div>
+            </div>
+            <div class="sprite-button" data-sprite="pink_monster">
+                <div class="sprite-preview pink-preview"></div>
+                <div class="sprite-name">Rosa</div>
+            </div>
+        </div>
     </div>
 
     <button id="join-game-btn" class="game-button primary">Online Spielen</button>

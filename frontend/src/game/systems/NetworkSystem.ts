@@ -126,10 +126,12 @@ export class NetworkSystem {
 
     if (!sprite) {
       try {
+        // Default to dude_monster for network players (TODO: get actual sprite type from server)
+        const networkPlayerSprite = "dude_monster";
         sprite = this.scene.physics.add.sprite(
           playerState.x,
           playerState.y,
-          "player_idle"
+          `${networkPlayerSprite}_idle`
         );
         if (!sprite) return;
 
@@ -157,13 +159,14 @@ export class NetworkSystem {
         sprite.setData("score", playerState.score || 0);
         sprite.setData("username", playerState.username || "Unknown");
 
-        // Update animation
+        // Update animation using dynamic sprite type
+        const networkPlayerSprite = "dude_monster"; // TODO: get actual sprite type from server
         if (Math.abs(playerState.velocity_x) > 10) {
-          sprite.play("player_run_anim", true);
+          sprite.play(`${networkPlayerSprite}_run_anim`, true);
         } else if (playerState.is_jumping || !playerState.is_grounded) {
-          sprite.play("player_jump_anim", true);
+          sprite.play(`${networkPlayerSprite}_jump_anim`, true);
         } else {
-          sprite.play("player_idle_anim", true);
+          sprite.play(`${networkPlayerSprite}_idle_anim`, true);
         }
       } catch (error) {
         console.error(`❌ Error updating network player:`, error);

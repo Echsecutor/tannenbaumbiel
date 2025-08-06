@@ -38,8 +38,25 @@ cd backend && python -m py_compile app/**/*.py
 - **UIScene.ts**: Fixed TypeScript error with map function parameter types
 - **main.ts**: Removed unused `hideError()` function to prevent TS6133 warnings
 - **UI Elements**: Added `setScrollFactor(0)` to prevent camera scrolling issues
+- **Moving Platforms**: Fixed physics body configuration to use kinematic bodies instead of conflicting dynamic/immovable setup
 
 ## Code Quality Standards
+
+### Phaser Physics Best Practices
+
+**Moving Platform Physics Configuration:**
+
+- Use kinematic bodies for script-controlled moving objects: `body.moves = true` + `body.setImmovable(true)`
+- Never combine dynamic sprite creation with `setImmovable(true)` - creates physics contradictions
+- For platforms that move but aren't affected by forces: disable gravity completely with `body.allowGravity = false`
+- Add platform to physics group BEFORE configuring physics properties
+- Use `setVelocityY()` method rather than direct velocity assignment for kinematic bodies
+
+**Physics Body Types:**
+
+- **Dynamic**: Responds to forces, affected by gravity, can move freely
+- **Static**: Cannot move, perfect for ground platforms and walls
+- **Kinematic**: Moves under script control but not affected by forces (ideal for moving platforms)
 
 ### TypeScript Best Practices
 
