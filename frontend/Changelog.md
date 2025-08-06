@@ -15,6 +15,9 @@
   - Improved interactive settings with pixelPerfect: false and alphaTolerance: 1
   - Fixed mobile input flow: Connected ControlsSystem to PlayerSystem to ensure mobile touch events reach player movement
   - Unified input handling across online/offline modes - both now use the same ControlsSystem input path
+- Consolidated input system: Removed dead code and debugging logs, cleaned up PlayerSystem mobile input handling
+- Fixed TypeScript compilation errors: Added esModuleInterop, allowSyntheticDefaultImports, and downlevelIteration to tsconfig.json
+- Removed redundant mobile input methods and excessive debug logging from both ControlsSystem and PlayerSystem
 - Fixed WebSocket Content Security Policy violation in production:
   - Auto-upgrade WebSocket URLs from `ws://` to `wss://` when page is served over HTTPS
   - Updated nginx CSP header to include `connect-src 'self' ws: wss: http: https:` directive

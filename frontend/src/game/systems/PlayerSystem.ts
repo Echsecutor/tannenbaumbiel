@@ -167,11 +167,7 @@ export class PlayerSystem {
     this.controlsSystem = controlsSystem;
   }
 
-  setMobileInput(action: string, pressed: boolean) {
-    if (action in this.mobileInput) {
-      (this.mobileInput as any)[action] = pressed;
-    }
-  }
+
 
   takeDamage(amount: number): number {
     if (!this.player) return 0;
