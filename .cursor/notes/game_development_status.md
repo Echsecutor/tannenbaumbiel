@@ -265,3 +265,16 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
   - Stage-based error checking: page load → game loading → menu scene → button interaction → final state
 - **Benefits**: Better detection of JavaScript errors and verification that game actually starts and runs properly
 - **Location**: `tools/selenium_test.py` - comprehensive test enhancement
+
+### Mobile Touch Controls Not Working (2025)
+
+- **Problem**: Mobile touch buttons were not responding to touch inputs on mobile devices
+- **Cause**: Mobile control buttons were being covered by UIScene elements (Menu button at bottom-left, audio toggle at bottom-right)
+- **Root Issue**: UIScene is launched after GameScene controls are created, so its elements appear on top with higher rendering order
+- **Solution**: Fixed depth layering and positioning conflicts:
+  - Added explicit depth management (depth 1000) to ensure mobile buttons appear above other UI elements
+  - Repositioned buttons to avoid conflicts: moved left button right (100→120px), moved jump button left (150→120px from edge)
+  - Improved visual feedback with white borders and bold text labels for better visibility
+  - Made buttons more opaque (0.3→0.4 alpha) and slightly smaller (150→120px) for better mobile UX
+  - Added mobile device detection for future customization possibilities
+- **Location**: `frontend/src/game/systems/ControlsSystem.ts` - `createTouchControls()` method

@@ -2,13 +2,20 @@
 
 ## WIP
 
+- Fixed mobile touch controls not working:
+  - Mobile buttons were being covered by UIScene elements (Menu button, audio toggle)
+  - Added proper depth management (depth 1000) to ensure mobile buttons appear above other UI elements
+  - Repositioned mobile buttons to avoid conflicts with existing UI elements
+  - Improved button visual feedback with white borders and bold text labels
+  - Made buttons slightly smaller (120x120) and more opaque (0.4 alpha) for better visibility
+  - Added mobile device detection for future control customization
 - Fixed WebSocket Content Security Policy violation in production:
   - Auto-upgrade WebSocket URLs from `ws://` to `wss://` when page is served over HTTPS
   - Updated nginx CSP header to include `connect-src 'self' ws: wss: http: https:` directive
   - Fixed menu form HTML structure to prevent CSP meta tag injection outside document head
   - Moved menu-form.html from src/ to public/ directory for proper static asset serving
   - Moved all game assets from src/assets/ to public/assets/ for production build inclusion
-  - Updated AssetLoader.ts paths to use /assets/ instead of /src/assets/ 
+  - Updated AssetLoader.ts paths to use /assets/ instead of /src/assets/
   - Updated nginx configuration to serve .html files and updated all asset path references
   - Resolves browser blocking of insecure WebSocket connections on HTTPS sites
 - Fixed Docker production build to properly handle Vite environment variables (`VITE_API_URL`, `VITE_WS_URL`) at build time

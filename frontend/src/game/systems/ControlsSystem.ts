@@ -32,96 +32,141 @@ export class ControlsSystem {
   }
 
   private createTouchControls() {
-    // Left movement button
+    // High depth to ensure mobile buttons appear above all other UI elements
+    const MOBILE_BUTTON_DEPTH = 1000;
+
+    // Adjust positions to avoid conflicts with UIScene elements
+    // Left movement button - moved right to avoid menu button conflict
     const leftArea = this.scene.add.rectangle(
-      100,
-      this.scene.scale.height - 100,
-      150,
-      150,
+      120,
+      this.scene.scale.height - 120,
+      120,
+      120,
       0x000000,
-      0.3
+      0.4
     );
-    leftArea.setInteractive();
+    leftArea.setInteractive({ useHandCursor: true });
     leftArea.setScrollFactor(0); // Stay fixed to camera
+    leftArea.setDepth(MOBILE_BUTTON_DEPTH);
     leftArea.on("pointerdown", () => this.setMobileInput("left", true));
     leftArea.on("pointerup", () => this.setMobileInput("left", false));
     leftArea.on("pointerout", () => this.setMobileInput("left", false));
 
     // Right movement button
     const rightArea = this.scene.add.rectangle(
-      250,
-      this.scene.scale.height - 100,
-      150,
-      150,
+      260,
+      this.scene.scale.height - 120,
+      120,
+      120,
       0x000000,
-      0.3
+      0.4
     );
-    rightArea.setInteractive();
+    rightArea.setInteractive({ useHandCursor: true });
     rightArea.setScrollFactor(0);
+    rightArea.setDepth(MOBILE_BUTTON_DEPTH);
     rightArea.on("pointerdown", () => this.setMobileInput("right", true));
     rightArea.on("pointerup", () => this.setMobileInput("right", false));
     rightArea.on("pointerout", () => this.setMobileInput("right", false));
 
-    // Jump button
+    // Jump button - moved left to avoid audio button conflict
     const jumpArea = this.scene.add.rectangle(
-      this.scene.scale.width - 150,
-      this.scene.scale.height - 100,
-      150,
-      150,
+      this.scene.scale.width - 120,
+      this.scene.scale.height - 120,
+      120,
+      120,
       0x000000,
-      0.3
+      0.4
     );
-    jumpArea.setInteractive();
+    jumpArea.setInteractive({ useHandCursor: true });
     jumpArea.setScrollFactor(0);
+    jumpArea.setDepth(MOBILE_BUTTON_DEPTH);
     jumpArea.on("pointerdown", () => this.setMobileInput("jump", true));
     jumpArea.on("pointerup", () => this.setMobileInput("jump", false));
+    jumpArea.on("pointerout", () => this.setMobileInput("jump", false));
 
-    // Shoot button
+    // Shoot button - positioned to not conflict with other UI
     const shootArea = this.scene.add.rectangle(
-      this.scene.scale.width - 300,
-      this.scene.scale.height - 100,
-      150,
-      150,
+      this.scene.scale.width - 260,
+      this.scene.scale.height - 120,
+      120,
+      120,
       0x000000,
-      0.3
+      0.4
     );
-    shootArea.setInteractive();
+    shootArea.setInteractive({ useHandCursor: true });
     shootArea.setScrollFactor(0);
+    shootArea.setDepth(MOBILE_BUTTON_DEPTH);
     shootArea.on("pointerdown", () => this.setMobileInput("shoot", true));
     shootArea.on("pointerup", () => this.setMobileInput("shoot", false));
+    shootArea.on("pointerout", () => this.setMobileInput("shoot", false));
 
-    // Add control labels
+    // Add visual feedback borders
+    const borderStyle = { lineWidth: 2, strokeStyle: 0xffffff, alpha: 0.6 };
+
+    leftArea.setStrokeStyle(
+      borderStyle.lineWidth,
+      borderStyle.strokeStyle,
+      borderStyle.alpha
+    );
+    rightArea.setStrokeStyle(
+      borderStyle.lineWidth,
+      borderStyle.strokeStyle,
+      borderStyle.alpha
+    );
+    jumpArea.setStrokeStyle(
+      borderStyle.lineWidth,
+      borderStyle.strokeStyle,
+      borderStyle.alpha
+    );
+    shootArea.setStrokeStyle(
+      borderStyle.lineWidth,
+      borderStyle.strokeStyle,
+      borderStyle.alpha
+    );
+
+    // Add control labels with higher depth
     this.scene.add
-      .text(100, this.scene.scale.height - 100, "←", {
-        fontSize: "32px",
+      .text(120, this.scene.scale.height - 120, "←", {
+        fontSize: "28px",
         color: "#ffffff",
+        fontStyle: "bold",
       })
       .setOrigin(0.5)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(MOBILE_BUTTON_DEPTH + 1);
 
     this.scene.add
-      .text(250, this.scene.scale.height - 100, "→", {
-        fontSize: "32px",
+      .text(260, this.scene.scale.height - 120, "→", {
+        fontSize: "28px",
         color: "#ffffff",
+        fontStyle: "bold",
       })
       .setOrigin(0.5)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(MOBILE_BUTTON_DEPTH + 1);
 
     this.scene.add
-      .text(this.scene.scale.width - 150, this.scene.scale.height - 100, "↑", {
-        fontSize: "32px",
+      .text(this.scene.scale.width - 120, this.scene.scale.height - 120, "↑", {
+        fontSize: "28px",
         color: "#ffffff",
+        fontStyle: "bold",
       })
       .setOrigin(0.5)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(MOBILE_BUTTON_DEPTH + 1);
 
     this.scene.add
-      .text(this.scene.scale.width - 300, this.scene.scale.height - 100, "⚡", {
-        fontSize: "32px",
+      .text(this.scene.scale.width - 260, this.scene.scale.height - 120, "⚡", {
+        fontSize: "28px",
         color: "#ffffff",
+        fontStyle: "bold",
       })
       .setOrigin(0.5)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setDepth(MOBILE_BUTTON_DEPTH + 1);
+
+    // Add mobile detection and show/hide controls accordingly
+    this.adjustControlsForDevice();
   }
 
   private setMobileInput(action: string, pressed: boolean) {
@@ -200,5 +245,34 @@ export class ControlsSystem {
   disableControls() {
     this.resetMobileInput();
     // Note: Keyboard controls are automatically handled by Phaser when scene is paused
+  }
+
+  // Detect device type and adjust controls visibility
+  private adjustControlsForDevice() {
+    const isMobile = this.isMobileDevice();
+
+    // For now, always show mobile controls for easier testing
+    // In production, you might want to hide them on desktop
+    // You can toggle this behavior as needed
+
+    console.log(`Mobile device detected: ${isMobile}`);
+
+    // Optional: Add logic here to hide/show mobile controls based on device type
+    // For example, you could hide mobile controls on desktop:
+    // if (!isMobile) {
+    //   // Logic to hide mobile buttons for desktop users
+    //   // This could be implemented in the future if needed
+    // }
+  }
+
+  // Simple mobile device detection
+  private isMobileDevice(): boolean {
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      ) ||
+      "ontouchstart" in window ||
+      navigator.maxTouchPoints > 0
+    );
   }
 }
