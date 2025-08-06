@@ -4,7 +4,11 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0" />
+        content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2c3e50">
     <title>Tannenbaumbiel - Ein magisches Winterabenteuer</title>
     <meta name="description" content="Tannenbaumbiel - Ein Pixel-Art Plattformer Spiel" />
 
@@ -19,6 +23,11 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            min-height: 100dvh;
+            /* Dynamic viewport height for mobile */
+            width: 100vw;
+            width: 100dvw;
+            /* Dynamic viewport width for mobile */
         }
 
         #game-container {
@@ -27,6 +36,71 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             overflow: hidden;
             touch-action: manipulation;
+            max-width: 100vw;
+            max-height: 100vh;
+        }
+
+        /* Fullscreen styles */
+        body:fullscreen {
+            background: #2c3e50;
+        }
+
+        body:fullscreen #game-container {
+            border-radius: 0;
+            box-shadow: none;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+        }
+
+        /* Webkit fullscreen */
+        body:-webkit-full-screen {
+            background: #2c3e50;
+        }
+
+        body:-webkit-full-screen #game-container {
+            border-radius: 0;
+            box-shadow: none;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+        }
+
+        /* Mobile landscape optimizations */
+        @media screen and (orientation: landscape) and (max-height: 600px) {
+            body {
+                padding: 0;
+            }
+
+            #game-container {
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                max-width: 100vw;
+                max-height: 100vh;
+            }
+        }
+
+        /* Mobile portrait optimization with message */
+        @media screen and (orientation: portrait) and (max-width: 800px) {
+            body::after {
+                content: "Für das beste Spielerlebnis drehen Sie Ihr Gerät in den Querformat 📱🔄";
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(52, 152, 219, 0.9);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                z-index: 3000;
+                max-width: 80%;
+                font-size: 16px;
+                pointer-events: none;
+            }
         }
 
         #loading {

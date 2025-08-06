@@ -2,6 +2,17 @@
 
 ## WIP
 
+- Added fullscreen landscape mode support for mobile devices:
+  - Automatic fullscreen mode activation on mobile devices after game loads
+  - Cross-browser fullscreen API support (WebKit, standard, MS implementations)
+  - Screen orientation lock to landscape mode when supported by device
+  - Fullscreen button for manual control with auto-hide in fullscreen mode
+  - Updated game resolution from 1024x768 to 1280x720 for optimal landscape aspect ratio
+  - Enhanced game scale configuration with expandParent and fullscreenTarget options
+  - Responsive CSS with fullscreen-optimized styles and dynamic viewport handling
+  - Portrait mode warning message encouraging users to rotate their device
+  - Enhanced mobile meta tags for web app capabilities and better mobile experience
+  - Smooth orientation change handling with automatic game scale refresh
 - Fixed mobile touch controls not working:
   - Mobile buttons were being covered by UIScene elements (Menu button, audio toggle)
   - Added proper depth management (depth 1000) to ensure mobile buttons appear above other UI elements

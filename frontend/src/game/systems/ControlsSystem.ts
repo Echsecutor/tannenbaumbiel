@@ -199,8 +199,6 @@ export class ControlsSystem {
       shootLabel,
     ];
 
-
-
     // Add mobile detection and show/hide controls accordingly
     this.adjustControlsForDevice();
   }
@@ -230,8 +228,6 @@ export class ControlsSystem {
         this.mobileInput.shoot,
     };
 
-
-
     return inputs;
   }
 
@@ -256,8 +252,6 @@ export class ControlsSystem {
   resetMobileJump() {
     this.mobileInput.jump = false;
   }
-
-
 
   // Check if any input is currently active
   hasActiveInput(): boolean {
@@ -284,7 +278,7 @@ export class ControlsSystem {
     // Note: Keyboard controls are automatically handled by Phaser when scene is paused
   }
 
-    // Detect device type and adjust controls visibility
+  // Detect device type and adjust controls visibility
   private adjustControlsForDevice() {
     const isMobile = this.isMobileDevice();
 

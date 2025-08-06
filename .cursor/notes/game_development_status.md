@@ -38,7 +38,7 @@
 - ✅ **Gegner-System**: Owlet Monster + Pink Monster Boss
 - ✅ **Kampf-System**: Projectile Shooting + Enemy Health
 - ✅ **Animationen**: Sprite-basierte Character Animationen
-- ✅ **Mobile Support**: Touch Controls für Bewegung/Sprung/Schießen
+- ✅ **Mobile Support**: Touch Controls für Bewegung/Sprung/Schießen, Fullscreen Landscape Mode
 - ✅ **UI Elements**: Health Display, Control Instructions, Fully HTML-based Menu Interface
 - ✅ **Input System**: Complete HTML form with buttons, inputs, and connection status
 - ✅ **Menu Interface**: Headlines, buttons, and connection status all in HTML form (no mixed Phaser/HTML layout)
@@ -278,6 +278,12 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
   - Made buttons more opaque (0.3→0.4 alpha) and slightly smaller (150→120px) for better mobile UX
   - Added mobile device detection for future customization possibilities
 - **Location**: `frontend/src/game/systems/ControlsSystem.ts` - `createTouchControls()` method
+- **Input System Consolidation (2025)**: Cleaned up and unified the input handling system
+  - Removed dead mobile input code from PlayerSystem - now uses single source of truth in ControlsSystem
+  - Removed redundant debug logging and unused methods (getMobileInput, updateMobileInput, setMobileInput from PlayerSystem)
+  - Fixed TypeScript compilation errors by adding proper module import configuration
+  - Simplified touch event handlers by removing excessive console.log statements
+  - Both online and offline modes now use identical input flow through ControlsSystem → PlayerSystem
 - **Follow-up Fix**: Added automatic device detection to hide mobile controls on desktop browsers
   - Mobile controls now only appear on actual mobile devices (phones, tablets)
   - Desktop users see clean interface without touch buttons cluttering the screen
@@ -289,3 +295,26 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
   - Enhanced viewport meta tag with user-scalable=no for better mobile behavior
   - Set explicit depth levels on UIScene buttons (depth 100) to ensure they're below mobile controls (depth 1000)
   - Added detailed console logging for mobile device detection, button positioning, and input states
+
+### Mobile Fullscreen Landscape Mode (2025)
+
+- **Feature**: Complete fullscreen landscape orientation support for mobile devices
+- **Implementation Details**:
+  - Auto-detection of mobile devices (phones, tablets) with multiple detection methods
+  - Automatic fullscreen mode activation after game loads (1 second delay for smooth transition)
+  - Fullscreen API support with cross-browser compatibility (WebKit, standard, MS)
+  - Screen orientation lock to landscape mode when supported by device
+  - Fullscreen button for manual control (auto-hides in fullscreen mode)
+  - Responsive game scaling with 16:9 landscape aspect ratio (1280x720)
+  - Dynamic viewport handling for fullscreen mode transitions
+- **Game Configuration Changes**:
+  - Updated resolution from 1024x768 to 1280x720 for better landscape aspect ratio
+  - Enhanced scale configuration with expandParent and fullscreenTarget
+  - Improved min/max bounds for various screen sizes (480x320 to 2560x1440)
+- **UI/UX Improvements**:
+  - Portrait mode warning message encouraging users to rotate device
+  - Fullscreen-optimized CSS with proper viewport handling
+  - Enhanced mobile meta tags for web app capabilities
+  - Smooth orientation change handling with game scale refresh
+- **Browser Compatibility**: Supports modern mobile browsers with fallbacks for older implementations
+- **Location**: `frontend/src/main.ts` (TannenbaumGame class), `frontend/src/game/config.ts`, `frontend/index.html`
