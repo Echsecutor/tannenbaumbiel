@@ -8,7 +8,9 @@ export class WorldGenerator {
   private scene: Phaser.Scene;
   private enemySystem: EnemySystem;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
+  private movingPlatforms!: Phaser.Physics.Arcade.Group;
   private currentLevel: number = 1;
+  private isBossLevel: boolean = false;
 
   // World configuration
   private leftBoundary: number = -2000;
@@ -29,7 +31,10 @@ export class WorldGenerator {
 
   setLevel(level: number) {
     this.currentLevel = level;
-    console.log(`🌍 WorldGenerator: Level set to ${this.currentLevel}`);
+    this.isBossLevel = this.currentLevel % 5 === 0;
+    console.log(
+      `🌍 WorldGenerator: Level set to ${this.currentLevel}${this.isBossLevel ? " (BOSS ARENA!)" : ""}`
+    );
   }
 
   getRightBoundary(): number {
@@ -40,8 +45,9 @@ export class WorldGenerator {
     // Extended winter forest background for side-scrolling
     this.createScrollingBackground();
 
-    // Initialize platforms group for procedural generation
+    // Initialize platforms groups
     this.platforms = this.scene.physics.add.staticGroup();
+    this.movingPlatforms = this.scene.physics.add.group();
 
     // Set extended world bounds for side-scrolling
     this.scene.physics.world.setBounds(
@@ -51,10 +57,15 @@ export class WorldGenerator {
       this.scene.scale.height
     );
 
-    // Generate initial chunks around player start position
-    const startChunk = Math.floor(100 / this.chunkSize); // Player starts at x=100
-    for (let i = startChunk - 2; i <= startChunk + 3; i++) {
-      this.generateChunk(i);
+    if (this.isBossLevel) {
+      // Create boss arena instead of normal level
+      this.createBossArena();
+    } else {
+      // Generate normal level chunks around player start position
+      const startChunk = Math.floor(100 / this.chunkSize); // Player starts at x=100
+      for (let i = startChunk - 2; i <= startChunk + 3; i++) {
+        this.generateChunk(i);
+      }
     }
 
     // Snow particles
@@ -217,6 +228,9 @@ export class WorldGenerator {
   }
 
   private generateChunkEnemies(chunkX: number, chunkIndex: number) {
+    // Don't generate regular enemies in boss levels
+    if (this.isBossLevel) return;
+
     // Scale number of enemies with level (1-2 at level 1, up to 4-6 at higher levels)
     const baseEnemies = 1 + Math.floor(Math.random() * 2);
     const levelBonus = Math.floor((this.currentLevel - 1) / 2); // +1 enemy every 2 levels
@@ -239,6 +253,129 @@ export class WorldGenerator {
 
       this.enemySystem.createEnemy(x, y, enemyType, chunkIndex);
     }
+  }
+
+  private createBossArena() {
+    console.log(`🏛️ Creating Boss Arena for Level ${this.currentLevel}`);
+
+    const centerX = this.scene.scale.width / 2;
+    const screenHeight = this.scene.scale.height;
+
+    // Create arena ground
+    this.createWinterTiledPlatform(
+      centerX - 400,
+      screenHeight - 100,
+      800, // Wide platform
+      100, // Thick ground
+      this.platforms
+    );
+
+    // Create climbing platforms on the left side
+    this.createWinterTiledPlatform(
+      centerX - 350,
+      screenHeight - 200,
+      150,
+      32,
+      this.platforms
+    );
+    this.createWinterTiledPlatform(
+      centerX - 300,
+      screenHeight - 300,
+      150,
+      32,
+      this.platforms
+    );
+    this.createWinterTiledPlatform(
+      centerX - 250,
+      screenHeight - 400,
+      150,
+      32,
+      this.platforms
+    );
+
+    // Create climbing platforms on the right side
+    this.createWinterTiledPlatform(
+      centerX + 200,
+      screenHeight - 200,
+      150,
+      32,
+      this.platforms
+    );
+    this.createWinterTiledPlatform(
+      centerX + 150,
+      screenHeight - 300,
+      150,
+      32,
+      this.platforms
+    );
+    this.createWinterTiledPlatform(
+      centerX + 100,
+      screenHeight - 400,
+      150,
+      32,
+      this.platforms
+    );
+
+    // Create moving platforms for vertical navigation
+    this.createMovingPlatform(
+      centerX - 100,
+      screenHeight - 250,
+      screenHeight - 450,
+      screenHeight - 150
+    );
+    this.createMovingPlatform(
+      centerX + 50,
+      screenHeight - 350,
+      screenHeight - 500,
+      screenHeight - 200
+    );
+
+    // Create the tree boss in the center
+    const bossY = screenHeight - 150; // Position boss on the ground
+    this.enemySystem.createTreeBoss(centerX, bossY);
+
+    // Create exit platform on the far right
+    this.createWinterTiledPlatform(
+      centerX + 350,
+      screenHeight - 200,
+      200,
+      32,
+      this.platforms
+    );
+  }
+
+  private createMovingPlatform(
+    x: number,
+    startY: number,
+    minY: number,
+    maxY: number
+  ) {
+    // Create a moving platform
+    const platform = this.scene.physics.add.sprite(
+      x,
+      startY,
+      "winter_ground_upper_middle"
+    );
+    platform.setImmovable(true);
+    platform.body.setSize(platform.width, 16); // Thin collision box
+    platform.setDepth(10);
+
+    // Add to moving platforms group
+    this.movingPlatforms.add(platform);
+
+    // Create tween for up/down movement
+    this.scene.tweens.add({
+      targets: platform,
+      y: { from: maxY, to: minY },
+      duration: 3000,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: -1,
+    });
+
+    console.log(
+      `🔧 Created moving platform at (${x}, ${startY}) moving between ${minY} and ${maxY}`
+    );
   }
 
   private createSnowEffect() {
@@ -320,10 +457,19 @@ export class WorldGenerator {
     return this.platforms;
   }
 
+  getMovingPlatforms(): Phaser.Physics.Arcade.Group {
+    return this.movingPlatforms;
+  }
+
   reset() {
     this.chunksGenerated.clear();
     this.visibleChunks.clear();
     this.platformChunks.clear();
     this.backgroundElements.clear();
+
+    // Clear moving platforms if they exist
+    if (this.movingPlatforms) {
+      this.movingPlatforms.clear(true, true);
+    }
   }
 }

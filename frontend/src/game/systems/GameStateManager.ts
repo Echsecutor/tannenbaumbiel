@@ -29,16 +29,24 @@ export class GameStateManager {
     return this.currentLevel;
   }
 
+  isBossLevel(): boolean {
+    return this.currentLevel % 5 === 0;
+  }
+
   setLevel(level: number) {
     this.currentLevel = level;
-    console.log(`🎮 Level set to: ${this.currentLevel}`);
+    console.log(
+      `🎮 Level set to: ${this.currentLevel}${this.isBossLevel() ? " (BOSS LEVEL!)" : ""}`
+    );
     // Emit level change event for UI update
     this.scene.game.events.emit("level-changed", this.currentLevel);
   }
 
   nextLevel() {
     this.currentLevel++;
-    console.log(`🎮 Advanced to level: ${this.currentLevel}`);
+    console.log(
+      `🎮 Advanced to level: ${this.currentLevel}${this.isBossLevel() ? " (BOSS LEVEL!)" : ""}`
+    );
     // Emit level change event for UI update
     this.scene.game.events.emit("level-changed", this.currentLevel);
   }

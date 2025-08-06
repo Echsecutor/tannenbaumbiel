@@ -159,7 +159,9 @@ export class GameSceneRefactored extends Phaser.Scene {
   private setupPhysicsCollisions() {
     const player = this.playerSystem.getPlayer();
     const platforms = this.worldGenerator.getPlatforms();
+    const movingPlatforms = this.worldGenerator.getMovingPlatforms();
     const enemies = this.enemySystem.getEnemyGroup();
+    const bossStones = this.enemySystem.getBossStones();
 
     this.physicsSystem.setupCollisions(
       player,
@@ -169,6 +171,21 @@ export class GameSceneRefactored extends Phaser.Scene {
       (pr: any, e: any) => this.handleProjectileEnemyHit(pr, e),
       (pr: any, pl: any) => this.handleProjectilePlatformHit(pr, pl)
     );
+
+    // Add collisions for moving platforms
+    if (movingPlatforms) {
+      this.physics.add.collider(player, movingPlatforms);
+    }
+
+    // Add collisions for boss stones
+    if (bossStones) {
+      this.physics.add.overlap(player, bossStones, (p: any, stone: any) => {
+        this.handlePlayerStoneHit(p, stone);
+      });
+
+      this.physics.add.collider(bossStones, platforms);
+      this.physics.add.collider(bossStones, movingPlatforms);
+    }
   }
 
   private setupNetworking(networkManager: NetworkManager) {
@@ -224,17 +241,39 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Prevent multiple level completion triggers
     if (this.levelCompleted) return;
 
-    const rightBoundary = this.worldGenerator.getRightBoundary();
-    const completionZone = rightBoundary - 200; // 200px before the end
+    const isBossLevel = this.gameStateManager.isBossLevel();
 
-    // Check if player reached the end of the level
-    if (player.x >= completionZone) {
-      this.levelCompleted = true;
-      console.log("🏁 Player reached the end of the level!");
-      this.gameStateManager.showVictory(
-        () => this.nextLevel(),
-        () => this.scene.start("MenuScene")
-      );
+    if (isBossLevel) {
+      // Boss levels: only complete when all enemies (boss) are defeated
+      if (this.enemySystem.countActiveEnemies() === 0) {
+        this.levelCompleted = true;
+        console.log("🏁 Boss defeated! Level complete!");
+        this.gameStateManager.showVictory(
+          () => this.nextLevel(),
+          () => this.scene.start("MenuScene")
+        );
+      }
+    } else {
+      // Regular levels: reach the end of the world OR defeat all enemies
+      const rightBoundary = this.worldGenerator.getRightBoundary();
+      const completionZone = rightBoundary - 200; // 200px before the end
+
+      // Check if player reached the end of the level OR defeated all enemies
+      if (
+        player.x >= completionZone ||
+        this.enemySystem.countActiveEnemies() === 0
+      ) {
+        this.levelCompleted = true;
+        const completionReason =
+          player.x >= completionZone
+            ? "reached the end"
+            : "defeated all enemies";
+        console.log(`🏁 Player ${completionReason}! Level complete!`);
+        this.gameStateManager.showVictory(
+          () => this.nextLevel(),
+          () => this.scene.start("MenuScene")
+        );
+      }
     }
   }
 
@@ -302,6 +341,24 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   private handleProjectilePlatformHit(projectile: any, _platform: any) {
     projectile.destroy();
+  }
+
+  private handlePlayerStoneHit(player: any, stone: any) {
+    stone.destroy();
+
+    const health = this.playerSystem.takeDamage(15); // Less damage than enemy contact
+    console.log(`🪨 Player hit by boss stone! Health: ${health}`);
+
+    // Emit health change event for UI update
+    this.game.events.emit("health-changed", health);
+
+    // Apply knockback from stone impact
+    const direction = player.x < stone.x ? -1 : 1;
+    this.playerSystem.applyKnockback(direction * 0.5); // Lighter knockback than enemy
+
+    if (health <= 0) {
+      this.gameStateManager.showGameOver(() => this.restart());
+    }
   }
 
   private restart() {

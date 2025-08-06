@@ -112,7 +112,10 @@ export class AssetLoader {
       "/assets/winter/winter_ground_lower_right.png"
     );
 
-    // Winter decoration assets (tree assets removed - no longer used after perspective layer removal)
+    // Boss assets for tree boss and stone projectiles
+    this.scene.load.image("winter_tree", "/assets/winter/winter_tree.png");
+    this.scene.load.image("tree", "/assets/winter/tree.png");
+    this.scene.load.image("stone", "/assets/winter/stone.png");
   }
 
   private createProjectileTexture() {

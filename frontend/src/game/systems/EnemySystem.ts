@@ -7,6 +7,8 @@ export class EnemySystem {
   private scene: Phaser.Scene;
   private enemies!: Phaser.Physics.Arcade.Group;
   private networkEnemies: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
+  private bossStones!: Phaser.Physics.Arcade.Group;
+  private bossStoneThrowTimer: number = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -14,6 +16,7 @@ export class EnemySystem {
 
   createEnemyGroup(): Phaser.Physics.Arcade.Group {
     this.enemies = this.scene.physics.add.group();
+    this.bossStones = this.scene.physics.add.group();
     this.createEnemyAnimations();
     return this.enemies;
   }
@@ -92,11 +95,100 @@ export class EnemySystem {
     return enemy;
   }
 
+  createTreeBoss(x: number, y: number): Phaser.Physics.Arcade.Sprite {
+    const boss = this.enemies.create(x, y, "winter_tree");
+
+    // Make the boss huge - half screen height
+    const screenHeight = this.scene.scale.height;
+    const targetHeight = screenHeight * 0.5; // Half screen height
+    const originalHeight = boss.height;
+    const scale = targetHeight / originalHeight;
+
+    boss.setScale(scale);
+    boss.setData("health", 300); // Much more health for boss
+    boss.setData("type", "tree_boss");
+    boss.setData("maxHealth", 300);
+    boss.setDepth(15); // Higher depth than regular enemies
+
+    // Boss doesn't move
+    boss.body.immovable = true;
+    boss.setVelocity(0, 0);
+
+    // Initialize boss stone throwing
+    this.bossStoneThrowTimer = 0;
+
+    console.log(
+      `🌲 Created Tree Boss at (${x}, ${y}) with scale ${scale.toFixed(2)}`
+    );
+    return boss;
+  }
+
   updateEnemies() {
     this.enemies.children.entries.forEach((enemy: any) => {
-      // Simple AI: Change direction randomly
-      if (Phaser.Math.Between(0, 100) < 2) {
-        enemy.setVelocityX(Phaser.Math.Between(-200, 200));
+      if (enemy.getData("type") === "tree_boss") {
+        // Boss behavior: throw stones at regular intervals
+        this.updateTreeBoss(enemy);
+      } else {
+        // Regular enemy AI: Change direction randomly
+        if (Phaser.Math.Between(0, 100) < 2) {
+          enemy.setVelocityX(Phaser.Math.Between(-200, 200));
+        }
+      }
+    });
+
+    // Update boss stone projectiles
+    this.updateBossStones();
+  }
+
+  private updateTreeBoss(boss: any) {
+    // Tree boss throws stones every 2-3 seconds
+    this.bossStoneThrowTimer += this.scene.game.loop.delta;
+
+    if (this.bossStoneThrowTimer >= 2000 + Math.random() * 1000) {
+      // 2-3 seconds
+      this.throwStone(boss);
+      this.bossStoneThrowTimer = 0;
+    }
+  }
+
+  private throwStone(boss: any) {
+    // Get player position for targeting
+    const gameScene = this.scene as any;
+    const player = gameScene.playerSystem?.getPlayer();
+
+    if (!player) return;
+
+    // Create stone projectile
+    const stone = this.bossStones.create(
+      boss.x,
+      boss.y - boss.height * 0.3,
+      "stone"
+    );
+    stone.setScale(1.5); // Make stones visible
+    stone.setDepth(14);
+
+    // Calculate trajectory toward player
+    const deltaX = player.x - boss.x;
+    const deltaY = player.y - boss.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    // Normalize and apply velocity
+    const speed = 300;
+    const velocityX = (deltaX / distance) * speed;
+    const velocityY = (deltaY / distance) * speed + 100; // Add some arc
+
+    stone.setVelocity(velocityX, velocityY);
+    stone.setBounce(0.3);
+    stone.setCollideWorldBounds(true);
+
+    console.log(`🪨 Tree boss threw stone at player`);
+  }
+
+  private updateBossStones() {
+    // Remove stones that are too old or off-screen
+    this.bossStones.children.entries.forEach((stone: any) => {
+      if (stone.y > this.scene.scale.height + 100) {
+        stone.destroy();
       }
     });
   }
@@ -124,6 +216,10 @@ export class EnemySystem {
 
   getEnemyGroup(): Phaser.Physics.Arcade.Group {
     return this.enemies;
+  }
+
+  getBossStones(): Phaser.Physics.Arcade.Group {
+    return this.bossStones;
   }
 
   getLocalEnemyStates(): any[] {

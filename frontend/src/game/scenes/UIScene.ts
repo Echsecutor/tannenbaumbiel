@@ -255,11 +255,16 @@ export class UIScene extends Scene {
   }
 
   private updateLevelDisplay() {
-    console.log(
-      `🎮 UIScene: Updating level display to Level ${this.currentLevel}`
-    );
+    const isBossLevel = this.currentLevel % 5 === 0;
+    const displayText = isBossLevel
+      ? `BOSS LEVEL ${this.currentLevel}`
+      : `Level ${this.currentLevel}`;
+    const textColor = isBossLevel ? "#e74c3c" : "#ffffff"; // Red for boss levels
+
+    console.log(`🎮 UIScene: Updating level display to ${displayText}`);
     if (this.levelText) {
-      this.levelText.setText(`Level ${this.currentLevel}`);
+      this.levelText.setText(displayText);
+      this.levelText.setColor(textColor);
       console.log(`🎮 UIScene: Level display updated successfully`);
     } else {
       console.warn(`⚠️ UIScene: levelText object not initialized!`);
