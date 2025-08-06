@@ -129,6 +129,9 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Set up player controls
     this.playerSystem.setControls(controls.cursors, controls.wasd);
 
+    // CRITICAL: Connect ControlsSystem to PlayerSystem for mobile input
+    this.playerSystem.setControlsSystem(this.controlsSystem);
+
     // Setup camera system
     this.cameraSystem.setupSideScrollingCamera(player);
 

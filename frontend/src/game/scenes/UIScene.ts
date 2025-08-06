@@ -101,6 +101,7 @@ export class UIScene extends Scene {
         padding: { x: 10, y: 5 },
       })
       .setInteractive({ useHandCursor: true })
+      .setDepth(100) // Lower than mobile controls (depth 1000)
       .on("pointerdown", () => this.returnToMenu())
       .on("pointerover", () =>
         this.menuButton.setStyle({ backgroundColor: "#2c3e50" })
@@ -120,6 +121,7 @@ export class UIScene extends Scene {
       })
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true })
+      .setDepth(100) // Lower than mobile controls (depth 1000)
       .on("pointerdown", () => this.toggleAudio(audioButton))
       .on("pointerover", () =>
         audioButton.setStyle({ backgroundColor: "#2c3e50" })

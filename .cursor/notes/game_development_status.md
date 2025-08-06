@@ -278,3 +278,14 @@ Das Spiel ist ein vollständig funktionsfähiger 2D Platformer:
   - Made buttons more opaque (0.3→0.4 alpha) and slightly smaller (150→120px) for better mobile UX
   - Added mobile device detection for future customization possibilities
 - **Location**: `frontend/src/game/systems/ControlsSystem.ts` - `createTouchControls()` method
+- **Follow-up Fix**: Added automatic device detection to hide mobile controls on desktop browsers
+  - Mobile controls now only appear on actual mobile devices (phones, tablets)
+  - Desktop users see clean interface without touch buttons cluttering the screen
+  - Uses user agent detection + touch capability detection for reliable device identification
+- **Touch Event Debugging**: Added comprehensive debugging for mobile touch issues
+  - Added both pointer and touch event handlers for better mobile compatibility
+  - Improved interactive settings with pixelPerfect: false and alphaTolerance: 1
+  - Added global touch event logging to detect if any touch events are working
+  - Enhanced viewport meta tag with user-scalable=no for better mobile behavior
+  - Set explicit depth levels on UIScene buttons (depth 100) to ensure they're below mobile controls (depth 1000)
+  - Added detailed console logging for mobile device detection, button positioning, and input states

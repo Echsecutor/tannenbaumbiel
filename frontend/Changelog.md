@@ -8,7 +8,13 @@
   - Repositioned mobile buttons to avoid conflicts with existing UI elements
   - Improved button visual feedback with white borders and bold text labels
   - Made buttons slightly smaller (120x120) and more opaque (0.4 alpha) for better visibility
-  - Added mobile device detection for future control customization
+  - Added mobile device detection and automatic show/hide functionality
+  - Mobile controls now automatically hide on desktop and show only on mobile devices
+  - Added comprehensive touch event debugging and improved viewport settings for mobile
+  - Added both pointer and touch event handlers for better mobile compatibility
+  - Improved interactive settings with pixelPerfect: false and alphaTolerance: 1
+  - Fixed mobile input flow: Connected ControlsSystem to PlayerSystem to ensure mobile touch events reach player movement
+  - Unified input handling across online/offline modes - both now use the same ControlsSystem input path
 - Fixed WebSocket Content Security Policy violation in production:
   - Auto-upgrade WebSocket URLs from `ws://` to `wss://` when page is served over HTTPS
   - Updated nginx CSP header to include `connect-src 'self' ws: wss: http: https:` directive

@@ -8,14 +8,7 @@ export class PlayerSystem {
   private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private wasd!: any;
-
-  // Mobile touch input state
-  private mobileInput = {
-    left: false,
-    right: false,
-    jump: false,
-    shoot: false,
-  };
+  private controlsSystem!: any; // Reference to ControlsSystem for mobile input
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -83,12 +76,18 @@ export class PlayerSystem {
     const jumpSpeed = 550;
     let inputDetected = false;
 
+    // Get current inputs from ControlsSystem (includes mobile input)
+    const currentInputs = this.controlsSystem
+      ? this.controlsSystem.getCurrentInputs()
+      : {
+          left: this.cursors?.left.isDown || this.wasd?.A.isDown,
+          right: this.cursors?.right.isDown || this.wasd?.D.isDown,
+          jump: this.cursors?.up.isDown || this.wasd?.W.isDown,
+          shoot: this.wasd?.SPACE.isDown,
+        };
+
     // Horizontal movement
-    if (
-      this.cursors?.left.isDown ||
-      this.wasd?.A.isDown ||
-      this.mobileInput.left
-    ) {
+    if (currentInputs.left) {
       this.player.setVelocityX(-speed);
       this.player.setData("facingRight", false);
       this.player.setFlipX(true);
@@ -96,11 +95,7 @@ export class PlayerSystem {
         this.player.play("player_run_anim", true);
       }
       inputDetected = true;
-    } else if (
-      this.cursors?.right.isDown ||
-      this.wasd?.D.isDown ||
-      this.mobileInput.right
-    ) {
+    } else if (currentInputs.right) {
       this.player.setVelocityX(speed);
       this.player.setData("facingRight", true);
       this.player.setFlipX(false);
@@ -116,15 +111,13 @@ export class PlayerSystem {
     }
 
     // Jumping
-    if (
-      (this.cursors?.up.isDown ||
-        this.wasd?.W.isDown ||
-        this.mobileInput.jump) &&
-      this.player.body!.touching.down
-    ) {
+    if (currentInputs.jump && this.player.body!.touching.down) {
       this.player.setVelocityY(-jumpSpeed);
       this.player.play("player_jump_anim", true);
-      this.mobileInput.jump = false; // Reset to prevent continuous jumping
+      // Reset mobile jump input to prevent continuous jumping
+      if (this.controlsSystem) {
+        this.controlsSystem.resetMobileJump();
+      }
       inputDetected = true;
     }
 
@@ -132,11 +125,17 @@ export class PlayerSystem {
   }
 
   isShootPressed(): boolean {
+    // Use ControlsSystem for consistent input handling
+    if (this.controlsSystem) {
+      return this.controlsSystem.isShootPressed();
+    }
+
+    // Fallback for when ControlsSystem isn't available
     const isShootPressed =
       (this.scene.input.activePointer.isDown &&
         !this.scene.input.activePointer.wasTouch) ||
-      this.wasd.SPACE.isDown ||
-      this.mobileInput.shoot;
+      this.wasd.SPACE.isDown;
+
     return isShootPressed;
   }
 
@@ -162,6 +161,10 @@ export class PlayerSystem {
   setControls(cursors: Phaser.Types.Input.Keyboard.CursorKeys, wasd: any) {
     this.cursors = cursors;
     this.wasd = wasd;
+  }
+
+  setControlsSystem(controlsSystem: any) {
+    this.controlsSystem = controlsSystem;
   }
 
   setMobileInput(action: string, pressed: boolean) {
@@ -192,17 +195,16 @@ export class PlayerSystem {
   }
 
   getCurrentInputs() {
+    // Use ControlsSystem for consistent input handling across online/offline
+    if (this.controlsSystem) {
+      return this.controlsSystem.getCurrentInputs();
+    }
+
+    // Fallback for when ControlsSystem isn't available
     return {
-      left:
-        this.cursors?.left.isDown ||
-        this.wasd?.A.isDown ||
-        this.mobileInput.left,
-      right:
-        this.cursors?.right.isDown ||
-        this.wasd?.D.isDown ||
-        this.mobileInput.right,
-      jump:
-        this.cursors?.up.isDown || this.wasd?.W.isDown || this.mobileInput.jump,
+      left: this.cursors?.left.isDown || this.wasd?.A.isDown,
+      right: this.cursors?.right.isDown || this.wasd?.D.isDown,
+      jump: this.cursors?.up.isDown || this.wasd?.W.isDown,
       shoot: this.isShootPressed(),
     };
   }
