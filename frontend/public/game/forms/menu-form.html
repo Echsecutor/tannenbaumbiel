@@ -246,38 +246,26 @@
 
     .sprite-dude-idle {
         background-image: url('/assets/sprites/dude_monster/Dude_Monster_Idle_4.png');
-        animation: spriteIdle 0.8s steps(4, jump-none) infinite;
+        animation: spriteIdle 0.8s steps(4) infinite;
     }
 
     .sprite-owlet-idle {
         background-image: url('/assets/sprites/owlet_monster/Owlet_Monster_Idle_4.png');
-        animation: spriteIdle 0.8s steps(4, jump-none) infinite;
+        animation: spriteIdle 0.8s steps(4) infinite;
     }
 
     .sprite-pink-idle {
         background-image: url('/assets/sprites/pink_monster/Pink_Monster_Idle_4.png');
-        animation: spriteIdle 0.8s steps(4, jump-none) infinite;
+        animation: spriteIdle 0.8s steps(4) infinite;
     }
 
     @keyframes spriteIdle {
-        0% {
+        from {
             background-position: 0px 0px;
         }
 
-        25% {
-            background-position: -32px 0px;
-        }
-
-        50% {
-            background-position: -64px 0px;
-        }
-
-        75% {
-            background-position: -96px 0px;
-        }
-
-        100% {
-            background-position: 0px 0px;
+        to {
+            background-position: -128px 0px;
         }
     }
 
