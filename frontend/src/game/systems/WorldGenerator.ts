@@ -42,7 +42,7 @@ export class WorldGenerator {
 
   setLevel(level: number) {
     this.currentLevel = level;
-    this.isBossLevel = this.currentLevel % 5 === 0;
+    this.isBossLevel = this.currentLevel % 3 === 0;
     console.log(
       `🌍 WorldGenerator: Level set to ${this.currentLevel}${this.isBossLevel ? " (BOSS ARENA!)" : ""}`
     );
@@ -428,17 +428,10 @@ export class WorldGenerator {
       this.platforms
     );
 
-    // Create climbing platforms on the left side
+    // Create fewer climbing platforms on the left side - removed middle platform
     this.createWinterTiledPlatform(
       centerX - 350,
       screenHeight - 200,
-      150,
-      32,
-      this.platforms
-    );
-    this.createWinterTiledPlatform(
-      centerX - 300,
-      screenHeight - 300,
       150,
       32,
       this.platforms
@@ -451,17 +444,10 @@ export class WorldGenerator {
       this.platforms
     );
 
-    // Create climbing platforms on the right side
+    // Create fewer climbing platforms on the right side - removed middle platform
     this.createWinterTiledPlatform(
       centerX + 200,
       screenHeight - 200,
-      150,
-      32,
-      this.platforms
-    );
-    this.createWinterTiledPlatform(
-      centerX + 150,
-      screenHeight - 300,
       150,
       32,
       this.platforms
@@ -474,22 +460,16 @@ export class WorldGenerator {
       this.platforms
     );
 
-    // Create moving platforms for vertical navigation
+    // Create only one moving platform for vertical navigation - removed one to reduce blocking
     this.createMovingPlatform(
       centerX - 100,
       screenHeight - 250,
       screenHeight - 450,
       screenHeight - 150
     );
-    this.createMovingPlatform(
-      centerX + 50,
-      screenHeight - 350,
-      screenHeight - 500,
-      screenHeight - 200
-    );
 
     // Create the tree boss in the center
-    const bossY = screenHeight - 150; // Position boss on the ground
+    const bossY = screenHeight - 100; // Position boss on top of the ground platform
     this.enemySystem.createTreeBoss(centerX, bossY);
 
     // Create exit platform on the far right

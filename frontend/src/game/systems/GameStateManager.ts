@@ -30,7 +30,7 @@ export class GameStateManager {
   }
 
   isBossLevel(): boolean {
-    return this.currentLevel % 5 === 0;
+    return this.currentLevel % 3 === 0;
   }
 
   setLevel(level: number) {

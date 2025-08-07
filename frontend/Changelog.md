@@ -2,6 +2,22 @@
 
 ## WIP
 
+- **Boss Level Improvements**: Enhanced tree boss arena and stone throwing mechanics
+  - **Fixed Boss Physics**: Resolved tree boss falling through ground by creating it as separate sprite with explicit physics control
+  - **Enhanced Immobility**: Added `body.moves = false` and `body.allowGravity = false` to completely prevent boss movement
+  - **Fixed Boss Positioning**: Corrected tree boss placement to sit properly on top of ground platform instead of below it
+  - **Improved Ground Anchoring**: Set boss origin to bottom center (0.5, 1.0) for proper ground alignment
+  - **Reduced Platform Obstacles**: Removed middle climbing platforms on both sides to give tree boss better shooting angles
+  - **Simplified Moving Platforms**: Reduced from 2 to 1 moving platform to minimize blocking of boss projectiles
+  - **Enhanced Stone Throwing**: Improved projectile mechanics with higher spawn position and more dramatic arc
+    - **Higher Stone Spawn**: Stones now appear at 60% up the boss height instead of 30% for more dramatic launch
+    - **Increased Arc Height**: Boosted projectile speed from 400 to 450 and reduced gravity from 800 to 600 for higher trajectories
+    - **More Upward Velocity**: Increased initial upward velocity from -200 to -300 for steeper launch angles
+    - **Better Visual Impact**: Stones now have more impressive high-arc trajectories that are harder to dodge
+  - **Improved Player Targeting**: Stones use enhanced projectile motion formula to always target player position with dramatic upward arc
+  - **Enhanced Arc Physics**: Implemented realistic projectile motion with optimized gravity effects for more challenging boss fights
+  - **Upward Launch**: Stones now launch upward first before arcing toward player, creating more interesting and challenging trajectories
+
 - **Menu Animation Consolidation**: Replaced hybrid Phaser/HTML menu with pure HTML/CSS/JS approach
   - **CSS Sprite Animations**: Implemented pure CSS sprite sheet animations for character previews using `background-position` and `@keyframes`
   - **Frame-by-Frame Animation**: Fixed sprite animations to use `steps(4, jump-none)` for proper frame-by-frame stepping without interpolation

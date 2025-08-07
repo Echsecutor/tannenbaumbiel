@@ -193,7 +193,11 @@ export class EnemySystem {
   }
 
   createTreeBoss(x: number, y: number): Phaser.Physics.Arcade.Sprite {
-    const boss = this.enemies.create(x, y, "winter_tree");
+    // Create boss as a separate sprite to avoid group physics interference
+    const boss = this.scene.physics.add.sprite(x, y, "winter_tree");
+
+    // Add to enemies group for consistency
+    this.enemies.add(boss);
 
     // Make the boss huge - half screen height
     const screenHeight = this.scene.scale.height;
@@ -207,12 +211,17 @@ export class EnemySystem {
     boss.setData("maxHealth", 300);
     boss.setDepth(15); // Higher depth than regular enemies
 
-    // Boss is immovable by other objects but still collides with world
-    boss.body.immovable = true;
-    boss.setVelocity(0, 0);
-    boss.body.setGravityY(0); // No gravity for the boss
+    // Set the boss origin to bottom center so it sits properly on the ground
+    boss.setOrigin(0.5, 1.0);
 
-    // Ensure the boss has proper collision bounds
+    // Completely disable physics movement for the boss
+    boss.body.setImmovable(true);
+    boss.body.moves = false; // Disable movement entirely
+    boss.body.setVelocity(0, 0);
+    boss.body.setGravityY(0); // No gravity for the boss
+    boss.body.allowGravity = false; // Explicitly disable gravity
+
+    // Ensure the boss has proper collision bounds and stays in place
     boss.setCollideWorldBounds(true);
     boss.setBounce(0); // No bouncing
 
@@ -271,30 +280,42 @@ export class EnemySystem {
 
     if (!player) return;
 
-    // Create stone projectile
+    // Create stone projectile from higher position on the boss
     const stone = this.bossStones.create(
       boss.x,
-      boss.y - boss.height * 0.3,
+      boss.y - boss.height * 0.6, // Higher spawn position (was 0.3)
       "stone"
     );
     stone.setScale(1.5); // Make stones visible
     stone.setDepth(14);
 
-    // Calculate trajectory toward player
+    // Calculate trajectory with higher upward arc toward player
     const deltaX = player.x - boss.x;
     const deltaY = player.y - boss.y;
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    // Normalize and apply velocity
-    const speed = 300;
-    const velocityX = (deltaX / distance) * speed;
-    const velocityY = (deltaY / distance) * speed + 100; // Add some arc
+    // Use projectile motion formula for higher upward arc
+    // Always throw upward first, then let gravity bring it down toward player
+    const baseSpeed = 450; // Increased speed for higher arc
+    const gravity = 600; // Reduced gravity for higher arc
+
+    // Calculate angle to hit player with higher trajectory
+    const angle = Math.atan2(
+      deltaY + (gravity * distance * distance) / (2 * baseSpeed * baseSpeed),
+      deltaX
+    );
+
+    // Apply velocity with higher upward arc
+    const velocityX = Math.cos(angle) * baseSpeed;
+    const velocityY = Math.sin(angle) * baseSpeed - 300; // More upward velocity (was -200)
 
     stone.setVelocity(velocityX, velocityY);
     stone.setBounce(0.3);
     stone.setCollideWorldBounds(true);
 
-    console.log(`🪨 Tree boss threw stone at player`);
+    console.log(
+      `🪨 Tree boss threw stone in high upward arc toward player at (${player.x}, ${player.y})`
+    );
   }
 
   private updateBossStones() {

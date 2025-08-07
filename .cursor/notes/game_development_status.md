@@ -231,8 +231,9 @@ max-line-length = 120
 - ✅ **Boss Arena System**: Dedicated boss fights - IMPLEMENTED!
   - Boss levels every 5th level (5, 10, 15, etc.) with special arena generation
   - Massive Tree Boss (half screen height, 300 HP) using winter_tree.png sprite
-  - Boss throws stone projectiles with physics targeting and collision
-  - Special arena with climbing platforms and moving platforms for vertical navigation
+  - Boss throws stone projectiles with upward arc trajectory using projectile motion physics
+  - Enhanced arena with reduced platform obstacles for better boss shooting angles
+  - Simplified moving platform layout (1 instead of 2) to minimize projectile blocking
   - Boss-only victory condition (defeat boss vs reach world end)
   - **See**: [Boss Arena Flow Diagram](visual_diagrams.md#boss-arena-system-flow)
 - [ ] **Power-ups**: Item collection mechanics

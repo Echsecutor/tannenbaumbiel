@@ -269,7 +269,7 @@ export class UIScene extends Scene {
   }
 
   private updateLevelDisplay() {
-    const isBossLevel = this.currentLevel % 5 === 0;
+    const isBossLevel = this.currentLevel % 3 === 0;
     const displayText = isBossLevel
       ? `BOSS LEVEL ${this.currentLevel}`
       : `Level ${this.currentLevel}`;
