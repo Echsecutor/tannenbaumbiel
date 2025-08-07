@@ -2,6 +2,18 @@
 
 ## WIP
 
+- **Menu Animation Consolidation**: Replaced hybrid Phaser/HTML menu with pure HTML/CSS/JS approach
+  - **CSS Sprite Animations**: Implemented pure CSS sprite sheet animations for character previews using `background-position` and `@keyframes`
+  - **Frame-by-Frame Animation**: Fixed sprite animations to use `steps(4, jump-none)` for proper frame-by-frame stepping without interpolation
+  - **Enhanced Button Animations**: Added ripple effects, hover animations, and smooth transitions for all menu buttons
+  - **Input Field Enhancements**: Added focus animations with gradient underlines and subtle lift effects
+  - **Sprite Selection System**: Character selection now uses CSS animations instead of Phaser sprites for better performance
+  - **Simplified MenuScene**: Removed complex Phaser sprite positioning code and character preview creation methods
+  - **Pure HTML Approach**: Menu now uses classical HTML/CSS/JS without mixed Phaser/HTML rendering
+  - **Animation Visibility Fixed**: Sprite animations are now clearly visible and properly animated in the menu
+  - **Performance Improvement**: Reduced Phaser overhead by using native CSS animations for menu elements
+  - **Enhanced UX**: Added click ripple effects, improved hover states, and better visual feedback for all interactions
+
 - Replaced all enemy sprites with new animation systems:
   - **Normal Enemies**: Replaced Owlet Monster with SLIME sprites featuring full animation set (idle, move, attack, hurt, death)
   - **Small Boss Enemies**: Replaced Pink Monster with ADVENTURER sprites featuring combat animations (idle, run, slash, hurt, death)
@@ -29,7 +41,8 @@
     - **Asset Loading**: Enhanced AssetLoader with individual frame loading for smooth animation transitions
 - **Player Character Selection System**: Complete implementation of selectable player sprites
   - **Menu Interface**: Added animated sprite selection UI with three character options (Held/Dude, Eule/Owlet, Rosa/Pink)
-  - **Visual Design**: Implemented hover animations, selection indicators, and sprite previews with pulsing animations
+  - **Animated Character Previews**: Replaced static sprite images with fully animated Phaser sprites showing each character's idle animation in real-time
+  - **Visual Design**: Implemented hover animations, selection indicators, and live sprite previews with continuous character animations
   - **Persistence**: Player sprite selection saved to localStorage and restored on menu load
   - **Dynamic Asset Loading**: Updated AssetLoader to load all three player sprite variants (dude_monster, owlet_monster, pink_monster)
   - **PlayerSystem Integration**: Modified PlayerSystem constructor to accept dynamic sprite types and update all animations accordingly

@@ -42,9 +42,10 @@
 - ✅ **Mobile Support**: Touch Controls für Bewegung/Sprung/Schießen, Fullscreen Landscape Mode
 - ✅ **UI Elements**: Health Display, Score System, Control Instructions, Fully HTML-based Menu Interface
 - ✅ **Input System**: Complete HTML form with buttons, inputs, and connection status
-- ✅ **Menu Interface**: Headlines, buttons, and connection status all in HTML form (no mixed Phaser/HTML layout)
-- ✅ **Button System**: HTML buttons with CSS styling, hover effects, and JavaScript event handling
-- ✅ **Unified Layout**: All menu elements consolidated in embedded HTML form for consistent presentation
+- ✅ **Menu Interface**: Pure HTML/CSS/JS menu with CSS sprite animations and enhanced button effects
+- ✅ **Button System**: HTML buttons with CSS styling, hover effects, ripple animations, and JavaScript event handling
+- ✅ **Unified Layout**: All menu elements consolidated in embedded HTML form with pure CSS animations (no Phaser sprites)
+- ✅ **Menu Animation System**: CSS sprite sheet animations for character previews using background-position and @keyframes
 - ✅ **Audio System**: Background music support with "Run Game 2.mp3", victory music with "Viktor Kraus - Victory!.mp3", respects audio toggle settings, real-time mute/unmute control, seamless audio switching during level transitions
 - ✅ **Spiel-Zustand**: Game Over, Victory Screens
 

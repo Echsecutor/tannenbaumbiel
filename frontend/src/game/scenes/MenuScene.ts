@@ -13,9 +13,6 @@ export class MenuScene extends Scene {
   }
 
   preload() {
-    // Load menu assets
-    this.createMenuAssets();
-
     // Load HTML form for menu inputs
     this.load.html("menuform", "/game/forms/menu-form.html");
   }
@@ -32,28 +29,13 @@ export class MenuScene extends Scene {
     this.createMenuForm();
     console.log("MenuScene: Menu form created");
 
-    this.createConnectionStatus(); // Called after menuForm is created
+    this.createConnectionStatus();
     console.log("MenuScene: Connection status created");
 
     this.setupNetworkHandlers();
     console.log("MenuScene: Network handlers set up");
 
     console.log("MenuScene: Create method completed successfully");
-  }
-
-  private createMenuAssets() {
-    // Create simple colored rectangles as placeholders
-    this.add
-      .graphics()
-      .fillStyle(0x3498db)
-      .fillRect(0, 0, 200, 50)
-      .generateTexture("button", 200, 50);
-
-    this.add
-      .graphics()
-      .fillStyle(0x2ecc71)
-      .fillRect(0, 0, 200, 50)
-      .generateTexture("button-hover", 200, 50);
   }
 
   private createBackground() {
