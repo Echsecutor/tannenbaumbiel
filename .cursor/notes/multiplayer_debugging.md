@@ -176,6 +176,90 @@ if (!this.scene.isActive() || !this.physics) {
 }
 ```
 
+### 5. Server URL Change Reconnection Issues
+
+**Problem**: Changing server URL doesn't properly reconnect to new server, or connection reverts to old URL after successful connection
+
+**Root Cause**:
+
+- NetworkManager remains connected to old server when new URL is entered
+- NetworkManager's auto-reconnection uses old URL instead of current input field value
+- Fallback URLs in code override user-entered URLs
+
+**Symptoms**:
+
+- Repeated "Already connected, skipping auto-connection" messages
+- NetworkManager doesn't use newly entered server URL
+- Connection attempts fail silently
+- Successful connection to new URL followed by automatic reconnection to old URL
+
+**Fix Pattern**:
+
+```typescript
+// In attemptAutoConnection() - disconnect before reconnecting
+if (this.networkManager.getConnectionStatus()) {
+  console.log("Disconnecting from current server to reconnect to new URL");
+  this.networkManager.disconnect();
+  await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for disconnect
+}
+
+// Add debouncing to prevent rapid reconnection attempts
+private serverUrlChangeTimeout: number | null = null;
+
+serverUrlInput.addEventListener("input", () => {
+  if (this.serverUrlChangeTimeout) {
+    clearTimeout(this.serverUrlChangeTimeout);
+  }
+
+  this.serverUrlChangeTimeout = window.setTimeout(() => {
+    this.attemptAutoConnection();
+  }, 1000); // Wait 1 second after user stops typing
+});
+
+// Clean up timeout when scene is destroyed
+destroy() {
+  if (this.serverUrlChangeTimeout) {
+    clearTimeout(this.serverUrlChangeTimeout);
+    this.serverUrlChangeTimeout = null;
+  }
+}
+
+// Use URL constructor for proper URL parsing and port preservation
+try {
+  const url = new URL(serverUrl);
+
+  if (url.protocol === "http:") {
+    url.protocol = "ws:";
+  } else if (url.protocol === "https:") {
+    url.protocol = "wss:";
+  }
+
+  // Ensure the pathname ends with /ws/game
+  if (!url.pathname.endsWith("/ws/game")) {
+    if (url.pathname.endsWith("/")) {
+      url.pathname = url.pathname + "ws/game";
+    } else {
+      url.pathname = url.pathname + "/ws/game";
+    }
+  }
+
+  wsUrl = url.toString();
+} catch (error) {
+  // Fallback to string replacement method
+  // ... existing fallback code
+}
+
+// Always save current URL to localStorage and use input field value
+localStorage.setItem("tannenbaum_serverurl", serverUrl);
+
+// Disable NetworkManager auto-reconnection to prevent URL fallback
+// In NetworkManager.onclose:
+console.log("Connection lost, but not auto-reconnecting to prevent URL fallback");
+
+// Remove fallback URLs from joinMultiplayerGame
+const serverUrl = serverUrlInput?.value.trim(); // No fallback to default URL
+```
+
 ## Best Practices for Multiplayer Error Handling
 
 ### 1. Fail Gracefully
@@ -424,3 +508,88 @@ if (updateTime > 16) {
 ```
 
 This debugging guide should help quickly identify and fix similar issues in multiplayer development.
+
+### 4. Unhandled Message Type Errors
+
+**Problem**: `Unhandled message type: game_state {room_id: '...', tick: 41, players: Array(1), enemies: Array(3), projectiles: Array(0)}`
+
+**Root Cause**: Conflicting message handlers between different components trying to handle the same message types.
+
+**Common Scenarios**:
+
+- Multiple components registering handlers for the same message type
+- NetworkManager default handlers conflicting with NetworkSystem handlers
+- MenuScene and NetworkSystem both trying to handle "room_joined" messages
+- Handler registration order causing later handlers to overwrite earlier ones
+
+**Symptoms**:
+
+- Console shows "Unhandled message type" for messages that should be handled
+- Network state updates not being processed
+- Players not appearing in multiplayer games
+- Game state synchronization failures
+
+**Fix Pattern**:
+
+```typescript
+// BAD - Multiple components handling same message type
+// NetworkManager.ts
+this.onMessage("room_joined", (data) => {
+  /* handler 1 */
+});
+this.onMessage("game_state", (data) => {
+  /* handler 1 */
+});
+
+// NetworkSystem.ts
+this.networkManager.onMessage("room_joined", (data) => {
+  /* handler 2 */
+});
+this.networkManager.onMessage("game_state", (data) => {
+  /* handler 2 */
+});
+
+// MenuScene.ts
+this.networkManager.onMessage("room_joined", (data) => {
+  /* handler 3 */
+});
+
+// GOOD - Clear separation of responsibilities
+// NetworkManager.ts - Only handle basic messages
+this.onMessage("room_left", (data) => {
+  /* basic handler */
+});
+this.onMessage("player_joined", (data) => {
+  /* basic handler */
+});
+this.onMessage("error", (data) => {
+  /* basic handler */
+});
+
+// MenuScene.ts - Handle room joining and scene transitions
+this.networkManager.onMessage("room_joined", (data) => {
+  // Start GameScene with player ID
+  this.scene.start("GameScene", { myPlayerId: data.your_player_id });
+});
+
+// NetworkSystem.ts - Handle game state updates
+this.networkManager.onMessage("game_state", (data) => {
+  this.handleGameStateUpdate(data);
+});
+```
+
+**Prevention Strategy**:
+
+- Document which component handles which message types
+- Use clear separation of concerns for message handling
+- Avoid registering multiple handlers for the same message type
+- Add debugging logs to track handler registration
+- Test message flow in both development and production builds
+
+**Debugging Steps**:
+
+1. Check all `onMessage` registrations across components
+2. Verify handler registration order and timing
+3. Add console logs to track message flow
+4. Test with single player vs multiplayer scenarios
+5. Verify build process doesn't affect handler registration

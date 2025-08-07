@@ -46,12 +46,10 @@ export class NetworkSystem {
       this.handleGameStateUpdate(data);
     });
 
-    this.networkManager.onMessage("room_joined", (data) => {
-      if (!this.myPlayerId && data.your_player_id) {
-        this.myPlayerId = data.your_player_id;
-      }
-      this.roomJoinConfirmed = true;
-    });
+    console.log("🔧 NetworkSystem: Registered game_state handler");
+
+    // Note: room_joined is handled by MenuScene, which passes the player ID to GameScene
+    // We get the player ID from the scene data instead of registering another handler
   }
 
   sendInputUpdates(currentInputs: any) {
@@ -93,7 +91,14 @@ export class NetworkSystem {
   }
 
   private handleGameStateUpdate(gameState: any) {
-    console.log("🔄 Received server conflict-resolved state");
+    console.log("🔄 NetworkSystem: Received server game state update");
+    console.log("📊 Game state data:", {
+      room_id: gameState.room_id,
+      tick: gameState.tick,
+      players_count: gameState.players?.length || 0,
+      enemies_count: gameState.enemies?.length || 0,
+      projectiles_count: gameState.projectiles?.length || 0,
+    });
 
     if (gameState.players && Array.isArray(gameState.players)) {
       this.updateAllPlayersFromServer(gameState.players);

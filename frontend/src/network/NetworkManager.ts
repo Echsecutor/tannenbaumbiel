@@ -11,9 +11,6 @@ export interface GameMessage {
 export class NetworkManager {
   private websocket: WebSocket | null = null;
   private isConnected = false;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
   private messageHandlers: Map<string, (data: any) => void> = new Map();
   private connectionListeners: Set<(connected: boolean) => void> = new Set();
   private serverPlayerId: string | null = null; // Store server-provided player ID
@@ -26,9 +23,20 @@ export class NetworkManager {
     // Update status to connecting
     this.updateConnectionStatus("connecting");
 
+    console.log("🔌 NetworkManager: Attempting WebSocket connection to:", url);
+    console.log(
+      "🔌 NetworkManager: WebSocket readyState before connection:",
+      this.websocket?.readyState
+    );
+
     return new Promise((resolve, reject) => {
       try {
+        console.log("🔌 NetworkManager: Creating WebSocket instance...");
         this.websocket = new WebSocket(url);
+        console.log(
+          "🔌 NetworkManager: WebSocket instance created, readyState:",
+          this.websocket.readyState
+        );
 
         // Set a timeout for connection attempts
         const connectionTimeout = setTimeout(() => {
@@ -36,6 +44,9 @@ export class NetworkManager {
             this.websocket &&
             this.websocket.readyState === WebSocket.CONNECTING
           ) {
+            console.log(
+              "🔌 NetworkManager: Connection timeout after 10 seconds"
+            );
             this.websocket.close();
             reject(
               new Error(`Connection timeout after 10 seconds. URL: ${url}`)
@@ -45,9 +56,15 @@ export class NetworkManager {
 
         this.websocket.onopen = () => {
           clearTimeout(connectionTimeout);
-          console.log("WebSocket connected to:", url);
+          console.log(
+            "✅ NetworkManager: WebSocket connected successfully to:",
+            url
+          );
+          console.log(
+            "✅ NetworkManager: WebSocket readyState after connection:",
+            this.websocket?.readyState
+          );
           this.isConnected = true;
-          this.reconnectAttempts = 0;
           this.notifyConnectionListeners(true);
           resolve();
         };
@@ -55,27 +72,40 @@ export class NetworkManager {
         this.websocket.onclose = (event) => {
           clearTimeout(connectionTimeout);
           console.log(
-            "WebSocket disconnected:",
+            "❌ NetworkManager: WebSocket disconnected:",
             event.code,
             event.reason,
             "URL:",
             url
           );
+          console.log("❌ NetworkManager: Close event details:", {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+            readyState: this.websocket?.readyState,
+          });
           this.isConnected = false;
           this.notifyConnectionListeners(false);
 
-          // Attempt reconnection only if not manually disconnected
-          if (
-            event.code !== 1000 &&
-            this.reconnectAttempts < this.maxReconnectAttempts
-          ) {
-            this.scheduleReconnect(url);
-          }
+          // Note: We don't auto-reconnect to prevent falling back to wrong server URL
+          // The UI will handle reconnection with the current URL from the input field
+          console.log(
+            "🔌 NetworkManager: Connection lost, but not auto-reconnecting to prevent URL fallback"
+          );
         };
 
         this.websocket.onerror = (error) => {
           clearTimeout(connectionTimeout);
-          console.error("WebSocket error for URL:", url, error);
+          console.error(
+            "❌ NetworkManager: WebSocket error for URL:",
+            url,
+            error
+          );
+          console.error("❌ NetworkManager: Error details:", {
+            error: error,
+            readyState: this.websocket?.readyState,
+            url: url,
+          });
           this.isConnected = false;
           this.notifyConnectionListeners(false);
           reject(
@@ -210,29 +240,8 @@ export class NetworkManager {
 
   private setupMessageHandlers(): void {
     // Default message handlers
-    this.onMessage("room_joined", (data) => {
-      console.log("🏠 NetworkManager: Joined room:", data);
-      console.log(
-        "🔍 NetworkManager: Checking your_player_id:",
-        data.your_player_id
-      );
-      // Store the server player ID immediately when we join
-      if (data.your_player_id) {
-        this.setServerPlayerId(data.your_player_id);
-        console.log(
-          "✅ NetworkManager: Player ID stored:",
-          data.your_player_id
-        );
-        console.log(
-          "🔍 NetworkManager: Verification - stored ID:",
-          this.serverPlayerId
-        );
-      } else {
-        console.error(
-          "❌ NetworkManager: No your_player_id in room_joined data!"
-        );
-      }
-    });
+    // Note: room_joined and game_state handlers are registered by NetworkSystem
+    // to avoid conflicts with multiple components trying to handle the same messages
 
     this.onMessage("room_left", (data) => {
       console.log("Left room:", data);
@@ -246,8 +255,6 @@ export class NetworkManager {
       console.log("Player left:", data);
     });
 
-    // game_state handler is now in GameScene.ts
-
     this.onMessage("error", (data) => {
       console.error("Server error:", data);
     });
@@ -255,21 +262,6 @@ export class NetworkManager {
     this.onMessage("pong", (data) => {
       console.log("Pong received:", data);
     });
-  }
-
-  private scheduleReconnect(url: string): void {
-    this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-
-    console.log(
-      `Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`
-    );
-
-    setTimeout(() => {
-      this.connect(url).catch((error) => {
-        console.error("Reconnection failed:", error);
-      });
-    }, delay);
   }
 
   private notifyConnectionListeners(connected: boolean): void {

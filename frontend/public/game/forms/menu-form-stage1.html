@@ -1,0 +1,424 @@
+<style>
+    #menu-form {
+        background: linear-gradient(135deg, rgba(52, 73, 94, 0.95), rgba(44, 62, 80, 0.95));
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        font-family: 'Arial', sans-serif;
+        min-width: 320px;
+        text-align: center;
+    }
+
+    .game-title {
+        font-size: 48px;
+        font-family: 'Arial Black', Arial, sans-serif;
+        color: #ffffff;
+        text-shadow: 3px 3px 6px rgba(44, 62, 80, 0.8);
+        margin: 0 0 10px 0;
+        animation: titlePulse 2s ease-in-out infinite alternate;
+    }
+
+    .game-subtitle {
+        font-size: 18px;
+        font-family: Arial, sans-serif;
+        color: #ecf0f1;
+        font-style: italic;
+        margin: 0 0 30px 0;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes titlePulse {
+        from {
+            transform: scale(1);
+        }
+
+        to {
+            transform: scale(1.05);
+        }
+    }
+
+    #menu-form label {
+        display: block;
+        color: #ecf0f1;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    #menu-form input[type="text"] {
+        width: 100%;
+        padding: 12px 15px;
+        margin-bottom: 20px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        font-size: 16px;
+        color: #2c3e50;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    #menu-form input[type="text"]:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 1);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
+        transform: translateY(-2px);
+    }
+
+    #menu-form input[type="text"]::placeholder {
+        color: #7f8c8d;
+        font-style: italic;
+    }
+
+    .game-button {
+        display: block;
+        width: 100%;
+        padding: 15px 20px;
+        margin: 10px 0;
+        border: none;
+        border-radius: 8px;
+        font-size: 20px;
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        color: #ffffff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .game-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .game-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .game-button.primary {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border: 2px solid #2980b9;
+    }
+
+    .game-button.primary:hover {
+        background: linear-gradient(135deg, #2980b9, #21618c);
+        border-color: #21618c;
+    }
+
+    .game-button.secondary {
+        background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
+        border: 2px solid #6c7b7d;
+    }
+
+    .game-button.secondary:hover {
+        background: linear-gradient(135deg, #6c7b7d, #5d6d6e);
+        border-color: #5d6d6e;
+    }
+
+    .input-section {
+        margin: 20px 0;
+        text-align: left;
+    }
+
+    .sprite-selection {
+        margin: 25px 0;
+        text-align: center;
+    }
+
+    .sprite-selection h3 {
+        color: #ecf0f1;
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .sprite-options {
+        display: flex;
+        justify-content: space-around;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .sprite-button {
+        flex: 1;
+        min-width: 80px;
+        max-width: 120px;
+        padding: 15px 10px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+        background: rgba(52, 73, 94, 0.7);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sprite-button:hover {
+        border-color: rgba(52, 152, 219, 0.8);
+        background: rgba(52, 152, 219, 0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .sprite-button.selected {
+        border-color: #27ae60;
+        background: rgba(39, 174, 96, 0.3);
+        box-shadow: 0 0 15px rgba(39, 174, 96, 0.5);
+        transform: scale(1.05);
+    }
+
+    .sprite-button.selected::before {
+        content: '✓';
+        position: absolute;
+        top: 5px;
+        right: 8px;
+        color: #27ae60;
+        font-size: 16px;
+        font-weight: bold;
+        text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .sprite-preview {
+        width: 50px;
+        height: 50px;
+        margin: 0 auto 8px auto;
+        border-radius: 5px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        position: relative;
+        background: rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    /* CSS Sprite Animation System */
+    .sprite-animation {
+        width: 32px;
+        height: 32px;
+        background-size: 128px 32px;
+        /* 4 frames horizontally */
+        background-repeat: no-repeat;
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+    }
+
+    .sprite-dude-idle {
+        background-image: url('/assets/sprites/dude_monster/Dude_Monster_Idle_4.png');
+        animation: spriteIdle 0.8s steps(4) infinite;
+    }
+
+    .sprite-owlet-idle {
+        background-image: url('/assets/sprites/owlet_monster/Owlet_Monster_Idle_4.png');
+        animation: spriteIdle 0.8s steps(4) infinite;
+    }
+
+    .sprite-pink-idle {
+        background-image: url('/assets/sprites/pink_monster/Pink_Monster_Idle_4.png');
+        animation: spriteIdle 0.8s steps(4) infinite;
+    }
+
+    @keyframes spriteIdle {
+        from {
+            background-position: 0px 0px;
+        }
+
+        to {
+            background-position: -128px 0px;
+        }
+    }
+
+    .sprite-name {
+        color: #ecf0f1;
+        font-size: 12px;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 5px;
+    }
+
+    /* Button animation enhancements */
+    .game-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .game-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .game-button:hover::before {
+        left: 100%;
+    }
+
+    /* Enhanced input animations */
+    #menu-form input[type="text"] {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #menu-form input[type="text"]::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #3498db, #2980b9);
+        transition: width 0.3s ease;
+    }
+
+    #menu-form input[type="text"]:focus::after {
+        width: 100%;
+    }
+</style>
+
+<div id="menu-form">
+    <h1 class="game-title">Tannenbaumbiel</h1>
+    <p class="game-subtitle">Ein magisches Winterabenteuer</p>
+
+    <div class="input-section">
+        <label for="username">Spielername:</label>
+        <input type="text" name="username" id="username" placeholder="Dein Name" maxlength="20" />
+    </div>
+
+    <div class="sprite-selection">
+        <h3>Wähle deinen Charakter:</h3>
+        <div class="sprite-options">
+            <div class="sprite-button selected" data-sprite="dude_monster">
+                <div class="sprite-preview">
+                    <div class="sprite-animation sprite-dude-idle"></div>
+                </div>
+                <div class="sprite-name">Held</div>
+            </div>
+            <div class="sprite-button" data-sprite="owlet_monster">
+                <div class="sprite-preview">
+                    <div class="sprite-animation sprite-owlet-idle"></div>
+                </div>
+                <div class="sprite-name">Eule</div>
+            </div>
+            <div class="sprite-button" data-sprite="pink_monster">
+                <div class="sprite-preview">
+                    <div class="sprite-animation sprite-pink-idle"></div>
+                </div>
+                <div class="sprite-name">Rosa</div>
+            </div>
+        </div>
+    </div>
+
+    <button id="single-player-btn" class="game-button primary">Einzelspielermodus</button>
+    <button id="multi-player-btn" class="game-button secondary">Mehrspielermodus</button>
+</div>
+
+<script>
+    // Enhanced menu interactions
+    document.addEventListener('DOMContentLoaded', function () {
+        // Sprite selection with enhanced animations
+        const spriteButtons = document.querySelectorAll('.sprite-button');
+        const savedSprite = localStorage.getItem('tannenbaum_selected_sprite') || 'dude_monster';
+
+        spriteButtons.forEach(button => {
+            const spriteType = button.getAttribute('data-sprite');
+
+            // Set initial selection
+            if (spriteType === savedSprite) {
+                button.classList.add('selected');
+            }
+
+            // Add enhanced click handler with animation
+            button.addEventListener('click', function () {
+                // Remove selected class from all buttons with animation
+                spriteButtons.forEach(btn => {
+                    btn.classList.remove('selected');
+                    btn.style.transform = 'scale(1)';
+                });
+
+                // Add selected class to clicked button with enhanced animation
+                this.classList.add('selected');
+                this.style.transform = 'scale(1.05)';
+
+                // Save selection
+                if (spriteType) {
+                    localStorage.setItem('tannenbaum_selected_sprite', spriteType);
+                    console.log('🎨 Menu: Player sprite selected:', spriteType);
+                }
+
+                // Add click ripple effect
+                const ripple = document.createElement('div');
+                ripple.style.position = 'absolute';
+                ripple.style.borderRadius = '50%';
+                ripple.style.background = 'rgba(255, 255, 255, 0.3)';
+                ripple.style.transform = 'scale(0)';
+                ripple.style.animation = 'ripple 0.6s linear';
+                ripple.style.left = '50%';
+                ripple.style.top = '50%';
+                ripple.style.width = '20px';
+                ripple.style.height = '20px';
+                ripple.style.marginLeft = '-10px';
+                ripple.style.marginTop = '-10px';
+                ripple.style.pointerEvents = 'none';
+
+                this.appendChild(ripple);
+
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            });
+
+            // Enhanced hover effects
+            button.addEventListener('mouseenter', function () {
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'translateY(-2px) scale(1.02)';
+                }
+            });
+
+            button.addEventListener('mouseleave', function () {
+                if (!this.classList.contains('selected')) {
+                    this.style.transform = 'scale(1)';
+                }
+            });
+        });
+
+        // Add ripple animation CSS
+        const style = document.createElement('style');
+        style.textContent = `
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    `;
+        document.head.appendChild(style);
+
+        // Enhanced input focus effects
+        const inputs = document.querySelectorAll('input[type="text"]');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function () {
+                this.parentElement.style.transform = 'translateY(-2px)';
+            });
+
+            input.addEventListener('blur', function () {
+                this.parentElement.style.transform = 'translateY(0)';
+            });
+        });
+    });
+</script>

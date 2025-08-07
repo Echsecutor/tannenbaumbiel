@@ -1,0 +1,257 @@
+<style>
+    #menu-form {
+        background: linear-gradient(135deg, rgba(52, 73, 94, 0.95), rgba(44, 62, 80, 0.95));
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        font-family: 'Arial', sans-serif;
+        min-width: 320px;
+        text-align: center;
+    }
+
+    .game-title {
+        font-size: 36px;
+        font-family: 'Arial Black', Arial, sans-serif;
+        color: #ffffff;
+        text-shadow: 3px 3px 6px rgba(44, 62, 80, 0.8);
+        margin: 0 0 10px 0;
+    }
+
+    .game-subtitle {
+        font-size: 16px;
+        font-family: Arial, sans-serif;
+        color: #ecf0f1;
+        font-style: italic;
+        margin: 0 0 30px 0;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    #menu-form label {
+        display: block;
+        color: #ecf0f1;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    #menu-form input[type="text"] {
+        width: 100%;
+        padding: 12px 15px;
+        margin-bottom: 20px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        font-size: 16px;
+        color: #2c3e50;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+    }
+
+    #menu-form input[type="text"]:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 1);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
+        transform: translateY(-2px);
+    }
+
+    #menu-form input[type="text"]::placeholder {
+        color: #7f8c8d;
+        font-style: italic;
+    }
+
+    #connection-status {
+        background: rgba(44, 62, 80, 0.8);
+        color: #bdc3c7;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: bold;
+        text-align: center;
+        margin: 15px 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    #connection-status.connected {
+        background: rgba(39, 174, 96, 0.2);
+        color: #27ae60;
+        border-color: rgba(39, 174, 96, 0.3);
+    }
+
+    #connection-status.disconnected {
+        background: rgba(231, 76, 60, 0.2);
+        color: #e74c3c;
+        border-color: rgba(231, 76, 60, 0.3);
+    }
+
+    #connection-status.connecting {
+        background: rgba(241, 196, 15, 0.2);
+        color: #f1c40f;
+        border-color: rgba(241, 196, 15, 0.3);
+    }
+
+    .game-button {
+        display: block;
+        width: 100%;
+        padding: 15px 20px;
+        margin: 10px 0;
+        border: none;
+        border-radius: 8px;
+        font-size: 20px;
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        color: #ffffff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .game-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .game-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .game-button.primary {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border: 2px solid #2980b9;
+    }
+
+    .game-button.primary:hover {
+        background: linear-gradient(135deg, #2980b9, #21618c);
+        border-color: #21618c;
+    }
+
+    .game-button.secondary {
+        background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
+        border: 2px solid #6c7b7d;
+    }
+
+    .game-button.secondary:hover {
+        background: linear-gradient(135deg, #6c7b7d, #5d6d6e);
+        border-color: #5d6d6e;
+    }
+
+    .game-button:disabled {
+        background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        border-color: #7f8c8d;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .game-button:disabled:hover {
+        transform: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .input-section {
+        margin: 20px 0;
+        text-align: left;
+    }
+
+    .back-button {
+        background: none;
+        border: none;
+        color: #ecf0f1;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: underline;
+        margin-top: 15px;
+        transition: color 0.3s ease;
+    }
+
+    .back-button:hover {
+        color: #3498db;
+    }
+
+    /* Button animation enhancements */
+    .game-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .game-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .game-button:hover::before {
+        left: 100%;
+    }
+
+    .game-button:disabled::before {
+        display: none;
+    }
+
+    /* Enhanced input animations */
+    #menu-form input[type="text"] {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #menu-form input[type="text"]::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #3498db, #2980b9);
+        transition: width 0.3s ease;
+    }
+
+    #menu-form input[type="text"]:focus::after {
+        width: 100%;
+    }
+</style>
+
+<div id="menu-form">
+    <h1 class="game-title">Mehrspielermodus</h1>
+    <p class="game-subtitle">Verbinde dich mit anderen Spielern</p>
+
+    <div class="input-section">
+        <label for="roomname">Weltname:</label>
+        <input type="text" name="roomname" id="roomname" placeholder="Winterwald" maxlength="30" />
+
+        <label for="serverurl">Server-URL:</label>
+        <input type="text" name="serverurl" id="serverurl" placeholder="https://server.tannenbaumbiel.echsecutables.de/"
+            value="https://server.tannenbaumbiel.echsecutables.de/" maxlength="100" />
+    </div>
+
+    <div id="connection-status" class="disconnected">Verbindung: Getrennt</div>
+
+    <button id="start-multiplayer-btn" class="game-button primary" disabled>Mehrspieler starten</button>
+    <button id="back-btn" class="back-button">← Zurück zum Hauptmenü</button>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Enhanced input focus effects
+        const inputs = document.querySelectorAll('input[type="text"]');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function () {
+                this.parentElement.style.transform = 'translateY(-2px)';
+            });
+
+            input.addEventListener('blur', function () {
+                this.parentElement.style.transform = 'translateY(0)';
+            });
+        });
+    });
+</script>

@@ -11,7 +11,7 @@ services:
 
       - DEBUG=True
       - SECRET_KEY=dev-secret-key-change-in-production
-      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://tannenbaumbiel.echsecutables.de,https://server.tannenbaumbiel.echsecutables.de
     volumes:
       - ./backend:/app
     depends_on:

@@ -7,14 +7,23 @@ import { NetworkManager } from "../../network/NetworkManager";
 export class MenuScene extends Scene {
   private networkManager!: NetworkManager;
   private menuForm!: Phaser.GameObjects.DOMElement;
+  private stage1Data: {
+    username: string;
+    selectedSprite: string;
+  } = {
+    username: "",
+    selectedSprite: "dude_monster",
+  };
+  private serverUrlChangeTimeout: number | null = null;
 
   constructor() {
     super({ key: "MenuScene" });
   }
 
   preload() {
-    // Load HTML form for menu inputs
-    this.load.html("menuform", "/game/forms/menu-form.html");
+    // Load HTML forms for menu inputs
+    this.load.html("menuform-stage1", "/game/forms/menu-form-stage1.html");
+    this.load.html("menuform-stage2", "/game/forms/menu-form-stage2.html");
   }
 
   create() {
@@ -26,11 +35,8 @@ export class MenuScene extends Scene {
     this.createBackground();
     console.log("MenuScene: Background created");
 
-    this.createMenuForm();
-    console.log("MenuScene: Menu form created");
-
-    this.createConnectionStatus();
-    console.log("MenuScene: Connection status created");
+    this.createStage1Menu();
+    console.log("MenuScene: Stage 1 menu created");
 
     this.setupNetworkHandlers();
     console.log("MenuScene: Network handlers set up");
@@ -64,32 +70,94 @@ export class MenuScene extends Scene {
     }
   }
 
-  private createMenuForm() {
+  private createStage1Menu() {
+    console.log("🎮 MenuScene: Creating stage 1 menu...");
+
+    // Remove existing menu form if any
+    if (this.menuForm) {
+      this.menuForm.destroy();
+    }
+
     // Create embedded HTML form using Phaser's DOM support
     this.menuForm = this.add
       .dom(this.scale.width / 2, this.scale.height / 2)
-      .createFromCache("menuform");
+      .createFromCache("menuform-stage1");
+
+    console.log("🎮 MenuScene: Stage 1 menu form created:", {
+      menuForm: !!this.menuForm,
+      menuFormNode: !!this.menuForm?.node,
+    });
 
     // Set default values from localStorage
     const usernameInput = this.menuForm.getChildByName(
       "username"
     ) as HTMLInputElement;
+
+    if (usernameInput) {
+      usernameInput.value = localStorage.getItem("tannenbaum_username") || "";
+    }
+
+    // Setup button event listeners
+    const singlePlayerButton = this.menuForm.getChildByID(
+      "single-player-btn"
+    ) as HTMLButtonElement;
+    const multiPlayerButton = this.menuForm.getChildByID(
+      "multi-player-btn"
+    ) as HTMLButtonElement;
+
+    console.log("🎮 MenuScene: Stage 1 buttons found:", {
+      singlePlayerButton: !!singlePlayerButton,
+      multiPlayerButton: !!multiPlayerButton,
+    });
+
+    if (singlePlayerButton) {
+      singlePlayerButton.addEventListener("click", () => {
+        console.log("🎮 MenuScene: Single player button clicked!");
+        this.handleSinglePlayer();
+      });
+    }
+
+    if (multiPlayerButton) {
+      multiPlayerButton.addEventListener("click", () => {
+        console.log("🎮 MenuScene: Multi player button clicked!");
+        this.handleMultiPlayer();
+      });
+    }
+
+    // Setup sprite selection
+    this.setupSpriteSelection();
+
+    // Setup Enter key listener for form submission
+    this.input.keyboard?.on("keydown-ENTER", () => {
+      this.handleSinglePlayer();
+    });
+  }
+
+  private createStage2Menu() {
+    console.log("🎮 MenuScene: Creating stage 2 menu...");
+
+    // Remove existing menu form if any
+    if (this.menuForm) {
+      this.menuForm.destroy();
+    }
+
+    // Create embedded HTML form using Phaser's DOM support
+    this.menuForm = this.add
+      .dom(this.scale.width / 2, this.scale.height / 2)
+      .createFromCache("menuform-stage2");
+
+    console.log("🎮 MenuScene: Stage 2 menu form created:", {
+      menuForm: !!this.menuForm,
+      menuFormNode: !!this.menuForm?.node,
+    });
+
+    // Set default values
     const roomnameInput = this.menuForm.getChildByName(
       "roomname"
     ) as HTMLInputElement;
     const serverUrlInput = this.menuForm.getChildByName(
       "serverurl"
     ) as HTMLInputElement;
-    const joinButton = this.menuForm.getChildByID(
-      "join-game-btn"
-    ) as HTMLButtonElement;
-    const offlineButton = this.menuForm.getChildByID(
-      "offline-game-btn"
-    ) as HTMLButtonElement;
-
-    if (usernameInput) {
-      usernameInput.value = localStorage.getItem("tannenbaum_username") || "";
-    }
 
     if (roomnameInput) {
       roomnameInput.value = "Winterwald";
@@ -99,27 +167,62 @@ export class MenuScene extends Scene {
       serverUrlInput.value =
         localStorage.getItem("tannenbaum_serverurl") ||
         "https://server.tannenbaumbiel.echsecutables.de/";
+
+      // Add listener for server URL changes with debouncing
+      serverUrlInput.addEventListener("input", () => {
+        console.log(
+          "🌐 MenuScene: Server URL changed, scheduling auto-connection"
+        );
+
+        // Clear existing timeout
+        if (this.serverUrlChangeTimeout) {
+          clearTimeout(this.serverUrlChangeTimeout);
+        }
+
+        // Debounce the connection attempt to avoid rapid reconnections
+        this.serverUrlChangeTimeout = window.setTimeout(() => {
+          console.log("🌐 MenuScene: Executing debounced auto-connection");
+          this.attemptAutoConnection();
+        }, 1000); // Wait 1 second after user stops typing
+      });
     }
 
     // Setup button event listeners
-    if (joinButton) {
-      joinButton.addEventListener("click", () => this.joinGame());
+    const startMultiplayerButton = this.menuForm.getChildByID(
+      "start-multiplayer-btn"
+    ) as HTMLButtonElement;
+    const backButton = this.menuForm.getChildByID(
+      "back-btn"
+    ) as HTMLButtonElement;
+
+    if (startMultiplayerButton) {
+      startMultiplayerButton.addEventListener("click", () => {
+        console.log("🎮 MenuScene: Start multiplayer button clicked!");
+        this.joinMultiplayerGame();
+      });
     }
 
-    if (offlineButton) {
-      offlineButton.addEventListener("click", () => this.startOfflineGame());
+    if (backButton) {
+      backButton.addEventListener("click", () => {
+        console.log("🎮 MenuScene: Back button clicked!");
+        this.backToStage1();
+      });
     }
-
-    // Setup sprite selection
-    this.setupSpriteSelection();
-
-    // Setup Enter key listener for form submission
-    this.input.keyboard?.on("keydown-ENTER", () => {
-      this.joinGame();
-    });
 
     // Update connection status now that the form is created
     this.updateConnectionStatus();
+
+    // Only attempt automatic connection if not already connected
+    if (!this.networkManager.getConnectionStatus()) {
+      console.log(
+        "🌐 MenuScene: Attempting initial auto-connection with default URL"
+      );
+      this.attemptAutoConnection();
+    } else {
+      console.log(
+        "🌐 MenuScene: Already connected, skipping initial auto-connection"
+      );
+    }
   }
 
   private setupSpriteSelection() {
@@ -153,26 +256,63 @@ export class MenuScene extends Scene {
         // Save selection to localStorage
         if (spriteType) {
           localStorage.setItem("tannenbaum_selected_sprite", spriteType);
+          this.stage1Data.selectedSprite = spriteType;
           console.log("🎨 MenuScene: Player sprite selected:", spriteType);
         }
       });
     });
   }
 
-  private getSelectedSprite(): string {
-    return localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
-  }
+  private handleSinglePlayer() {
+    console.log("🎮 MenuScene: Handling single player selection");
 
-  private createConnectionStatus() {
-    // Set up connection status listener (initial update already done in createMenuForm)
-    if (this.networkManager) {
-      this.networkManager.onConnectionChange((_connected) => {
-        this.updateConnectionStatus();
-      });
+    // Get username from stage 1
+    const usernameInput = this.menuForm.getChildByName(
+      "username"
+    ) as HTMLInputElement;
+    const username = usernameInput?.value.trim() || "";
+
+    if (!username) {
+      this.showError("Bitte geben Sie einen Spielernamen ein");
+      return;
     }
+
+    // Save username
+    localStorage.setItem("tannenbaum_username", username);
+    this.stage1Data.username = username;
+
+    // Start offline game
+    this.startOfflineGame();
   }
 
-  public updateConnectionStatus() {
+  private handleMultiPlayer() {
+    console.log("🎮 MenuScene: Handling multi player selection");
+
+    // Get username from stage 1
+    const usernameInput = this.menuForm.getChildByName(
+      "username"
+    ) as HTMLInputElement;
+    const username = usernameInput?.value.trim() || "";
+
+    if (!username) {
+      this.showError("Bitte geben Sie einen Spielernamen ein");
+      return;
+    }
+
+    // Save username
+    localStorage.setItem("tannenbaum_username", username);
+    this.stage1Data.username = username;
+
+    // Switch to stage 2
+    this.createStage2Menu();
+  }
+
+  private backToStage1() {
+    console.log("🎮 MenuScene: Going back to stage 1");
+    this.createStage1Menu();
+  }
+
+  private updateConnectionStatus() {
     const isConnected =
       this.networkManager && this.networkManager.getConnectionStatus();
     const statusText = isConnected
@@ -184,8 +324,8 @@ export class MenuScene extends Scene {
       const statusElement = this.menuForm.node.querySelector(
         "#connection-status"
       ) as HTMLElement;
-      const onlineButton = this.menuForm.node.querySelector(
-        "#join-game-btn"
+      const startMultiplayerButton = this.menuForm.node.querySelector(
+        "#start-multiplayer-btn"
       ) as HTMLButtonElement;
 
       if (statusElement) {
@@ -208,25 +348,16 @@ export class MenuScene extends Scene {
         );
       }
 
-      // Hide/show online button based on connection status
-      if (onlineButton) {
-        onlineButton.style.display = isConnected ? "block" : "none";
+      // Enable/disable start multiplayer button based on connection status
+      if (startMultiplayerButton) {
+        startMultiplayerButton.disabled = !isConnected;
         console.log(
-          `🎮 MenuScene: Online button ${isConnected ? "shown" : "hidden"}`
+          `🎮 MenuScene: Start multiplayer button ${isConnected ? "enabled" : "disabled"}`
         );
       } else {
-        console.warn("⚠️ MenuScene: Online button not found in form!");
-      }
-
-      // Ensure offline button is always visible
-      const offlineButton = this.menuForm.node.querySelector(
-        "#offline-game-btn"
-      ) as HTMLButtonElement;
-      if (offlineButton) {
-        offlineButton.style.display = "block";
-        console.log("🎮 MenuScene: Offline button ensured visible");
-      } else {
-        console.warn("⚠️ MenuScene: Offline button not found in form!");
+        console.warn(
+          "⚠️ MenuScene: Start multiplayer button not found in form!"
+        );
       }
     } else {
       console.log(
@@ -237,6 +368,10 @@ export class MenuScene extends Scene {
 
   private setupNetworkHandlers() {
     if (this.networkManager) {
+      this.networkManager.onConnectionChange((_connected) => {
+        this.updateConnectionStatus();
+      });
+
       this.networkManager.onMessage("room_joined", (data) => {
         console.log("🏠 MenuScene: Successfully joined room:", data);
         console.log(
@@ -245,13 +380,9 @@ export class MenuScene extends Scene {
         );
 
         // Get the original join parameters for restart functionality
-        const usernameInput = this.menuForm.getChildByName(
-          "username"
-        ) as HTMLInputElement;
         const roomnameInput = this.menuForm.getChildByName(
           "roomname"
         ) as HTMLInputElement;
-        const originalUsername = usernameInput?.value.trim() || "Player";
         const originalRoomName = roomnameInput?.value.trim() || "Winterwald";
 
         // Start game scene with room data including player ID and original join parameters
@@ -259,8 +390,8 @@ export class MenuScene extends Scene {
           roomData: data,
           myPlayerId: data.your_player_id,
           originalRoomName: originalRoomName,
-          originalUsername: originalUsername,
-          selectedSprite: this.getSelectedSprite(),
+          originalUsername: this.stage1Data.username,
+          selectedSprite: this.stage1Data.selectedSprite,
         });
       });
 
@@ -272,10 +403,9 @@ export class MenuScene extends Scene {
     }
   }
 
-  private joinGame() {
-    const usernameInput = this.menuForm.getChildByName(
-      "username"
-    ) as HTMLInputElement;
+  private joinMultiplayerGame() {
+    console.log("🎮 MenuScene: joinMultiplayerGame() method called");
+
     const roomnameInput = this.menuForm.getChildByName(
       "roomname"
     ) as HTMLInputElement;
@@ -283,16 +413,15 @@ export class MenuScene extends Scene {
       "serverurl"
     ) as HTMLInputElement;
 
-    const username = usernameInput?.value.trim() || "";
     const roomName = roomnameInput?.value.trim() || "Winterwald";
-    const serverUrl =
-      serverUrlInput?.value.trim() ||
-      "https://server.tannenbaumbiel.echsecutables.de/";
+    const serverUrl = serverUrlInput?.value.trim();
 
-    if (!username) {
-      this.showError("Bitte geben Sie einen Spielernamen ein");
-      return;
-    }
+    console.log("🎮 MenuScene: Form values:", {
+      roomName,
+      serverUrl,
+      roomnameInput: !!roomnameInput,
+      serverUrlInput: !!serverUrlInput,
+    });
 
     if (!roomName) {
       this.showError("Bitte geben Sie einen Weltnamen ein");
@@ -305,7 +434,6 @@ export class MenuScene extends Scene {
     }
 
     // Save form values
-    localStorage.setItem("tannenbaum_username", username);
     localStorage.setItem("tannenbaum_serverurl", serverUrl);
 
     // Try to connect to the server with the provided URL
@@ -313,10 +441,9 @@ export class MenuScene extends Scene {
       .then(() => {
         if (this.networkManager && this.networkManager.getConnectionStatus()) {
           // Join multiplayer game
-          this.networkManager.joinRoom(roomName, username);
+          this.networkManager.joinRoom(roomName, this.stage1Data.username);
         } else {
-          // Start offline game
-          this.startOfflineGame();
+          this.showError("Verbindung zum Server fehlgeschlagen");
         }
       })
       .catch((error) => {
@@ -334,8 +461,8 @@ export class MenuScene extends Scene {
       offline: true,
       myPlayerId: "offline_player",
       originalRoomName: "Offline Mode",
-      originalUsername: "Offline Player",
-      selectedSprite: this.getSelectedSprite(),
+      originalUsername: this.stage1Data.username,
+      selectedSprite: this.stage1Data.selectedSprite,
     });
   }
 
@@ -344,27 +471,76 @@ export class MenuScene extends Scene {
       throw new Error("Network manager not available");
     }
 
-    // Convert HTTP URLs to WebSocket URLs
+    // Convert HTTP URLs to WebSocket URLs using URL constructor for proper parsing
     let wsUrl = serverUrl;
-    if (serverUrl.startsWith("http://")) {
-      wsUrl = serverUrl.replace("http://", "ws://");
-    } else if (serverUrl.startsWith("https://")) {
-      wsUrl = serverUrl.replace("https://", "wss://");
+    console.log("🌐 MenuScene: Original URL:", serverUrl);
+
+    try {
+      // Use URL constructor to properly parse the URL and preserve all components
+      const url = new URL(serverUrl);
+
+      if (url.protocol === "http:") {
+        url.protocol = "ws:";
+      } else if (url.protocol === "https:") {
+        url.protocol = "wss:";
+      }
+
+      // Ensure the pathname ends with /ws/game
+      if (!url.pathname.endsWith("/ws/game")) {
+        if (url.pathname.endsWith("/")) {
+          url.pathname = url.pathname + "ws/game";
+        } else {
+          url.pathname = url.pathname + "/ws/game";
+        }
+      }
+
+      wsUrl = url.toString();
+      console.log("🌐 MenuScene: After URL parsing and conversion:", wsUrl);
+    } catch (error) {
+      console.error(
+        "🌐 MenuScene: Error parsing URL, falling back to string replacement:",
+        error
+      );
+
+      // Fallback to string replacement method
+      if (serverUrl.startsWith("http://")) {
+        wsUrl = serverUrl.replace("http://", "ws://");
+        console.log(
+          "🌐 MenuScene: After HTTP->WS conversion (fallback):",
+          wsUrl
+        );
+      } else if (serverUrl.startsWith("https://")) {
+        wsUrl = serverUrl.replace("https://", "wss://");
+        console.log(
+          "🌐 MenuScene: After HTTPS->WSS conversion (fallback):",
+          wsUrl
+        );
+      }
+
+      // Ensure the URL ends with /ws/game for WebSocket endpoint
+      if (!wsUrl.endsWith("/ws/game")) {
+        if (wsUrl.endsWith("/")) {
+          wsUrl = wsUrl + "ws/game";
+        } else {
+          wsUrl = wsUrl + "/ws/game";
+        }
+        console.log("🌐 MenuScene: After adding /ws/game (fallback):", wsUrl);
+      }
     }
 
-    // Ensure the URL ends with /game for WebSocket endpoint
-    if (!wsUrl.endsWith("/game")) {
-      wsUrl = wsUrl.endsWith("/") ? wsUrl + "game" : wsUrl + "/game";
-    }
-
-    console.log("Attempting to connect to:", wsUrl);
+    console.log("🌐 MenuScene: Attempting to connect to:", wsUrl);
+    console.log("🌐 MenuScene: Original server URL:", serverUrl);
+    console.log(
+      "🌐 MenuScene: NetworkManager available:",
+      !!this.networkManager
+    );
 
     try {
       await this.networkManager.connect(wsUrl);
-      console.log("Successfully connected to server");
+      console.log("✅ MenuScene: Successfully connected to server");
       this.updateConnectionStatus();
     } catch (error) {
-      console.error("Failed to connect to server:", error);
+      console.error("❌ MenuScene: Failed to connect to server:", error);
       this.updateConnectionStatus();
       throw error;
     }
@@ -385,5 +561,66 @@ export class MenuScene extends Scene {
     this.time.delayedCall(3000, () => {
       errorText.destroy();
     });
+  }
+
+  destroy() {
+    // Clean up timeout when scene is destroyed
+    if (this.serverUrlChangeTimeout) {
+      clearTimeout(this.serverUrlChangeTimeout);
+      this.serverUrlChangeTimeout = null;
+    }
+  }
+
+  private async attemptAutoConnection(): Promise<void> {
+    if (!this.menuForm || !this.networkManager) {
+      console.log(
+        "🌐 MenuScene: Cannot attempt auto-connection - form or network manager not ready"
+      );
+      return;
+    }
+
+    const serverUrlInput = this.menuForm.getChildByName(
+      "serverurl"
+    ) as HTMLInputElement;
+
+    if (!serverUrlInput) {
+      console.log(
+        "🌐 MenuScene: Cannot attempt auto-connection - server URL input not found"
+      );
+      return;
+    }
+
+    const serverUrl = serverUrlInput.value.trim();
+    if (!serverUrl) {
+      console.log(
+        "🌐 MenuScene: Cannot attempt auto-connection - no server URL provided"
+      );
+      return;
+    }
+
+    // Always save the current URL to localStorage to ensure it's the "current" URL
+    localStorage.setItem("tannenbaum_serverurl", serverUrl);
+    console.log("🌐 MenuScene: Saved current URL to localStorage:", serverUrl);
+
+    // If already connected, disconnect first to allow reconnection to new URL
+    if (this.networkManager.getConnectionStatus()) {
+      console.log(
+        "🌐 MenuScene: Disconnecting from current server to reconnect to new URL"
+      );
+      this.networkManager.disconnect();
+      // Give a small delay for the disconnect to complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    console.log("🌐 MenuScene: Attempting auto-connection to:", serverUrl);
+
+    try {
+      await this.connectToServer(serverUrl);
+      console.log("✅ MenuScene: Auto-connection successful");
+    } catch (error) {
+      console.log("❌ MenuScene: Auto-connection failed:", error);
+      // Don't show error message for auto-connection failures
+      // User can still manually connect if needed
+    }
   }
 }

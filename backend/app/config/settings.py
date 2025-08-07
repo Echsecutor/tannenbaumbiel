@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://user:password@localhost:5432/tannenbaumbiel_dev"
 
     # CORS
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://tannenbaumbiel.echsecutables.de,https://server.tannenbaumbiel.echsecutables.de"
 
     @field_validator('allowed_origins')
     @classmethod

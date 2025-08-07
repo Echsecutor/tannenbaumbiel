@@ -2,6 +2,43 @@
 
 ## WIP
 
+- **Fixed Server URL Change Reconnection**: Resolved issue where changing server URL didn't properly reconnect to new server
+  - **Disconnect Before Reconnect**: Modified `attemptAutoConnection()` to disconnect from current server before connecting to new URL
+  - **Debounced Input Handling**: Added 1-second debounce to server URL input to prevent rapid reconnection attempts while typing
+  - **Proper Connection Flow**: NetworkManager now properly disconnects from old server and connects to new server when URL changes
+  - **Timeout Cleanup**: Added proper cleanup of debounce timeout when scene is destroyed to prevent memory leaks
+  - **Enhanced Logging**: Added detailed logging to track disconnect/reconnect process for better debugging
+  - **Prevents Connection Spam**: Eliminates repeated "Already connected, skipping auto-connection" messages when URL changes
+  - **Fixed URL Port Preservation**: Resolved issue where port numbers were lost during HTTP to WebSocket URL conversion
+  - **Robust URL Parsing**: Replaced string replacement with URL constructor for proper URL parsing and component preservation
+  - **Fallback Mechanism**: Added fallback to string replacement method if URL parsing fails for compatibility
+  - **Enhanced Debug Logging**: Added detailed logging to track URL conversion process for better debugging
+  - **Prevented URL Fallback**: Fixed issue where connection would revert to old/default URL after successful connection to new server
+  - **Removed Auto-Reconnection**: Disabled NetworkManager's automatic reconnection to prevent falling back to wrong server URL
+  - **Current URL Persistence**: Always save current URL to localStorage and use input field value instead of fallback URLs
+  - **Clean URL Management**: Removed unused reconnection properties and methods from NetworkManager
+
+- **Fixed Multiplayer Message Handler Conflicts**: Resolved "Unhandled message type: game_state" errors by eliminating conflicting message handlers between components
+  - **Clear Separation of Responsibilities**: Removed conflicting handlers from NetworkManager and established clear message handling hierarchy
+  - **NetworkManager Cleanup**: Removed default "room_joined" handler from NetworkManager to prevent conflicts with MenuScene and NetworkSystem
+  - **MenuScene Handler**: MenuScene continues to handle "room_joined" messages for scene transitions and player ID management
+  - **NetworkSystem Handler**: NetworkSystem now exclusively handles "game_state" messages for multiplayer synchronization
+  - **Player ID Flow**: Player ID is now properly passed from MenuScene to GameScene to NetworkSystem without handler conflicts
+  - **Enhanced Debugging**: Added detailed logging to track message handler registration and game state updates
+  - **Build Verification**: Confirmed fix works in both development and production builds
+  - **Prevention Strategy**: Documented clear message handling responsibilities to prevent future conflicts
+
+- **Two-Stage Menu System**: Split the single long menu into two stages for better user experience and reduced menu height
+  - **Stage 1 Menu**: Contains username input, character selection, and single/multiplayer choice buttons
+  - **Stage 2 Menu**: Contains server URL input, connection status, and start multiplayer button (only shown when multiplayer is selected)
+  - **Improved UX Flow**: Users first configure basic settings, then choose game mode - single player starts immediately, multiplayer shows connection options
+  - **Connection Status Integration**: Real-time connection status display with visual feedback (connected/disconnected/connecting states)
+  - **Smart Button States**: Start multiplayer button is disabled until connection is established
+  - **Back Navigation**: Users can return to stage 1 from stage 2 using back button
+  - **Preserved Functionality**: All existing features maintained including sprite selection, server URL persistence, and auto-connection
+  - **Reduced Menu Height**: Each stage is now compact and fits better on smaller screens
+  - **Enhanced Visual Design**: Stage 2 has smaller title and focused layout for connection management
+
 - **Simplified Platform Generation**: Completely rewrote WorldGenerator to remove complex chunk-based system and simplify platform generation logic
   - **Removed Chunk System**: Eliminated complex chunk-based world streaming with multiple maps and sets
   - **Simplified Platform Generation**: Replaced multiple tier-based methods (low/mid/high) with single floating platform generation
