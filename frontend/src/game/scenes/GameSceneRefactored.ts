@@ -15,6 +15,7 @@ import { NetworkSystem } from "../systems/NetworkSystem";
 import { PhysicsSystem } from "../systems/PhysicsSystem";
 import { PlayerSystem } from "../systems/PlayerSystem";
 import { WorldGenerator } from "../systems/WorldGenerator";
+import { WorldSynchronizer } from "../systems/WorldSynchronizer";
 
 export class GameSceneRefactored extends Phaser.Scene {
   // Core systems
@@ -22,6 +23,7 @@ export class GameSceneRefactored extends Phaser.Scene {
   private playerSystem!: PlayerSystem;
   private enemySystem!: EnemySystem;
   private worldGenerator!: WorldGenerator;
+  private worldSynchronizer!: WorldSynchronizer;
   private networkSystem!: NetworkSystem;
   private cameraSystem!: CameraSystem;
   private controlsSystem!: ControlsSystem;
@@ -41,6 +43,13 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   // Input state tracking
   private inputState: Map<string, boolean> = new Map();
+
+  // Loading screen for online mode
+  private loadingScreen: Phaser.GameObjects.Container | null = null;
+  private loadingTimeout: number | null = null;
+
+  // Network enemy collision setup function
+  private setupNetworkEnemyCollisions: (() => void) | null = null;
 
   constructor() {
     super({ key: "GameScene" }); // Use original key to replace old scene seamlessly
@@ -71,6 +80,12 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Handle restart/rejoin logic
     this.handleRestartLogic(data);
 
+    // Store flag for later processing after networking is set up
+    if (data.roomJoined && this.roomData) {
+      this.registry.set("needsReadyForWorld", true);
+      this.registry.set("roomAlreadyJoined", true);
+    }
+
     console.log("GameScene initialized:", {
       offline: this.isOffline,
       roomData: this.roomData,
@@ -84,6 +99,7 @@ export class GameSceneRefactored extends Phaser.Scene {
     this.assetLoader = new AssetLoader(this);
     this.enemySystem = new EnemySystem(this);
     this.worldGenerator = new WorldGenerator(this, this.enemySystem);
+    this.worldSynchronizer = new WorldSynchronizer(this, this.enemySystem);
     this.networkSystem = new NetworkSystem(this);
     this.cameraSystem = new CameraSystem(this);
     this.controlsSystem = new ControlsSystem(this);
@@ -98,20 +114,16 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   private handleRestartLogic(data: any) {
     // Store original join parameters for restart functionality
-    if (data.roomData && !this.isOffline) {
+    if (data.roomName && data.username) {
       this.gameStateManager.storeOriginalJoinParameters(
-        data.originalRoomName || "Winterwald",
-        data.originalUsername || "Player"
+        data.roomName,
+        data.username
       );
     }
 
     // Check if this is a restart that should rejoin the room
     if (this.gameStateManager.shouldAutoRejoin()) {
-      this.events.once("create", () => {
-        setTimeout(() => {
-          this.gameStateManager.autoRejoinAfterRestart();
-        }, 200);
-      });
+      console.log("🔄 Auto-rejoin detected, will attempt to rejoin room");
     }
   }
 
@@ -120,119 +132,295 @@ export class GameSceneRefactored extends Phaser.Scene {
   }
 
   create() {
-    const networkManager = this.registry.get("networkManager");
+    console.log("🎮 GameScene: Creating game world...");
 
     // Create animations after assets are loaded
-    this.assetLoader.createFireballAnimations();
-    this.assetLoader.createAdventurerAnimations();
-    this.assetLoader.createSlimeAnimations();
+    this.assetLoader.createAllAnimations();
 
-    // Initialize systems in dependency order
-    this.createGameSystems(networkManager);
-    this.setupPhysicsCollisions();
-    this.setupNetworking(networkManager);
+    // Show loading screen for online mode
+    if (!this.isOffline) {
+      this.showLoadingScreen();
+    }
 
-    // Start UI scene
-    this.scene.launch("UIScene");
+    // Set up networking FIRST if online (before creating game systems)
+    if (!this.isOffline) {
+      this.setupNetworking();
+    }
+
+    // Create game systems
+    this.createGameSystems();
+
+    // Physics collisions are handled by setupSystemsForWorld() for offline mode
+    // and by the world state callback for online mode
 
     // Start background music
     this.startBackgroundMusic();
 
-    // Listen for audio toggle events from UI
-    this.sound.on("mute", this.handleAudioMute, this);
-    this.sound.on("unmute", this.handleAudioUnmute, this);
+    // Set up audio controls
+    this.handleAudioMute();
+    this.handleAudioUnmute();
 
-    // Listen for victory cheat from UI
-    this.game.events.on(
-      "victory-cheat-triggered",
-      this.handleVictoryCheat,
-      this
-    );
+    // Set up victory cheat
+    this.handleVictoryCheat();
 
-    // Listen for scene shutdown to clean up
-    this.events.once("shutdown", this.cleanupAudio, this);
-
-    // Initialize UI with current health, score, and level
-    const player = this.playerSystem.getPlayer();
-    const initialScore = player.getData("score") || 0;
-    console.log(`🎯 GameScene: Emitting initial score: ${initialScore}`);
-    this.game.events.emit("health-changed", player.getData("health"));
-    this.game.events.emit("score-changed", initialScore);
-    this.game.events.emit(
-      "level-changed",
-      this.gameStateManager.getCurrentLevel()
-    );
+    console.log("🎮 GameScene: Game world creation complete");
   }
 
-  private createGameSystems(_networkManager: NetworkManager) {
+  private createGameSystems(_networkManager?: NetworkManager) {
+    // Create world based on mode
+    let platforms: Phaser.Physics.Arcade.StaticGroup;
+
+    if (this.isOffline) {
+      // Offline mode: Use WorldGenerator for local world generation
+      console.log("🌍 Creating offline world with WorldGenerator");
+      
+      // Initialize enemy system before world generation (needed for enemy creation)
+      this.enemySystem.createEnemyGroup();
+      
+      this.worldGenerator.setLevel(this.gameStateManager.getCurrentLevel());
+      platforms = this.worldGenerator.createWorld();
+
+      // Set up systems for offline mode
+      this.setupSystemsForWorld(platforms);
+    } else {
+      // Online mode: Use WorldSynchronizer for server-synchronized world
+      console.log("🌍 Creating online world with WorldSynchronizer");
+
+      // For online mode, we don't create the world immediately
+      // We wait for the server to send the world state automatically when joining a room
+      // World state callback was already set up in setupNetworking()
+      console.log("🌍 Waiting for server world state (sent automatically on room join)...");
+      return; // Exit early, world will be created when server state arrives
+    }
+  }
+
+  private setupSystemsForWorld(platforms: Phaser.Physics.Arcade.StaticGroup) {
+    // Ensure physics system is ready
+    if (!this.physics || !this.physics.world) {
+      console.warn("⚠️ Physics system not ready, deferring setup");
+      this.time.delayedCall(100, () => this.setupSystemsForWorld(platforms));
+      return;
+    }
+
     // Create core game objects
     this.enemySystem.createEnemyGroup();
     this.physicsSystem.createProjectileGroup();
 
-    // Set the current level in the world generator for enemy scaling
-    this.worldGenerator.setLevel(this.gameStateManager.getCurrentLevel());
-    this.worldGenerator.createWorld();
-
+    // Set up player system FIRST
     const player = this.playerSystem.createPlayer();
     const controls = this.controlsSystem.createControls();
-
-    // Set up player controls
     this.playerSystem.setControls(controls.cursors, controls.wasd);
-
-    // CRITICAL: Connect ControlsSystem to PlayerSystem for mobile input
     this.playerSystem.setControlsSystem(this.controlsSystem);
 
-    // Setup camera system
-    this.cameraSystem.setupSideScrollingCamera(player);
-
-    // Initialize game state manager
-    this.gameStateManager.setRoomData(this.roomData);
-
-    // Set up AI references for enemy system
-    const platforms = this.worldGenerator.getPlatforms();
-    this.enemySystem.setPlayerReference(player);
-    this.enemySystem.setPlatformsReference(platforms);
-  }
-
-  private setupPhysicsCollisions() {
-    const player = this.playerSystem.getPlayer();
-    const platforms = this.worldGenerator.getPlatforms();
-    const movingPlatforms = this.worldGenerator.getMovingPlatforms();
-    const enemies = this.enemySystem.getEnemyGroup();
-    const bossStones = this.enemySystem.getBossStones();
-
+    // Set up physics system (now that player exists)
     this.physicsSystem.setupCollisions(
       player,
       platforms,
-      enemies,
-      (p: any, e: any) => this.handlePlayerEnemyHit(p, e),
-      (pr: any, e: any) => this.handleProjectileEnemyHit(pr, e),
-      (pr: any, pl: any) => this.handleProjectilePlatformHit(pr, pl)
+      this.enemySystem.getEnemyGroup(),
+      this.handlePlayerEnemyHit.bind(this),
+      this.handleProjectileEnemyHit.bind(this),
+      this.handleProjectilePlatformHit.bind(this)
     );
 
-    // Add collisions for moving platforms
-    if (movingPlatforms) {
-      this.physics.add.collider(player, movingPlatforms);
+    // Set up moving platform collisions (for offline mode)
+    if (this.isOffline) {
+      this.setupMovingPlatformCollisions(player);
     }
 
-    // Add collisions for boss stones
-    if (bossStones) {
-      this.physics.add.overlap(player, bossStones, (p: any, stone: any) => {
-        this.handlePlayerStoneHit(p, stone);
-      });
+    // Set up enemy system
+    this.enemySystem.setPlayerReference(player);
+    this.enemySystem.setPlatformsReference(platforms);
 
-      this.physics.add.collider(bossStones, platforms);
-      this.physics.add.collider(bossStones, movingPlatforms);
+    // Set up camera system
+    this.cameraSystem.setupSideScrollingCamera(player);
+
+    // Set up network entity collisions (for online mode)
+    if (!this.isOffline) {
+      this.networkSystem.addPlatformCollisionForNetworkPlayers(platforms);
+      
+      // Set up enemy collisions when enemies are created
+      // This will be called each time enemies are updated
+      this.setupNetworkEnemyCollisions = () => {
+        this.networkSystem.addPlatformCollisionForNetworkEnemies(platforms);
+        this.setupNetworkEnemyPlayerCollisions();
+      };
+    }
+
+    // Set up additional physics collisions
+    this.setupAdditionalPhysicsCollisions(platforms);
+  }
+
+  private setupAdditionalPhysicsCollisions(
+    platforms: Phaser.Physics.Arcade.StaticGroup
+  ) {
+    // Ensure physics system is ready
+    if (!this.physics || !this.physics.add) {
+      console.warn("⚠️ Physics system not ready for additional collisions, deferring setup");
+      this.time.delayedCall(100, () => this.setupAdditionalPhysicsCollisions(platforms));
+      return;
+    }
+
+    // Player-enemy collisions
+    this.physics.add.overlap(
+      this.playerSystem.getPlayer(),
+      this.enemySystem.getEnemyGroup(),
+      this.handlePlayerEnemyHit.bind(this),
+      undefined,
+      this
+    );
+
+    // Projectile-enemy collisions
+    this.physics.add.overlap(
+      this.physicsSystem.getProjectileGroup(),
+      this.enemySystem.getEnemyGroup(),
+      this.handleProjectileEnemyHit.bind(this),
+      undefined,
+      this
+    );
+
+    // Projectile-platform collisions
+    this.physics.add.collider(
+      this.physicsSystem.getProjectileGroup(),
+      platforms,
+      this.handleProjectilePlatformHit.bind(this),
+      undefined,
+      this
+    );
+
+    // Player-stone collisions (for boss attacks)
+    this.physics.add.overlap(
+      this.playerSystem.getPlayer(),
+      this.enemySystem.getBossStones(),
+      this.handlePlayerStoneHit.bind(this),
+      undefined,
+      this
+    );
+  }
+
+  private setupNetworkEnemyPlayerCollisions() {
+    if (!this.physics || !this.physics.add) return;
+
+    // Set up collisions between player and network enemies
+    const networkEnemies = this.networkSystem.getNetworkEnemies();
+    const player = this.playerSystem.getPlayer();
+    
+    if (player && networkEnemies.size > 0) {
+      for (const [_enemyId, enemySprite] of networkEnemies) {
+        this.physics.add.overlap(
+          player,
+          enemySprite,
+          this.handlePlayerEnemyHit.bind(this),
+          undefined,
+          this
+        );
+      }
     }
   }
 
-  private setupNetworking(networkManager: NetworkManager) {
-    if (!this.isOffline && networkManager) {
-      this.networkSystem.initialize(networkManager, this.myPlayerId);
+  private setupMovingPlatformCollisions(player: Phaser.Physics.Arcade.Sprite) {
+    if (!this.physics || !this.physics.add) return;
 
-      // Add platform collisions for network players
-      const platforms = this.worldGenerator.getPlatforms();
-      this.networkSystem.addPlatformCollisionForNetworkPlayers(platforms);
+    const movingPlatforms = this.worldGenerator.getMovingPlatforms();
+    if (movingPlatforms) {
+      // Player-moving platform collisions
+      this.physics.add.collider(player, movingPlatforms);
+
+      // Enemy-moving platform collisions
+      this.physics.add.collider(this.enemySystem.getEnemyGroup(), movingPlatforms);
+
+      // Projectile-moving platform collisions
+      this.physics.add.collider(
+        this.physicsSystem.getProjectileGroup(),
+        movingPlatforms,
+        this.handleProjectilePlatformHit.bind(this),
+        undefined,
+        this
+      );
+
+      console.log("🔧 Moving platform collisions set up");
+    }
+  }
+
+  private setupPhysicsCollisions() {
+    // For online mode, physics collisions will be set up when the world is created
+    // after receiving the server world state
+    if (!this.isOffline) {
+      console.log("🌍 Physics collisions will be set up after world creation");
+      return;
+    }
+
+    // Player-enemy collisions
+    (this.scene as any).physics.add.overlap(
+      this.playerSystem.getPlayer(),
+      this.enemySystem.getEnemyGroup(),
+      this.handlePlayerEnemyHit.bind(this),
+      undefined,
+      this
+    );
+
+    // Projectile-enemy collisions
+    (this.scene as any).physics.add.overlap(
+      this.physicsSystem.getProjectileGroup(),
+      this.enemySystem.getEnemyGroup(),
+      this.handleProjectileEnemyHit.bind(this),
+      undefined,
+      this
+    );
+
+    // Projectile-platform collisions
+    (this.scene as any).physics.add.collider(
+      this.physicsSystem.getProjectileGroup(),
+      this.worldGenerator.getPlatforms(),
+      this.handleProjectilePlatformHit.bind(this),
+      undefined,
+      this
+    );
+
+    // Player-stone collisions (for boss attacks)
+    (this.scene as any).physics.add.overlap(
+      this.playerSystem.getPlayer(),
+      this.enemySystem.getBossStones(),
+      this.handlePlayerStoneHit.bind(this),
+      undefined,
+      this
+    );
+  }
+
+  private setupNetworking(networkManager?: NetworkManager) {
+    const manager = networkManager || this.registry.get("networkManager");
+
+    if (manager) {
+      // Pass room data if already joined
+      const roomData = this.registry.get("roomAlreadyJoined") ? this.roomData : null;
+      this.networkSystem.initialize(manager, this.myPlayerId, roomData);
+      
+      // Set up world state callback immediately after NetworkSystem initialization
+      this.networkSystem.setWorldStateCallback((worldState) => {
+        console.log("🌍 GameScene: World state callback triggered", {
+          world_seed: worldState.world_seed,
+          platforms_count: worldState.platforms?.length || 0,
+        });
+        this.worldSynchronizer.setServerWorldState(worldState);
+
+        // Defer world setup until physics is ready
+        this.setupWorldWhenReady(worldState);
+      });
+
+      // Set up enemy collision callback
+      this.networkSystem.setEnemiesUpdatedCallback(() => {
+        if (this.setupNetworkEnemyCollisions) {
+          this.setupNetworkEnemyCollisions();
+        }
+      });
+
+      // Check if we need to send ready_for_world acknowledgment
+      if (this.registry.get("needsReadyForWorld")) {
+        console.log("🏠 GameScene: Room already joined by MenuScene, sending ready_for_world acknowledgment");
+        this.sendReadyForWorldFromGameScene();
+        this.registry.set("needsReadyForWorld", false);
+      }
+    } else {
+      console.warn("⚠️ No network manager available for online mode");
     }
   }
 
@@ -242,78 +430,84 @@ export class GameSceneRefactored extends Phaser.Scene {
   }
 
   private handleInput() {
-    // Handle player movement
+    // For online mode, don't handle input until world and player are created
+    if (!this.isOffline && !this.worldSynchronizer.isWorldGenerated()) {
+      return;
+    }
+
+    const currentInputs = this.controlsSystem.getCurrentInputs();
+
+    // Update local player
     this.playerSystem.handleMovement();
 
-    // Handle shooting
-    const isShootPressed = this.playerSystem.isShootPressed();
-    if (isShootPressed && !this.inputState.get("shoot")) {
-      this.inputState.set("shoot", true);
-      this.shootProjectile();
-    } else if (!isShootPressed) {
-      this.inputState.set("shoot", false);
+    // Send input updates to server (online mode)
+    if (!this.isOffline && this.networkSystem.isOnline()) {
+      this.networkSystem.sendInputUpdates(currentInputs);
     }
 
-    // Send network updates if online
-    if (this.networkSystem.isOnline()) {
-      const currentInputs = this.playerSystem.getCurrentInputs();
-      this.networkSystem.sendInputUpdates(currentInputs);
-      this.broadcastGameState();
+    // Handle shooting
+    if (currentInputs.shoot && !this.inputState.get("shoot")) {
+      this.shootProjectile();
     }
+
+    // Update input state
+    this.inputState.clear();
+    Object.entries(currentInputs).forEach(([key, value]) => {
+      this.inputState.set(key, value);
+    });
   }
 
   private updateSystems() {
+    // For online mode, don't update systems until world is created
+    if (!this.isOffline && !this.worldSynchronizer.isWorldGenerated()) {
+      return;
+    }
+
     // Update enemy AI
     this.enemySystem.updateEnemies();
 
     // Update moving platforms
-    this.worldGenerator.updateMovingPlatforms();
+    if (this.isOffline) {
+      this.worldGenerator.updateMovingPlatforms();
+    } else {
+      this.worldSynchronizer.updateMovingPlatforms();
+    }
 
-    // Update side-scrolling camera
+    // Update camera
     this.cameraSystem.updateSideScrollingCamera();
-    const player = this.playerSystem.getPlayer();
 
-    // Check for level completion (reached the end of the world)
-    this.checkLevelCompletion(player);
+    // Update network projectiles (online mode)
+    if (!this.isOffline && this.networkSystem.isOnline()) {
+      // Get projectile states from physics system for network sync
+      const projectileStates = this.physicsSystem.getProjectileStates();
+      this.networkSystem.updateNetworkProjectiles(
+        projectileStates,
+        this.worldSynchronizer.getPlatforms(),
+        this.enemySystem.getEnemyGroup()
+      );
+    }
+
+    // Broadcast game state (online mode)
+    if (!this.isOffline && this.networkSystem.isOnline()) {
+      this.broadcastGameState();
+    }
+
+    // Check level completion
+    this.checkLevelCompletion(this.playerSystem.getPlayer());
   }
 
-  private checkLevelCompletion(player: Phaser.Physics.Arcade.Sprite) {
-    // Prevent multiple level completion triggers
+  private checkLevelCompletion(_player: Phaser.Physics.Arcade.Sprite) {
     if (this.levelCompleted) return;
 
-    const isBossLevel = this.gameStateManager.isBossLevel();
+    // Check if all enemies are defeated
+    if (this.enemySystem.countActiveEnemies() === 0) {
+      this.levelCompleted = true;
+      console.log("🎉 Level completed!");
 
-    if (isBossLevel) {
-      // Boss levels: only complete when the boss is defeated
-      if (this.enemySystem.isBossDefeated()) {
-        this.levelCompleted = true;
-        console.log("🏁 Boss defeated! Level complete!");
-        this.gameStateManager.showVictory(
-          () => this.nextLevel(),
-          () => this.scene.start("MenuScene")
-        );
-      }
-    } else {
-      // Regular levels: reach the end of the world OR defeat all enemies
-      const rightBoundary = this.worldGenerator.getRightBoundary();
-      const completionZone = rightBoundary - 200; // 200px before the end
-
-      // Check if player reached the end of the level OR defeated all enemies
-      if (
-        player.x >= completionZone ||
-        this.enemySystem.countActiveEnemies() === 0
-      ) {
-        this.levelCompleted = true;
-        const completionReason =
-          player.x >= completionZone
-            ? "reached the end"
-            : "defeated all enemies";
-        console.log(`🏁 Player ${completionReason}! Level complete!`);
-        this.gameStateManager.showVictory(
-          () => this.nextLevel(),
-          () => this.scene.start("MenuScene")
-        );
-      }
+      this.gameStateManager.showVictory(
+        () => this.nextLevel(),
+        () => this.scene.start("MenuScene")
+      );
     }
   }
 
@@ -418,82 +612,61 @@ export class GameSceneRefactored extends Phaser.Scene {
     const audioEnabled = localStorage.getItem("tannenbaum_audio");
     const shouldPlayAudio = audioEnabled !== "disabled";
 
-    if (shouldPlayAudio && !this.backgroundMusic) {
-      this.backgroundMusic = this.sound.add("background_music", {
-        volume: 0.3, // Set volume to 30%
-        loop: true, // Loop the music continuously
-      });
-
-      // Check if sound system is not muted globally
-      if (!this.sound.mute) {
+    if (shouldPlayAudio) {
+      try {
+        this.backgroundMusic = this.sound.add("background_music", {
+          volume: 0.3,
+          loop: true,
+        });
         this.backgroundMusic.play();
         console.log("🎵 Background music started");
+      } catch (error) {
+        console.warn("Could not start background music:", error);
       }
     }
   }
 
   private handleAudioMute() {
-    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
-      this.backgroundMusic.pause();
-      console.log("🔇 Background music paused (audio muted)");
-    }
+    this.input.keyboard?.on("keydown-M", () => {
+      if (this.backgroundMusic) {
+        this.backgroundMusic.stop();
+        console.log("🔇 Audio muted");
+      }
+    });
   }
 
   private handleAudioUnmute() {
-    if (this.backgroundMusic && !this.backgroundMusic.isPlaying) {
-      this.backgroundMusic.resume();
-      console.log("🔊 Background music resumed (audio unmuted)");
-    }
+    this.input.keyboard?.on("keydown-U", () => {
+      if (this.backgroundMusic && !this.backgroundMusic.isPlaying) {
+        this.backgroundMusic.play();
+        console.log("🔊 Audio unmuted");
+      }
+    });
   }
 
   private handleVictoryCheat() {
-    // Prevent multiple cheat activations if level is already completed
-    if (this.levelCompleted) {
-      console.log("🚫 Victory cheat ignored - level already completed");
-      return;
-    }
-
-    console.log("🎉 Victory cheat handler called - triggering victory!");
-
-    // Show boss collision box debug display
-    this.enemySystem.showBossCollisionBox();
-
-    // Set level as completed to prevent normal completion logic
-    this.levelCompleted = true;
-
-    // Trigger the victory through GameStateManager
-    this.gameStateManager.triggerVictoryCheat();
+    this.input.keyboard?.on("keydown-V", () => {
+      console.log("🎉 Victory cheat activated!");
+      this.gameStateManager.triggerVictoryCheat();
+    });
   }
 
-  // Audio control methods for victory and background music
   playVictoryMusic() {
-    // Check if audio is enabled in settings
-    const audioEnabled = localStorage.getItem("tannenbaum_audio");
-    const shouldPlayAudio = audioEnabled !== "disabled";
-
-    if (!shouldPlayAudio) {
-      console.log("🔇 Victory music disabled by user settings");
-      return;
-    }
-
-    // Stop background music if playing
+    // Stop background music
     if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
       this.backgroundMusic.stop();
-      console.log("🎵 Background music stopped for victory");
     }
 
     // Play victory music
-    if (!this.victoryMusic) {
+    try {
       this.victoryMusic = this.sound.add("victory_music", {
-        volume: 0.4, // Slightly louder than background music for celebration
-        loop: false, // Don't loop victory music
+        volume: 0.4,
+        loop: false,
       });
-    }
-
-    // Check if sound system is not muted globally
-    if (!this.sound.mute) {
       this.victoryMusic.play();
-      console.log("🎉 Victory music started!");
+      console.log("🎵 Victory music started");
+    } catch (error) {
+      console.warn("Could not play victory music:", error);
     }
   }
 
@@ -501,52 +674,279 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Stop victory music if playing
     if (this.victoryMusic && this.victoryMusic.isPlaying) {
       this.victoryMusic.stop();
-      console.log("🎵 Victory music stopped");
     }
 
     // Restart background music
-    this.startBackgroundMusic();
-    console.log("🎵 Background music restored");
+    if (this.backgroundMusic && !this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.play();
+      console.log("🎵 Background music restored");
+    }
   }
 
   private restart() {
-    // Stop background music on restart
-    if (this.backgroundMusic) {
-      this.backgroundMusic.stop();
-      this.backgroundMusic = null;
-    }
-
-    // Restart logic is handled by GameStateManager
-    console.log("🔄 Game restart initiated");
+    console.log("🔄 Restarting game...");
+    this.cleanupAudio();
+    this.scene.restart();
   }
 
   private nextLevel() {
-    // Next level logic is handled by GameStateManager
-    console.log("🎮 Next level initiated");
+    console.log("🎮 Moving to next level...");
+    this.cleanupAudio();
+    this.gameStateManager.nextLevel();
+    this.scene.restart({ level: this.gameStateManager.getCurrentLevel() });
   }
 
   private cleanupAudio() {
-    // Clean up background music
     if (this.backgroundMusic) {
-      this.backgroundMusic.stop();
-      this.backgroundMusic = null;
+      this.backgroundMusic.destroy();
     }
-
-    // Clean up victory music
     if (this.victoryMusic) {
-      this.victoryMusic.stop();
-      this.victoryMusic = null;
+      this.victoryMusic.destroy();
+    }
+  }
+
+  private cleanupLoadingScreen() {
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+      this.loadingTimeout = null;
+    }
+    if (this.loadingScreen) {
+      this.loadingScreen.destroy();
+      this.loadingScreen = null;
+    }
+  }
+
+  shutdown() {
+    // Clean up resources when scene is shut down
+    this.cleanupAudio();
+    this.cleanupLoadingScreen();
+  }
+
+  private createLoadingScreen() {
+    // Create a container for the loading screen
+    this.loadingScreen = this.add.container(0, 0);
+
+    // Create a semi-transparent background
+    const background = this.add.rectangle(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      this.cameras.main.width,
+      this.cameras.main.height,
+      0x000000,
+      0.8
+    );
+
+    // Create loading text with better styling
+    const loadingText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 60,
+        "Welt wird mit dem Server synchronisiert...",
+        {
+          fontSize: "28px",
+          color: "#ffffff",
+          fontFamily: "Arial, sans-serif",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 2,
+        }
+      )
+      .setOrigin(0.5);
+
+    // Create a subtitle
+    const subtitleText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 20,
+        "Bitte warten...",
+        {
+          fontSize: "18px",
+          color: "#cccccc",
+          fontFamily: "Arial, sans-serif",
+        }
+      )
+      .setOrigin(0.5);
+
+    // Create a loading spinner (rotating dots)
+    const spinnerContainer = this.add.container(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2 + 40
+    );
+
+    // Create three dots for the spinner
+    const dots = [];
+    for (let i = 0; i < 3; i++) {
+      const dot = this.add.circle(i * 30 - 30, 0, 8, 0xffffff);
+      dots.push(dot);
+      spinnerContainer.add(dot);
     }
 
-    // Remove audio event listeners
-    this.sound.off("mute", this.handleAudioMute, this);
-    this.sound.off("unmute", this.handleAudioUnmute, this);
+    // Add pulsing animation to dots
+    this.tweens.add({
+      targets: dots,
+      scaleX: 0.5,
+      scaleY: 0.5,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      stagger: 200,
+      ease: "Sine.easeInOut",
+    });
 
-    // Remove victory cheat event listener
-    this.game.events.off(
-      "victory-cheat-triggered",
-      this.handleVictoryCheat,
-      this
+    // Add all elements to the container
+    this.loadingScreen.add([
+      background,
+      loadingText,
+      subtitleText,
+      spinnerContainer,
+    ]);
+
+    // Make sure the loading screen is on top
+    this.loadingScreen.setDepth(1000);
+  }
+
+  private showLoadingScreen() {
+    if (!this.loadingScreen) {
+      this.createLoadingScreen();
+    }
+    this.loadingScreen?.setVisible(true);
+
+    // Set a timeout in case the server doesn't respond
+    this.loadingTimeout = window.setTimeout(() => {
+      console.warn("⚠️ Loading timeout reached - server may not be responding");
+      this.showLoadingError();
+    }, 10000); // 10 second timeout
+  }
+
+  private hideLoadingScreen() {
+    if (this.loadingScreen) {
+      this.loadingScreen.setVisible(false);
+    }
+
+    // Clear timeout
+    if (this.loadingTimeout) {
+      clearTimeout(this.loadingTimeout);
+      this.loadingTimeout = null;
+    }
+  }
+
+  private showLoadingError() {
+    if (!this.loadingScreen) return;
+
+    // Clear existing content
+    this.loadingScreen.removeAll();
+
+    // Create error background
+    const background = this.add.rectangle(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      this.cameras.main.width,
+      this.cameras.main.height,
+      0x000000,
+      0.8
     );
+
+    // Create error text
+    const errorText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 - 30,
+        "Verbindung zum Server fehlgeschlagen",
+        {
+          fontSize: "24px",
+          color: "#ff6b6b",
+          fontFamily: "Arial, sans-serif",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 2,
+        }
+      )
+      .setOrigin(0.5);
+
+    const retryText = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 + 10,
+        "Bitte versuchen Sie es erneut",
+        {
+          fontSize: "18px",
+          color: "#cccccc",
+          fontFamily: "Arial, sans-serif",
+        }
+      )
+      .setOrigin(0.5);
+
+    // Add retry button
+    const retryButton = this.add
+      .text(
+        this.cameras.main.width / 2,
+        this.cameras.main.height / 2 + 50,
+        "Erneut versuchen",
+        {
+          fontSize: "20px",
+          color: "#ffffff",
+          fontFamily: "Arial, sans-serif",
+          backgroundColor: "#4a90e2",
+          padding: { x: 20, y: 10 },
+        }
+      )
+      .setOrigin(0.5);
+
+    // Make button interactive
+    retryButton.setInteractive({ useHandCursor: true });
+    retryButton.on("pointerdown", () => {
+      console.log("🔄 Retrying connection...");
+      this.restart();
+    });
+
+    // Add hover effect
+    retryButton.on("pointerover", () => {
+      retryButton.setStyle({ backgroundColor: "#357abd" });
+    });
+    retryButton.on("pointerout", () => {
+      retryButton.setStyle({ backgroundColor: "#4a90e2" });
+    });
+
+    this.loadingScreen.add([background, errorText, retryText, retryButton]);
+  }
+
+  private setupWorldWhenReady(worldState: any) {
+    // Check if physics is ready
+    if (!this.physics || !this.physics.world || !this.physics.add) {
+      console.log("⏳ Physics not ready, waiting 100ms...");
+      this.time.delayedCall(100, () => this.setupWorldWhenReady(worldState));
+      return;
+    }
+
+    console.log("🌍 Physics ready, setting up synchronized world");
+    
+    // Create world from server state
+    const syncedPlatforms = this.worldSynchronizer.createWorld();
+
+    // Set up systems with synchronized world
+    this.setupSystemsForWorld(syncedPlatforms);
+
+    // Hide loading screen now that world is synchronized
+    this.hideLoadingScreen();
+
+    console.log("🌍 Synchronized world setup complete");
+  }
+
+  private sendReadyForWorldFromGameScene() {
+    const networkManager = this.registry.get("networkManager");
+    if (!networkManager || !this.roomData || !this.myPlayerId) {
+      console.error("🌍 GameScene: Cannot send ready_for_world - missing required data");
+      return;
+    }
+
+    console.log("🌍 GameScene: Sending ready_for_world acknowledgment");
+    networkManager.sendMessage({
+      type: "ready_for_world",
+      timestamp: Date.now(),
+      data: {
+        room_id: this.roomData.room_id,
+        player_id: this.myPlayerId,
+      },
+    });
   }
 }

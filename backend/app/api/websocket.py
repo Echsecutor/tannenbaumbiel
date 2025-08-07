@@ -11,7 +11,10 @@ from app.config.settings import settings
 from app.network.session import SessionManager
 from app.network.rooms import RoomManager
 from app.game.world import world_manager
-from app.network.protocol import GameMessage, MessageType, JoinRoomData, PlayerInputData, InputAction
+from app.network.protocol import (
+    GameMessage, MessageType, JoinRoomData, PlayerInputData, InputAction,
+    ConnectionState, ReadyForWorldData, WorldReadyData, ClientReadyData
+)
 
 
 router = APIRouter()
@@ -39,12 +42,14 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
         self.connection_rooms: Dict[str, str] = {}  # connection_id -> room_id
+        self.connection_states: Dict[str, ConnectionState] = {}  # connection_id -> state
 
     async def connect(self, websocket: WebSocket, connection_id: str):
         """Accept new WebSocket connection"""
         await websocket.accept()
         self.active_connections[connection_id] = websocket
-        print(f"Connection {connection_id} established")
+        self.connection_states[connection_id] = ConnectionState.CONNECTED
+        print(f"Connection {connection_id} established with state {ConnectionState.CONNECTED}")
 
     def disconnect(self, connection_id: str):
         """Remove connection and clean up"""
@@ -55,8 +60,27 @@ class ConnectionManager:
                 room_manager.leave_room(room_id, connection_id)
                 del self.connection_rooms[connection_id]
 
+            # Clean up state tracking
+            if connection_id in self.connection_states:
+                del self.connection_states[connection_id]
+
             del self.active_connections[connection_id]
             print(f"Connection {connection_id} disconnected")
+
+    def get_connection_state(self, connection_id: str) -> ConnectionState:
+        """Get current connection state"""
+        return self.connection_states.get(connection_id, ConnectionState.DISCONNECTED)
+
+    def set_connection_state(self, connection_id: str, state: ConnectionState):
+        """Set connection state"""
+        old_state = self.connection_states.get(connection_id, ConnectionState.DISCONNECTED)
+        self.connection_states[connection_id] = state
+        print(f"🔄 Connection {connection_id} state: {old_state} → {state}")
+
+    def validate_state_transition(self, connection_id: str, required_state: ConnectionState) -> bool:
+        """Validate that connection is in required state"""
+        current_state = self.get_connection_state(connection_id)
+        return current_state == required_state
 
     async def send_message(self, connection_id: str, message: GameMessage):
         """Send message to specific connection"""
@@ -156,6 +180,7 @@ async def websocket_game_endpoint(websocket: WebSocket):
 
 async def handle_message(connection_id: str, message: GameMessage):
     """Handle incoming WebSocket message"""
+    print(f"🔧 Backend: Received message type '{message.type}' from {connection_id}")
 
     if message.type == MessageType.JOIN_ROOM:
         await handle_join_room(connection_id, message)
@@ -172,6 +197,18 @@ async def handle_message(connection_id: str, message: GameMessage):
     elif message.type == MessageType.GAME_STATE_UPDATE:
         await handle_game_state_update(connection_id, message)
 
+    elif message.type == MessageType.REQUEST_WORLD_STATE:
+        await handle_request_world_state(connection_id, message)
+
+    elif message.type == MessageType.READY_FOR_WORLD:
+        await handle_ready_for_world(connection_id, message)
+
+    elif message.type == MessageType.WORLD_READY:
+        await handle_world_ready(connection_id, message)
+
+    elif message.type == MessageType.CLIENT_READY:
+        await handle_client_ready(connection_id, message)
+
     else:
         await send_error(connection_id, "UNKNOWN_MESSAGE_TYPE", f"Unknown message type: {message.type}")
 
@@ -179,6 +216,7 @@ async def handle_message(connection_id: str, message: GameMessage):
 async def handle_join_room(connection_id: str, message: GameMessage):
     """Handle room join request"""
     try:
+        print(f"🔧 Backend: Handling join room request for {connection_id}")
         join_data = JoinRoomData(**message.data)
 
         # Create session for player (this creates or updates player in database)
@@ -194,6 +232,7 @@ async def handle_join_room(connection_id: str, message: GameMessage):
         room = room_manager.join_room(join_data.room_name, connection_id, player)
 
         if room:
+            print(f"🔧 Backend: Player {connection_id} joined room {room.room_id}")
             # Track connection-room mapping
             connection_manager.connection_rooms[connection_id] = room.room_id
 
@@ -201,6 +240,7 @@ async def handle_join_room(connection_id: str, message: GameMessage):
             world = world_manager.get_world(room.room_id)
             if not world:
                 world = world_manager.create_world(room.room_id)
+                print(f"🔧 Backend: Created new world for room {room.room_id}")
 
             # Add player to game world
             player_state = world.add_player(
@@ -210,10 +250,14 @@ async def handle_join_room(connection_id: str, message: GameMessage):
                 y=650  # Start above ground level
             )
 
-            # Send confirmation to joining player
+            # Update connection state
+            connection_manager.set_connection_state(connection_id, ConnectionState.ROOM_JOINED)
+
+            # Send ONLY room_joined confirmation - wait for client acknowledgment before sending world state
             response = GameMessage(
                 type=MessageType.ROOM_JOINED,
                 timestamp=message.timestamp,
+                connection_state=ConnectionState.ROOM_JOINED,
                 data={
                     "room_id": room.room_id,
                     "player_count": room.get_active_connection_count(),
@@ -223,16 +267,7 @@ async def handle_join_room(connection_id: str, message: GameMessage):
                 }
             )
             await connection_manager.send_message(connection_id, response)
-
-            # CRITICAL FIX: Send complete world state to joining player
-            initial_state = world.get_game_state()
-            state_message = GameMessage(
-                type=MessageType.GAME_STATE,
-                timestamp=message.timestamp,
-                data=initial_state.model_dump()
-            )
-            await connection_manager.send_message(connection_id, state_message)
-            print(f"🌍 Sent initial world state to joining player {connection_id}: {len(initial_state.enemies)} enemies, {len(initial_state.projectiles)} projectiles")
+            print(f"🔧 Backend: Sent room_joined message to {connection_id}, waiting for ready_for_world acknowledgment")
 
             # Notify other players
             if room.get_active_connection_count() > 1:
@@ -253,6 +288,7 @@ async def handle_join_room(connection_id: str, message: GameMessage):
             await send_error(connection_id, "ROOM_JOIN_FAILED", "Failed to join room (may be full or player already in another room)")
 
     except Exception as e:
+        print(f"🔧 Backend: Error in handle_join_room for {connection_id}: {e}")
         await send_error(connection_id, "JOIN_ROOM_ERROR", str(e))
 
 
@@ -388,6 +424,136 @@ async def handle_game_state_update(connection_id: str, message: GameMessage):
 
     except Exception as e:
         await send_error(connection_id, "STATE_UPDATE_ERROR", str(e))
+
+
+async def handle_request_world_state(connection_id: str, message: GameMessage):
+    """Handle client request for world state"""
+    try:
+        # Validate player is in a room
+        if connection_id not in connection_manager.connection_rooms:
+            await send_error(connection_id, "NOT_IN_ROOM", "Player not in a room")
+            return
+
+        room_id = connection_manager.connection_rooms[connection_id]
+        world = world_manager.get_world(room_id)
+        if not world:
+            await send_error(connection_id, "WORLD_NOT_FOUND", "Game world not found for room")
+            return
+
+        world_state = world.get_world_state()
+        response = GameMessage(
+            type=MessageType.WORLD_STATE,
+            timestamp=message.timestamp,
+            data=world_state.model_dump()
+        )
+        await connection_manager.send_message(connection_id, response)
+        print(f"🌍 Sent world state to {connection_id} for room {room_id}")
+
+    except Exception as e:
+        await send_error(connection_id, "REQUEST_WORLD_STATE_ERROR", str(e))
+
+
+async def handle_ready_for_world(connection_id: str, message: GameMessage):
+    """Handle client ready for world state"""
+    try:
+        # Validate state transition
+        if not connection_manager.validate_state_transition(connection_id, ConnectionState.ROOM_JOINED):
+            await send_error(connection_id, "INVALID_STATE", f"Expected state ROOM_JOINED, got {connection_manager.get_connection_state(connection_id)}")
+            return
+
+        ready_data = ReadyForWorldData(**message.data)
+        print(f"🌍 Backend: Client {connection_id} ready for world state")
+
+        # Get room and world
+        room_id = connection_manager.connection_rooms.get(connection_id)
+        if not room_id or room_id != ready_data.room_id:
+            await send_error(connection_id, "ROOM_MISMATCH", "Room ID doesn't match")
+            return
+
+        world = world_manager.get_world(room_id)
+        if not world:
+            await send_error(connection_id, "WORLD_NOT_FOUND", "Game world not found")
+            return
+
+        # Send world state
+        world_state = world.get_world_state()
+        world_message = GameMessage(
+            type=MessageType.WORLD_STATE,
+            timestamp=message.timestamp,
+            connection_state=ConnectionState.WORLD_SENT,
+            data=world_state.model_dump()
+        )
+        await connection_manager.send_message(connection_id, world_message)
+        
+        # Update connection state
+        connection_manager.set_connection_state(connection_id, ConnectionState.WORLD_SENT)
+        print(f"🌍 Sent world state to {connection_id}: {len(world_state.platforms)} platforms, seed {world_state.world_seed}")
+
+    except Exception as e:
+        await send_error(connection_id, "READY_FOR_WORLD_ERROR", str(e))
+
+
+async def handle_world_ready(connection_id: str, message: GameMessage):
+    """Handle client acknowledgment of world state received"""
+    try:
+        # Validate state transition
+        if not connection_manager.validate_state_transition(connection_id, ConnectionState.WORLD_SENT):
+            await send_error(connection_id, "INVALID_STATE", f"Expected state WORLD_SENT, got {connection_manager.get_connection_state(connection_id)}")
+            return
+
+        world_ready_data = WorldReadyData(**message.data)
+        print(f"🌍 Backend: Client {connection_id} confirmed world state received (seed: {world_ready_data.world_seed})")
+
+        # Get room and world
+        room_id = connection_manager.connection_rooms.get(connection_id)
+        if not room_id or room_id != world_ready_data.room_id:
+            await send_error(connection_id, "ROOM_MISMATCH", "Room ID doesn't match")
+            return
+
+        world = world_manager.get_world(room_id)
+        if not world:
+            await send_error(connection_id, "WORLD_NOT_FOUND", "Game world not found")
+            return
+
+        # Validate world seed matches
+        if world.world_seed != world_ready_data.world_seed:
+            await send_error(connection_id, "WORLD_SEED_MISMATCH", f"Expected seed {world.world_seed}, got {world_ready_data.world_seed}")
+            return
+
+        # Send initial game state
+        initial_state = world.get_game_state()
+        state_message = GameMessage(
+            type=MessageType.GAME_STATE,
+            timestamp=message.timestamp,
+            connection_state=ConnectionState.GAME_READY,
+            data=initial_state.model_dump()
+        )
+        await connection_manager.send_message(connection_id, state_message)
+        
+        # Update connection state
+        connection_manager.set_connection_state(connection_id, ConnectionState.GAME_READY)
+        print(f"🌍 Sent initial game state to {connection_id}: {len(initial_state.enemies)} enemies, {len(initial_state.projectiles)} projectiles")
+
+    except Exception as e:
+        await send_error(connection_id, "WORLD_READY_ERROR", str(e))
+
+
+async def handle_client_ready(connection_id: str, message: GameMessage):
+    """Handle client acknowledgment that initialization is complete"""
+    try:
+        # Validate state transition
+        if not connection_manager.validate_state_transition(connection_id, ConnectionState.GAME_READY):
+            await send_error(connection_id, "INVALID_STATE", f"Expected state GAME_READY, got {connection_manager.get_connection_state(connection_id)}")
+            return
+
+        client_ready_data = ClientReadyData(**message.data)
+        print(f"🎮 Backend: Client {connection_id} initialization complete and ready for gameplay")
+
+        # Client is now fully ready for gameplay - no state change needed, GAME_READY is final state
+        # From this point on, normal game state updates can proceed
+
+    except Exception as e:
+        await send_error(connection_id, "CLIENT_READY_ERROR", str(e))
 
 
 async def send_error(connection_id: str, error_code: str, error_message: str):

@@ -20,6 +20,12 @@ export class AssetLoader {
     this.loadFireballSprites();
   }
 
+  createAllAnimations() {
+    this.createAdventurerAnimations();
+    this.createSlimeAnimations();
+    this.createFireballAnimations();
+  }
+
   private loadPlayerSprites() {
     // Load all player sprite options
 

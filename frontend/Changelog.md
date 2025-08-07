@@ -2,6 +2,100 @@
 
 ## WIP
 
+- **Implemented State-Based Multiplayer Protocol**: Replaced timing-dependent protocol with explicit state transitions and acknowledgments
+  - **Problem**: Previous protocol relied on message timing and could cause race conditions
+  - **Solution**: Implemented state-based protocol with explicit acknowledgments at each step
+  - **New Protocol Flow**:
+    1. Client joins room → Server sends `room_joined` 
+    2. Client sends `ready_for_world` → Server sends `world_state`
+    3. Client sends `world_ready` → Server sends `game_state`
+    4. Client sends `client_ready` → Initialization complete
+  - **Changes**:
+    - Added connection state tracking (`CONNECTED → ROOM_JOINED → WORLD_SENT → GAME_READY`)
+    - Added acknowledgment message types: `ready_for_world`, `world_ready`, `client_ready`
+    - Added state validation to prevent out-of-order message processing
+    - Backend validates state transitions and rejects invalid requests
+    - Frontend automatically sends acknowledgments at each step
+  - **Result**: Eliminates timing dependencies and ensures reliable initialization order
+    - Moved `setupNetworking()` call before `createGameSystems()` in GameScene
+    - Ensures message handlers are registered before any messages arrive
+  - **Result**: Frontend now receives world_state messages and can create synchronized world
+
+- **Added Loading Screen for Online Mode**: Improved user experience while waiting for server synchronization
+  - **Feature**: Added German loading screen "Welt wird mit dem Server synchronisiert..." with animated spinner
+  - **Components**:
+    - Semi-transparent overlay with loading text and animated dots
+    - 10-second timeout with error handling and retry button
+    - Proper cleanup when scene is destroyed
+  - **User Experience**: Players now see clear feedback while waiting for world synchronization
+  - **Error Handling**: Shows connection error with retry option if server doesn't respond
+
+- **Enhanced Debug Logging**: Added comprehensive debugging to track message flow issues
+  - **Problem**: Difficult to diagnose why world state messages weren't being received
+  - **Solution**: Added detailed logging throughout the network flow
+  - **Changes**:
+    - Added logging to NetworkManager message handler registration
+    - Added logging to NetworkSystem initialization and setup
+    - Added logging to GameScene networking setup
+    - Enhanced message flow tracking from backend to frontend
+  - **Result**: Better visibility into network message handling and easier debugging
+
+- **Fixed Critical PlatformState Naming Conflict**: Resolved backend error preventing world state from being sent
+  - **Problem**: Backend was throwing `PlatformState.__init__() got an unexpected keyword argument 'moving_data'` error
+  - **Root Cause**: Naming conflict between local `PlatformState` class and imported Pydantic `PlatformState` model
+  - **Solution**: Renamed local class to `Platform` to avoid shadowing the imported Pydantic model
+  - **Changes**:
+    - Renamed `PlatformState` class to `Platform` in `backend/app/game/world.py`
+    - Updated all references to use the new class name
+    - Fixed `get_world_state()` method to properly create Pydantic `PlatformState` objects
+  - **Result**: Backend can now successfully send world state messages to clients
+
+- **Fixed World State Data Structure**: Resolved issue where backend was sending world state as plain dictionary instead of proper model
+  - **Problem**: Backend `get_world_state()` returned plain dictionary, but frontend expected structured data
+  - **Solution**: Updated backend to return proper `WorldStateData` model with `model_dump()` serialization
+  - **Result**: World state messages now have correct structure and are properly received by frontend
+  - **Changes**:
+    - Updated `get_world_state()` to return `WorldStateData` model
+    - Added proper imports for `WorldStateData` and `PlatformState`
+    - Fixed websocket handler to use `model_dump()` for serialization
+    - Restored accidentally removed `generate_moving_platforms()` method
+
+- **Fixed World State Message Handling**: Resolved issue where world state messages weren't being properly forwarded
+  - **Problem**: NetworkManager had duplicate world_state handler that conflicted with NetworkSystem's handler
+  - **Solution**: Removed duplicate handler from NetworkManager, let NetworkSystem handle world_state messages
+  - **Result**: World state messages now properly trigger world creation callback
+  - **Changes**:
+    - Removed duplicate world_state handler from NetworkManager
+    - Added debug logging to track world state flow
+    - Reduced game state update log verbosity (only log every 30th update)
+
+- **Fixed World Creation Timing**: Resolved issue where client tried to create world before receiving server world state
+  - **Problem**: Client was creating fallback world immediately when joining, instead of waiting for server world state
+  - **Solution**: Modified world creation flow to wait for server world state before creating synchronized world
+  - **Result**: Proper world synchronization and no duplicate world creation
+  - **Changes**:
+    - Split world creation into `createGameSystems()` and `setupSystemsForWorld()` methods
+    - Added early return for online mode until server world state is received
+    - Added checks to prevent system updates before world is created
+
+- **Major Networking Fixes**: Completely overhauled multiplayer networking system
+  - **World Synchronization**: Added server-side world generation to ensure all players see identical levels
+    - Server now generates consistent world layouts using deterministic seeds
+    - Clients receive world state and generate synchronized platforms/enemies
+    - Eliminates issue where players saw completely different levels
+  - **Player Position Fixes**: Resolved network player flickering and collision issues
+    - Added proper physics body setup for network players
+    - Implemented position interpolation to reduce micro-movements
+    - Fixed collision detection between network players and platforms
+  - **Enhanced Network System**: Improved overall multiplayer stability
+    - Added world state message handling
+    - Better error handling and fallback mechanisms
+    - Improved authority resolution for shared game objects
+  - **New WorldSynchronizer**: Created dedicated system for server-synchronized world generation
+    - Replaces client-side random generation in online mode
+    - Maintains offline mode with local WorldGenerator
+    - Ensures consistent multiplayer experience
+
 - **Fixed Server URL Change Reconnection**: Resolved issue where changing server URL didn't properly reconnect to new server
   - **Disconnect Before Reconnect**: Modified `attemptAutoConnection()` to disconnect from current server before connecting to new URL
   - **Debounced Input Handling**: Added 1-second debounce to server URL input to prevent rapid reconnection attempts while typing

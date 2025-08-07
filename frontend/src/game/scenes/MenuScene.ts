@@ -386,12 +386,14 @@ export class MenuScene extends Scene {
         const originalRoomName = roomnameInput?.value.trim() || "Winterwald";
 
         // Start game scene with room data including player ID and original join parameters
+        // Pass roomJoined flag to indicate GameScene should send ready_for_world acknowledgment
         this.scene.start("GameScene", {
           roomData: data,
           myPlayerId: data.your_player_id,
           originalRoomName: originalRoomName,
           originalUsername: this.stage1Data.username,
           selectedSprite: this.stage1Data.selectedSprite,
+          roomJoined: true, // Flag to indicate room join was already processed
         });
       });
 

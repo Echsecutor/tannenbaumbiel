@@ -35,8 +35,17 @@ export class EnemySystem {
   }
 
   createEnemyGroup(): Phaser.Physics.Arcade.Group {
-    this.enemies = this.scene.physics.add.group();
-    this.bossStones = this.scene.physics.add.group();
+    // Only create if not already created
+    if (!this.enemies) {
+      this.enemies = this.scene.physics.add.group();
+    }
+    if (!this.bossStones) {
+      this.bossStones = this.scene.physics.add.group();
+    }
+    return this.enemies;
+  }
+
+  getEnemyGroup(): Phaser.Physics.Arcade.Group {
     return this.enemies;
   }
 

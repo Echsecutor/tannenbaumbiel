@@ -2,7 +2,7 @@
 Protocol definitions for client-server communication
 """
 from enum import Enum
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Union, Optional, List
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -13,16 +13,30 @@ class MessageType(str, Enum):
     LEAVE_ROOM = "leave_room"
     PLAYER_INPUT = "player_input"
     GAME_STATE_UPDATE = "game_state_update"
+    REQUEST_WORLD_STATE = "request_world_state"  # Legacy - will be deprecated
+    READY_FOR_WORLD = "ready_for_world"  # Client acknowledges room join, requests world
+    WORLD_READY = "world_ready"  # Client acknowledges world received, requests game state
+    CLIENT_READY = "client_ready"  # Client acknowledges all initialization complete
     PING = "ping"
 
     # Server to Client
     ROOM_JOINED = "room_joined"
     ROOM_LEFT = "room_left"
     GAME_STATE = "game_state"
+    WORLD_STATE = "world_state"
     PLAYER_JOINED = "player_joined"
     PLAYER_LEFT = "player_left"
     PONG = "pong"
     ERROR = "error"
+
+
+class ConnectionState(str, Enum):
+    """Connection state for explicit state transitions"""
+    DISCONNECTED = "disconnected"
+    CONNECTED = "connected"
+    ROOM_JOINED = "room_joined"
+    WORLD_SENT = "world_sent"
+    GAME_READY = "game_ready"
 
 
 class InputAction(str, Enum):
@@ -38,6 +52,7 @@ class GameMessage(BaseModel):
     type: MessageType
     timestamp: float
     data: Optional[Dict[str, Any]] = None
+    connection_state: Optional[ConnectionState] = None  # For state-based protocol
 
 
 class PlayerInputData(BaseModel):
@@ -86,6 +101,27 @@ class EnemyState(BaseModel):
     facing_right: bool = True
 
 
+class PlatformState(BaseModel):
+    """Platform state data for world synchronization"""
+    platform_id: str
+    x: float
+    y: float
+    width: float
+    height: float
+    platform_type: str = "static"
+    moving_data: Optional[Dict[str, Any]] = None
+
+
+class WorldStateData(BaseModel):
+    """World layout state data"""
+    world_seed: int
+    world_width: float
+    world_height: float
+    ground_y: float
+    left_boundary: float
+    platforms: List[PlatformState]
+
+
 class GameStateData(BaseModel):
     """Complete game state data"""
     room_id: str
@@ -108,10 +144,33 @@ class ErrorData(BaseModel):
     message: str
 
 
+class ReadyForWorldData(BaseModel):
+    """Client acknowledgment that it's ready to receive world state"""
+    room_id: str
+    player_id: str
+
+
+class WorldReadyData(BaseModel):
+    """Client acknowledgment that world state was received and processed"""
+    room_id: str
+    player_id: str
+    world_seed: int  # Confirm received world seed
+
+
+class ClientReadyData(BaseModel):
+    """Client acknowledgment that initialization is complete"""
+    room_id: str
+    player_id: str
+
+
 # Message type mapping for easier validation
 MESSAGE_DATA_TYPES = {
     MessageType.JOIN_ROOM: JoinRoomData,
     MessageType.PLAYER_INPUT: PlayerInputData,
     MessageType.GAME_STATE: GameStateData,
+    MessageType.WORLD_STATE: WorldStateData,
+    MessageType.READY_FOR_WORLD: ReadyForWorldData,
+    MessageType.WORLD_READY: WorldReadyData,
+    MessageType.CLIENT_READY: ClientReadyData,
     MessageType.ERROR: ErrorData,
 }

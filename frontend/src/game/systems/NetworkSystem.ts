@@ -3,6 +3,15 @@
  */
 import { NetworkManager } from "../../network/NetworkManager";
 
+// Connection states for state-based protocol
+enum ConnectionState {
+  DISCONNECTED = "disconnected",
+  CONNECTED = "connected", 
+  ROOM_JOINED = "room_joined",
+  WORLD_SENT = "world_sent",
+  GAME_READY = "game_ready"
+}
+
 export class NetworkSystem {
   private scene: Phaser.Scene;
   private networkManager: NetworkManager | null = null;
@@ -11,23 +20,80 @@ export class NetworkSystem {
   private lastBroadcastTime: number = 0;
   private broadcastThrottle: number = 33; // 30fps
   private inputState: Map<string, boolean> = new Map();
+  
+  // State-based protocol tracking
+  private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
+  private currentRoomId: string = "";
+  private receivedWorldSeed: number = 0;
 
   // Network entities
   private networkPlayers: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
+  private networkEnemies: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
   private networkProjectiles: Map<string, Phaser.Physics.Arcade.Sprite> =
     new Map();
+
+  // World state callback
+  private onWorldStateReceived: ((worldState: any) => void) | null = null;
+  
+  // Enemy collision setup callback
+  private onEnemiesUpdated: (() => void) | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
-  initialize(networkManager: NetworkManager, myPlayerId?: string) {
+  initialize(networkManager: NetworkManager, myPlayerId?: string, roomData?: any) {
     this.networkManager = networkManager;
+    this.connectionState = ConnectionState.CONNECTED;
+    
     if (myPlayerId) {
       this.myPlayerId = myPlayerId;
-      this.roomJoinConfirmed = true;
+      this.networkManager.setServerPlayerId(this.myPlayerId);
     }
+
+    // If room was already joined by MenuScene, set appropriate state
+    if (roomData) {
+      this.connectionState = ConnectionState.ROOM_JOINED;
+      this.roomJoinConfirmed = true;
+      this.currentRoomId = roomData.room_id;
+      console.log("🏠 NetworkSystem: Initialized with existing room join state");
+    }
+
     this.setupNetworkHandlers();
+  }
+
+  setWorldStateCallback(callback: (worldState: any) => void) {
+    this.onWorldStateReceived = callback;
+  }
+
+  setEnemiesUpdatedCallback(callback: () => void) {
+    this.onEnemiesUpdated = callback;
+  }
+
+  requestWorldState() {
+    if (!this.networkManager || !this.roomJoinConfirmed) {
+      console.warn(
+        "🌍 NetworkSystem: Cannot request world state - not connected or room not joined"
+      );
+      return;
+    }
+
+    console.log("🌍 NetworkSystem: Requesting world state from server");
+    this.networkManager.sendMessage({
+      type: "request_world_state",
+      timestamp: Date.now(),
+      data: {},
+    });
+
+    // Set a timeout to retry if no response
+    setTimeout(() => {
+      if (this.onWorldStateReceived) {
+        console.log(
+          "🌍 NetworkSystem: World state request timeout, retrying..."
+        );
+        this.requestWorldState();
+      }
+    }, 5000); // 5 second timeout
   }
 
   private setupNetworkHandlers() {
@@ -46,10 +112,91 @@ export class NetworkSystem {
       this.handleGameStateUpdate(data);
     });
 
-    console.log("🔧 NetworkSystem: Registered game_state handler");
+    this.networkManager.onMessage("world_state", (data) => {
+      this.handleWorldStateUpdate(data);
+    });
 
-    // Note: room_joined is handled by MenuScene, which passes the player ID to GameScene
-    // We get the player ID from the scene data instead of registering another handler
+    this.networkManager.onMessage("room_joined", (data) => {
+      this.handleRoomJoined(data);
+    });
+  }
+
+  private handleRoomJoined(data: any) {
+    console.log("🏠 NetworkSystem: Room joined successfully:", data);
+    this.roomJoinConfirmed = true;
+    this.connectionState = ConnectionState.ROOM_JOINED;
+    this.currentRoomId = data.room_id;
+    
+    if (data.your_player_id) {
+      this.myPlayerId = data.your_player_id;
+      console.log("🎮 NetworkSystem: Player ID confirmed:", this.myPlayerId);
+    }
+
+    // Note: ready_for_world acknowledgment is sent by MenuScene
+    console.log("🏠 NetworkSystem: Room join handled, waiting for world state...");
+  }
+
+  private sendReadyForWorld() {
+    if (!this.networkManager || !this.currentRoomId || !this.myPlayerId) {
+      console.error("🌍 NetworkSystem: Cannot send ready_for_world - missing required data");
+      return;
+    }
+
+    console.log("🌍 NetworkSystem: Sending ready_for_world acknowledgment");
+    this.networkManager.sendMessage({
+      type: "ready_for_world",
+      timestamp: Date.now(),
+      data: {
+        room_id: this.currentRoomId,
+        player_id: this.myPlayerId,
+      },
+    });
+  }
+
+  private handleWorldStateUpdate(worldState: any) {
+    console.log("🌍 NetworkSystem: Received world state from server", {
+      world_seed: worldState.world_seed,
+      platforms_count: worldState.platforms?.length || 0,
+      world_width: worldState.world_width,
+    });
+    
+    // Validate state transition
+    if (this.connectionState !== ConnectionState.ROOM_JOINED) {
+      console.error("🌍 NetworkSystem: Received world state in invalid state:", this.connectionState);
+      return;
+    }
+    
+    this.connectionState = ConnectionState.WORLD_SENT;
+    this.receivedWorldSeed = worldState.world_seed;
+    
+    console.log("🌍 NetworkSystem: Full world state data:", JSON.stringify(worldState, null, 2));
+    if (this.onWorldStateReceived) {
+      console.log("🌍 NetworkSystem: Calling world state callback");
+      this.onWorldStateReceived(worldState);
+      
+      // Send acknowledgment that world state was received and processed
+      this.sendWorldReady();
+    } else {
+      console.warn("🌍 NetworkSystem: No world state callback registered");
+    }
+  }
+
+  private sendWorldReady() {
+    if (!this.networkManager || !this.currentRoomId || !this.myPlayerId || !this.receivedWorldSeed) {
+      console.error("🌍 NetworkSystem: Cannot send world_ready - missing required data");
+      return;
+    }
+
+    console.log("🌍 NetworkSystem: Sending world_ready acknowledgment");
+    this.networkManager.sendMessage({
+      type: "world_ready",
+      timestamp: Date.now(),
+      data: {
+        room_id: this.currentRoomId,
+        player_id: this.myPlayerId,
+        world_seed: this.receivedWorldSeed,
+      },
+    });
   }
 
   sendInputUpdates(currentInputs: any) {
@@ -91,14 +238,26 @@ export class NetworkSystem {
   }
 
   private handleGameStateUpdate(gameState: any) {
-    console.log("🔄 NetworkSystem: Received server game state update");
-    console.log("📊 Game state data:", {
-      room_id: gameState.room_id,
-      tick: gameState.tick,
-      players_count: gameState.players?.length || 0,
-      enemies_count: gameState.enemies?.length || 0,
-      projectiles_count: gameState.projectiles?.length || 0,
-    });
+    // Check if this is the initial game state (first one after world ready)
+    if (this.connectionState === ConnectionState.WORLD_SENT) {
+      console.log("🎮 NetworkSystem: Received initial game state from server");
+      this.connectionState = ConnectionState.GAME_READY;
+      
+      // Send final acknowledgment that client is ready
+      this.sendClientReady();
+    }
+
+    // Reduce log verbosity - only log every 30th update (once per second at 30fps)
+    if (gameState.tick % 30 === 0) {
+      console.log("🔄 NetworkSystem: Received server game state update");
+      console.log("📊 Game state data:", {
+        room_id: gameState.room_id,
+        tick: gameState.tick,
+        players_count: gameState.players?.length || 0,
+        enemies_count: gameState.enemies?.length || 0,
+        projectiles_count: gameState.projectiles?.length || 0,
+      });
+    }
 
     if (gameState.players && Array.isArray(gameState.players)) {
       this.updateAllPlayersFromServer(gameState.players);
@@ -106,6 +265,28 @@ export class NetworkSystem {
       // Emit event to notify UI about network state updates
       this.scene.game.events.emit("network-state-updated");
     }
+
+    // Process enemies from server
+    if (gameState.enemies && Array.isArray(gameState.enemies)) {
+      this.updateEnemiesFromServer(gameState.enemies);
+    }
+  }
+
+  private sendClientReady() {
+    if (!this.networkManager || !this.currentRoomId || !this.myPlayerId) {
+      console.error("🎮 NetworkSystem: Cannot send client_ready - missing required data");
+      return;
+    }
+
+    console.log("🎮 NetworkSystem: Sending client_ready acknowledgment - initialization complete");
+    this.networkManager.sendMessage({
+      type: "client_ready",
+      timestamp: Date.now(),
+      data: {
+        room_id: this.currentRoomId,
+        player_id: this.myPlayerId,
+      },
+    });
   }
 
   private updateAllPlayersFromServer(players: any[]) {
@@ -148,6 +329,10 @@ export class NetworkSystem {
         sprite.setBounce(0.2);
         sprite.setCollideWorldBounds(true);
 
+        // CRITICAL FIX: Set proper physics body for network players
+        sprite.body!.setSize(32, 48); // Match player collision box
+        sprite.body!.setOffset(16, 16); // Center the collision box
+
         this.networkPlayers.set(playerState.player_id, sprite);
         console.log(`🟢 Created network player: ${playerState.player_id}`);
       } catch (error) {
@@ -158,7 +343,21 @@ export class NetworkSystem {
 
     if (sprite) {
       try {
-        sprite.setPosition(playerState.x, playerState.y);
+        // CRITICAL FIX: Use interpolation to reduce flickering
+        const currentX = sprite.x;
+        const currentY = sprite.y;
+        const targetX = playerState.x;
+        const targetY = playerState.y;
+
+        // Only update if position changed significantly (reduce micro-movements)
+        const positionThreshold = 5;
+        if (
+          Math.abs(currentX - targetX) > positionThreshold ||
+          Math.abs(currentY - targetY) > positionThreshold
+        ) {
+          sprite.setPosition(targetX, targetY);
+        }
+
         sprite.setFlipX(!playerState.facing_right);
         sprite.setData("health", playerState.health);
         sprite.setData("score", playerState.score || 0);
@@ -288,12 +487,133 @@ export class NetworkSystem {
     }
   }
 
+  private updateEnemiesFromServer(enemies: any[]) {
+    console.log(`🦴 NetworkSystem: Updating ${enemies.length} enemies from server`);
+    
+    // Remove disconnected enemies
+    const activeEnemyIds = new Set(enemies.map((e) => e.enemy_id));
+    for (const [enemyId, sprite] of this.networkEnemies) {
+      if (!activeEnemyIds.has(enemyId)) {
+        console.log(`🦴 NetworkSystem: Removing enemy ${enemyId}`);
+        sprite.destroy();
+        this.networkEnemies.delete(enemyId);
+      }
+    }
+
+    // Update/create enemies
+    for (const enemyState of enemies) {
+      this.updateNetworkEnemy(enemyState);
+    }
+
+    // Trigger collision setup callback if enemies were updated
+    if (this.onEnemiesUpdated) {
+      this.onEnemiesUpdated();
+    }
+  }
+
+  private updateNetworkEnemy(enemyState: any) {
+    let sprite = this.networkEnemies.get(enemyState.enemy_id);
+
+    if (!sprite) {
+      try {
+        // Create enemy sprite based on type
+        let textureKey = "owlet_idle"; // Default
+        let scale = 1;
+        let health = 50;
+
+        switch (enemyState.enemy_type) {
+          case "owlet":
+            textureKey = "owlet_idle";
+            scale = 1;
+            health = 50;
+            break;
+          case "pink_boss":
+            textureKey = "pink_boss_idle";
+            scale = 1.2;
+            health = 100;
+            break;
+          case "slime":
+            textureKey = "slime_idle";
+            scale = 0.8;
+            health = 30;
+            break;
+        }
+
+        sprite = this.scene.physics.add.sprite(
+          enemyState.x,
+          enemyState.y,
+          textureKey
+        );
+        
+        if (!sprite) {
+          console.error(`❌ Failed to create enemy sprite for ${enemyState.enemy_id}`);
+          return;
+        }
+
+        sprite.setScale(scale);
+        sprite.setData("health", health);
+        sprite.setData("maxHealth", health);
+        sprite.setData("enemyType", enemyState.enemy_type);
+        sprite.setData("enemyId", enemyState.enemy_id);
+        sprite.setBounce(0.2);
+        sprite.setCollideWorldBounds(true);
+
+        // Set proper physics body
+        sprite.body!.setSize(32, 48);
+        sprite.body!.setOffset(16, 16);
+
+        this.networkEnemies.set(enemyState.enemy_id, sprite);
+        console.log(`🦴 Created network enemy: ${enemyState.enemy_id} (${enemyState.enemy_type})`);
+      } catch (error) {
+        console.error(`❌ Error creating network enemy:`, error);
+        return;
+      }
+    }
+
+    if (sprite) {
+      try {
+        // Update position with interpolation
+        const currentX = sprite.x;
+        const currentY = sprite.y;
+        const targetX = enemyState.x;
+        const targetY = enemyState.y;
+
+        const positionThreshold = 5;
+        if (
+          Math.abs(currentX - targetX) > positionThreshold ||
+          Math.abs(currentY - targetY) > positionThreshold
+        ) {
+          sprite.setPosition(targetX, targetY);
+        }
+
+        sprite.setFlipX(!enemyState.facing_right);
+        sprite.setData("health", enemyState.health);
+
+        // Update animation based on movement
+        const enemyType = enemyState.enemy_type;
+        if (Math.abs(enemyState.velocity_x) > 10) {
+          sprite.play(`${enemyType}_run_anim`, true);
+        } else {
+          sprite.play(`${enemyType}_idle_anim`, true);
+        }
+      } catch (error) {
+        console.error(`❌ Error updating network enemy:`, error);
+      }
+    }
+  }
+
   clearNetworkEntities() {
     // Clear network players
     for (const [_playerId, sprite] of this.networkPlayers) {
       sprite.destroy();
     }
     this.networkPlayers.clear();
+
+    // Clear network enemies
+    for (const [_enemyId, sprite] of this.networkEnemies) {
+      sprite.destroy();
+    }
+    this.networkEnemies.clear();
 
     // Clear network projectiles
     for (const [_projectileId, sprite] of this.networkProjectiles) {
@@ -310,10 +630,25 @@ export class NetworkSystem {
     }
   }
 
+  addPlatformCollisionForNetworkEnemies(
+    platforms: Phaser.Physics.Arcade.StaticGroup
+  ) {
+    for (const [_enemyId, sprite] of this.networkEnemies) {
+      this.scene.physics.add.collider(sprite, platforms);
+    }
+  }
+
+  getNetworkEnemies(): Map<string, Phaser.Physics.Arcade.Sprite> {
+    return this.networkEnemies;
+  }
+
   reset() {
     this.myPlayerId = "";
     this.roomJoinConfirmed = false;
     this.inputState.clear();
+    this.connectionState = ConnectionState.DISCONNECTED;
+    this.currentRoomId = "";
+    this.receivedWorldSeed = 0;
     this.clearNetworkEntities();
   }
 

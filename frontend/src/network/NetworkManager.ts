@@ -6,6 +6,7 @@ export interface GameMessage {
   type: string;
   timestamp: number;
   data?: any;
+  connection_state?: string; // For state-based protocol
 }
 
 export class NetworkManager {
@@ -191,7 +192,6 @@ export class NetworkManager {
 
   public setServerPlayerId(playerId: string): void {
     this.serverPlayerId = playerId;
-    console.log("🎮 NetworkManager: Server player ID set to:", playerId);
   }
 
   public getServerPlayerId(): string | null {
@@ -226,12 +226,37 @@ export class NetworkManager {
   private handleMessage(data: string): void {
     try {
       const message: GameMessage = JSON.parse(data);
+
+      // Only log important messages, not every game_state update
+      if (message.type !== "game_state") {
+        console.log("📨 NetworkManager: Received message:", message.type);
+      }
+
+      // Special logging for world_state messages
+      if (message.type === "world_state") {
+        console.log("🌍 NetworkManager: WORLD STATE MESSAGE RECEIVED!");
+        console.log(
+          "🌍 NetworkManager: World state data preview:",
+          JSON.stringify(message.data).substring(0, 200) + "..."
+        );
+      }
+
+      // Special logging for room_joined messages
+      if (message.type === "room_joined") {
+        console.log("🏠 NetworkManager: ROOM JOINED MESSAGE RECEIVED!");
+        console.log("🏠 NetworkManager: Room joined data:", message.data);
+        console.log("🏠 NetworkManager: Room joined connection_state:", message.connection_state);
+      }
+
       const handler = this.messageHandlers.get(message.type);
 
       if (handler) {
         handler(message.data);
       } else {
-        console.log("Unhandled message type:", message.type, message.data);
+        // Don't spam unhandled game_state messages during initialization
+        if (message.type !== "game_state") {
+          console.warn("❌ NetworkManager: Unhandled message type:", message.type, message.data);
+        }
       }
     } catch (error) {
       console.error("Error parsing message:", error);
@@ -240,7 +265,7 @@ export class NetworkManager {
 
   private setupMessageHandlers(): void {
     // Default message handlers
-    // Note: room_joined and game_state handlers are registered by NetworkSystem
+    // Note: room_joined, game_state, and world_state handlers are registered by NetworkSystem
     // to avoid conflicts with multiple components trying to handle the same messages
 
     this.onMessage("room_left", (data) => {

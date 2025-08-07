@@ -3,12 +3,37 @@ Game world simulation for server-side multiplayer logic
 """
 import asyncio
 import time
-from typing import Dict, List, Optional
+import random
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from uuid import uuid4
 from random import choice
 
-from app.network.protocol import PlayerState, EnemyState, ProjectileState, GameStateData, InputAction
+from app.network.protocol import PlayerState, EnemyState, ProjectileState, GameStateData, InputAction, WorldStateData, PlatformState
+
+
+class Platform:
+    """Platform state for synchronization"""
+
+    def __init__(self, platform_id: str, x: float, y: float, width: float, height: float, platform_type: str = "static"):
+        self.platform_id = platform_id
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.platform_type = platform_type
+        self.moving_data = None  # For moving platforms
+
+    def to_dict(self):
+        return {
+            "platform_id": self.platform_id,
+            "x": self.x,
+            "y": self.y,
+            "width": self.width,
+            "height": self.height,
+            "platform_type": self.platform_type,
+            "moving_data": self.moving_data
+        }
 
 
 class GameWorld:
@@ -23,12 +48,14 @@ class GameWorld:
         self.players: Dict[str, PlayerState] = {}
         self.enemies: Dict[str, EnemyState] = {}
         self.projectiles: Dict[str, ProjectileState] = {}
+        self.platforms: Dict[str, Platform] = {}
 
         # Game constants (synced with client)
-        self.world_width = 800
+        self.world_width = 12000
         self.world_height = 600
         self.gravity = 800
         self.ground_y = 700  # Match client platform at y=700
+        self.left_boundary = -2000
 
         # Physics constants
         self.player_speed = 200
@@ -40,8 +67,125 @@ class GameWorld:
         # Authority tracking for conflict resolution
         self.object_authorities: Dict[str, str] = {}  # object_id -> player_id
 
-        # Initialize enemies when world is created
+        # World generation seed for consistent layouts
+        self.world_seed = random.randint(1, 1000000)
+        random.seed(self.world_seed)
+
+        # Initialize world when created
+        self.generate_world()
+
+    def generate_world(self):
+        """Generate consistent world layout for all clients"""
+        print(f"🌍 Generating world for room {self.room_id} with seed {self.world_seed}")
+
+        # Generate ground platforms
+        self.generate_ground_platforms()
+
+        # Generate floating platforms
+        self.generate_floating_platforms()
+
+        # Generate moving platforms
+        self.generate_moving_platforms()
+
+        # Generate enemies
         self.create_enemies()
+
+        print(f"🌍 World generation complete: {len(self.platforms)} platforms, {len(self.enemies)} enemies")
+
+    def generate_ground_platforms(self):
+        """Generate ground platforms that span the entire world"""
+        platform_width = 192  # 6 tiles
+        platform_height = 64  # 2 tiles
+        total_world_width = self.world_width - self.left_boundary
+        num_platforms = int(total_world_width / platform_width) + 2
+
+        for i in range(num_platforms):
+            x = self.left_boundary + i * platform_width
+            platform_id = f"ground_{i}"
+            platform = Platform(platform_id, x, self.ground_y, platform_width, platform_height, "ground")
+            self.platforms[platform_id] = platform
+
+    def generate_floating_platforms(self):
+        """Generate floating platforms with consistent positioning"""
+        # Use deterministic random generation based on seed
+        random.seed(self.world_seed)
+
+        base_platform_count = 25
+        low_platform_count = int(base_platform_count * 0.6)
+        mid_platform_count = int(base_platform_count * 0.3)
+        high_platform_count = int(base_platform_count * 0.1)
+
+        platform_id_counter = 0
+
+        # Generate low platforms
+        for i in range(low_platform_count):
+            x = self.left_boundary + 150 + random.random() * (self.world_width - 300)
+            y = self.ground_y - 200 + random.random() * 150
+            width = 80 + random.random() * 160
+
+            platform_id = f"floating_low_{platform_id_counter}"
+            platform = Platform(platform_id, x, y, width, 32, "floating")
+            self.platforms[platform_id] = platform
+            platform_id_counter += 1
+
+        # Generate mid platforms
+        for i in range(mid_platform_count):
+            x = self.left_boundary + 200 + random.random() * (self.world_width - 400)
+            y = 350 + random.random() * 150
+            width = 64 + random.random() * 128
+
+            platform_id = f"floating_mid_{platform_id_counter}"
+            platform = Platform(platform_id, x, y, width, 32, "floating")
+            self.platforms[platform_id] = platform
+            platform_id_counter += 1
+
+        # Generate high platforms
+        for i in range(high_platform_count):
+            x = self.left_boundary + 250 + random.random() * (self.world_width - 500)
+            y = 200 + random.random() * 150
+            width = 64 + random.random() * 96
+
+            platform_id = f"floating_high_{platform_id_counter}"
+            platform = Platform(platform_id, x, y, width, 32, "floating")
+            self.platforms[platform_id] = platform
+            platform_id_counter += 1
+
+    def generate_moving_platforms(self):
+        """Generate moving platforms with consistent positioning"""
+        random.seed(self.world_seed + 1000)  # Different seed for moving platforms
+
+        moving_platform_count = 8
+        platform_id_counter = 0
+
+        for i in range(moving_platform_count):
+            x = self.left_boundary + 200 + random.random() * (self.world_width - 400)
+
+            # Create moving platforms at different heights
+            if i < moving_platform_count * 0.6:
+                start_y = self.ground_y - 150 + random.random() * 100
+                min_y = start_y - 80
+                max_y = start_y + 80
+            elif i < moving_platform_count * 0.9:
+                start_y = 400 + random.random() * 150
+                min_y = start_y - 100
+                max_y = start_y + 100
+            else:
+                start_y = 300 + random.random() * 100
+                min_y = start_y - 120
+                max_y = start_y + 120
+
+            width = 96 + random.random() * 128
+
+            platform_id = f"moving_{platform_id_counter}"
+            platform = Platform(platform_id, x, start_y, width, 32, "moving")
+            platform.moving_data = {
+                "min_y": min_y,
+                "max_y": max_y,
+                "speed": 50,
+                "direction": -1
+            }
+            self.platforms[platform_id] = platform
+            platform_id_counter += 1
 
     def add_player(self, player_id: str, username: str, x: float = 100, y: float = 650) -> PlayerState:
         """Add a new player to the world"""
@@ -110,6 +254,27 @@ class GameWorld:
 
         for proj_id in projectiles_to_remove:
             del self.projectiles[proj_id]
+
+        # Update moving platforms
+        self.update_moving_platforms(delta_time)
+
+    def update_moving_platforms(self, delta_time: float):
+        """Update moving platform positions"""
+        for platform_id, platform in self.platforms.items():
+            if platform.platform_type == "moving" and platform.moving_data:
+                min_y = platform.moving_data["min_y"]
+                max_y = platform.moving_data["max_y"]
+                speed = platform.moving_data["speed"]
+                direction = platform.moving_data["direction"]
+
+                # Update position
+                platform.y += speed * direction * delta_time
+
+                # Change direction at boundaries
+                if platform.y <= min_y and direction == -1:
+                    platform.moving_data["direction"] = 1
+                elif platform.y >= max_y and direction == 1:
+                    platform.moving_data["direction"] = -1
 
     def update_player(self, player: PlayerState, delta_time: float):
         """Update single player state"""
@@ -185,29 +350,39 @@ class GameWorld:
         return projectile_id
 
     def create_enemies(self):
-        """Create initial enemies in the world"""
-        # Create enemies matching the client-side setup
-        enemies_config = [
-            {"id": "enemy_1", "type": "owlet", "x": 300, "y": 650, "health": 50},
-            {"id": "enemy_2", "type": "owlet", "x": 600, "y": 650, "health": 50},
-            {"id": "boss_1", "type": "pink_boss", "x": 800, "y": 650, "health": 100}
+        """Create initial enemies in the world with consistent positioning"""
+        random.seed(self.world_seed + 2000)  # Different seed for enemies
+
+        # Create enemies with deterministic positioning
+        enemy_positions = [
+            (300, 650, "owlet"),
+            (600, 650, "owlet"),
+            (800, 650, "pink_boss"),
+            (1200, 650, "slime"),
+            (1500, 650, "owlet"),
+            (1800, 650, "slime"),
+            (2100, 650, "owlet"),
+            (2400, 650, "pink_boss"),
         ]
 
-        for config in enemies_config:
+        for i, (x, y, enemy_type) in enumerate(enemy_positions):
+            enemy_id = f"enemy_{i + 1}"
+            health = 100 if enemy_type == "pink_boss" else 50
+
             enemy = EnemyState(
-                enemy_id=config["id"],
-                enemy_type=config["type"],
-                x=config["x"],
-                y=config["y"],
+                enemy_id=enemy_id,
+                enemy_type=enemy_type,
+                x=x,
+                y=y,
                 velocity_x=0,
                 velocity_y=0,
-                health=config["health"],
+                health=health,
                 facing_right=True
             )
-            self.enemies[config["id"]] = enemy
+            self.enemies[enemy_id] = enemy
             # Initialize authority based on closest player (if any)
-            self.update_object_authority(config["id"], config["x"], config["y"])
-            print(f"🦴 Created enemy: {config['id']} ({config['type']}) at ({config['x']}, {config['y']})")
+            self.update_object_authority(enemy_id, x, y)
+            print(f"🦴 Created enemy: {enemy_id} ({enemy_type}) at ({x}, {y})")
 
     def update_enemy(self, enemy: EnemyState, delta_time: float):
         """Update single enemy state - only if we have authority"""
@@ -261,6 +436,17 @@ class GameWorld:
             players=list(self.players.values()),
             enemies=list(self.enemies.values()),
             projectiles=list(self.projectiles.values())
+        )
+
+    def get_world_state(self) -> WorldStateData:
+        """Get world layout state for client synchronization"""
+        return WorldStateData(
+            world_seed=self.world_seed,
+            world_width=self.world_width,
+            world_height=self.world_height,
+            ground_y=self.ground_y,
+            left_boundary=self.left_boundary,
+            platforms=[PlatformState(**platform.to_dict()) for platform in self.platforms.values()]
         )
 
     def has_players(self) -> bool:
