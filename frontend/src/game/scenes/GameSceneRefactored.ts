@@ -187,6 +187,11 @@ export class GameSceneRefactored extends Phaser.Scene {
 
     // Initialize game state manager
     this.gameStateManager.setRoomData(this.roomData);
+
+    // Set up AI references for enemy system
+    const platforms = this.worldGenerator.getPlatforms();
+    this.enemySystem.setPlayerReference(player);
+    this.enemySystem.setPlatformsReference(platforms);
   }
 
   private setupPhysicsCollisions() {
@@ -264,10 +269,9 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Update moving platforms
     this.worldGenerator.updateMovingPlatforms();
 
-    // Update side-scrolling camera and world streaming
+    // Update side-scrolling camera
     this.cameraSystem.updateSideScrollingCamera();
     const player = this.playerSystem.getPlayer();
-    this.worldGenerator.updateWorldStreaming(player.x);
 
     // Check for level completion (reached the end of the world)
     this.checkLevelCompletion(player);

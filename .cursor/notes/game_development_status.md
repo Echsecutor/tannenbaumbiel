@@ -36,7 +36,13 @@
 - ✅ **Bewegungssteuerung**: Arrow Keys + WASD Support (Space bar for shooting)
 - ✅ **Physics Engine**: Arcade Physics mit Kollisionserkennung
 - ✅ **Plattform-Spiel**: Springbare Plattformen und Hindernisse
-- ✅ **Gegner-System**: Owlet Monster + Pink Monster Boss
+- ✅ **Gegner-System**: Enhanced AI with Smart Movement and Jumping
+  - **Smart AI Behavior**: Enemies move towards player with 70% probability when within 400px range
+  - **Jumping Capability**: Enemies can jump onto platforms with 30% probability when near edges
+  - **Platform Navigation**: Edge detection system allows enemies to navigate the world intelligently
+  - **AI Update System**: Periodic AI updates (500ms) with cooldown management for smooth performance
+  - **Animation Integration**: Jumping enemies play appropriate movement animations
+  - **Legacy Enemies**: Owlet Monster + Pink Monster Boss (kept for future use)
 - ✅ **Kampf-System**: Animated Fireball Projectiles + Enemy Health (replaced white pixel with 6-frame animated sprites)
 - ✅ **Animationen**: Sprite-basierte Character Animationen
 - ✅ **Mobile Support**: Touch Controls für Bewegung/Sprung/Schießen, Fullscreen Landscape Mode
@@ -97,6 +103,9 @@ frontend/public/assets/sprites/
 - **Death Sequences**: Full death animation before enemy removal
 - **Dead Enemy Behavior**: Dying enemies stop moving, disable physics interactions, and cannot hurt players during death animation
 - **Sprite Flipping**: All sprites auto-flip based on movement direction (left-facing by default)
+- **AI-driven Movement**: Enemies move towards player when detected, with intelligent platform navigation
+- **Jumping Animations**: Enemies play movement animations when jumping (run for adventurer, move for slime)
+- **Smart Behavior**: Edge detection triggers jumping to navigate platforms and reach the player
 
 ## 🚀 Architektur
 

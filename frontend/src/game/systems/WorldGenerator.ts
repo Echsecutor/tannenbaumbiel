@@ -1,5 +1,5 @@
 /**
- * WorldGenerator - Handles procedural world generation, platforms, backgrounds, and streaming
+ * WorldGenerator - Simplified platform generation for the winter-themed game
  */
 import Phaser from "phaser";
 import { EnemySystem } from "./EnemySystem";
@@ -12,28 +12,11 @@ export class WorldGenerator {
   private currentLevel: number = 1;
   private isBossLevel: boolean = false;
 
-  // Moving platform state tracking
-  private platformMovementData: Map<
-    string,
-    {
-      minY: number;
-      maxY: number;
-      speed: number;
-      direction: number; // 1 for up, -1 for down
-    }
-  > = new Map();
-
   // World configuration
-  private leftBoundary: number = -2000;
-  private rightBoundary: number = 12000;
-  private chunkSize: number = 1024;
-
-  // Procedural generation state
-  private platformChunks: Map<number, Phaser.Physics.Arcade.StaticGroup> =
-    new Map();
-  private backgroundElements: Map<number, Phaser.GameObjects.Group> = new Map();
-  private chunksGenerated: Set<number> = new Set();
-  private visibleChunks: Set<number> = new Set();
+  private readonly TILE_SIZE = 32;
+  private readonly GROUND_Y = 700;
+  private readonly WORLD_WIDTH = 12000;
+  private readonly LEFT_BOUNDARY = -2000;
 
   constructor(scene: Phaser.Scene, enemySystem: EnemySystem) {
     this.scene = scene;
@@ -44,42 +27,37 @@ export class WorldGenerator {
     this.currentLevel = level;
     this.isBossLevel = this.currentLevel % 3 === 0;
     console.log(
-      `🌍 WorldGenerator: Level set to ${this.currentLevel}${this.isBossLevel ? " (BOSS ARENA!)" : ""}`
+      `🌍 WorldGenerator: Level ${this.currentLevel}${this.isBossLevel ? " (BOSS)" : ""}`
     );
   }
 
   getRightBoundary(): number {
-    return this.rightBoundary;
+    return this.WORLD_WIDTH;
   }
 
   createWorld(): Phaser.Physics.Arcade.StaticGroup {
-    // Extended winter forest background for side-scrolling
+    // Create scrolling background
     this.createScrollingBackground();
 
-    // Initialize platforms groups
+    // Initialize platform groups
     this.platforms = this.scene.physics.add.staticGroup();
     this.movingPlatforms = this.scene.physics.add.group();
 
-    // Set extended world bounds for side-scrolling
+    // Set world bounds
     this.scene.physics.world.setBounds(
-      this.leftBoundary,
+      this.LEFT_BOUNDARY,
       0,
-      this.rightBoundary - this.leftBoundary,
+      this.WORLD_WIDTH - this.LEFT_BOUNDARY,
       this.scene.scale.height
     );
 
     if (this.isBossLevel) {
-      // Create boss arena instead of normal level
       this.createBossArena();
     } else {
-      // Generate normal level chunks around player start position
-      const startChunk = Math.floor(100 / this.chunkSize); // Player starts at x=100
-      for (let i = startChunk - 2; i <= startChunk + 3; i++) {
-        this.generateChunk(i);
-      }
+      this.generateNormalLevel();
     }
 
-    // Snow particles
+    // Add snow effect
     this.createSnowEffect();
 
     return this.platforms;
@@ -87,508 +65,195 @@ export class WorldGenerator {
 
   private createScrollingBackground() {
     const bgImage = this.scene.textures.get("winter_bg");
-    const bgOriginalWidth = bgImage.source[0].width; // 288px
-    const bgOriginalHeight = bgImage.source[0].height; // 208px
-
+    const bgWidth = bgImage.source[0].width;
+    const bgHeight = bgImage.source[0].height;
     const screenHeight = this.scene.scale.height;
-    const verticalScale = screenHeight / bgOriginalHeight;
+    const scale = screenHeight / bgHeight;
+    const scaledWidth = bgWidth * scale;
+    const numTiles =
+      Math.ceil((this.WORLD_WIDTH - this.LEFT_BOUNDARY) / scaledWidth) + 2;
 
-    const scaledBgWidth = Math.round(bgOriginalWidth * verticalScale);
-    const numBgTiles =
-      Math.ceil((this.rightBoundary - this.leftBoundary) / scaledBgWidth) + 2;
-
-    for (let i = 0; i < numBgTiles; i++) {
-      const x = Math.round(this.leftBoundary + i * scaledBgWidth);
-      const y = 0;
-      const bg = this.scene.add.image(x, y, "winter_bg");
+    for (let i = 0; i < numTiles; i++) {
+      const x = this.LEFT_BOUNDARY + i * scaledWidth;
+      const bg = this.scene.add.image(x, 0, "winter_bg");
       bg.setOrigin(0, 0);
-      bg.setScale(verticalScale, verticalScale);
-      bg.setScrollFactor(0.1); // Background scrolls slowly
+      bg.setScale(scale);
+      bg.setScrollFactor(0.1);
     }
   }
 
-  private generateChunk(chunkIndex: number) {
-    if (this.chunksGenerated.has(chunkIndex)) return;
+  private generateNormalLevel() {
+    // Generate ground platforms
+    this.generateGroundPlatforms();
 
-    const chunkX = chunkIndex * this.chunkSize;
-    // Generate chunk content
-    const chunkPlatforms = this.scene.physics.add.staticGroup();
+    // Generate floating platforms
+    this.generateFloatingPlatforms();
 
-    this.generateGroundPlatforms(chunkX, chunkPlatforms);
-    this.generateFloatingPlatforms(chunkX, chunkPlatforms);
-    this.generateMovingPlatformsForChunk(chunkX, chunkIndex);
-    this.generateBackgroundElements(chunkX, chunkIndex);
-    this.generateChunkEnemies(chunkX, chunkIndex);
+    // Generate moving platforms
+    this.generateMovingPlatforms();
 
-    this.platformChunks.set(chunkIndex, chunkPlatforms);
-    this.chunksGenerated.add(chunkIndex);
+    // Generate enemies
+    this.generateEnemies();
   }
 
-  private createWinterTiledPlatform(
+  private generateGroundPlatforms() {
+    const platformWidth = 192; // 6 tiles
+    const platformHeight = 64; // 2 tiles
+    const totalWorldWidth = this.WORLD_WIDTH - this.LEFT_BOUNDARY;
+    const numPlatforms = Math.ceil(totalWorldWidth / platformWidth) + 2;
+
+    for (let i = 0; i < numPlatforms; i++) {
+      const x = this.LEFT_BOUNDARY + i * platformWidth;
+      this.createTiledPlatform(x, this.GROUND_Y, platformWidth, platformHeight);
+    }
+  }
+
+  private generateFloatingPlatforms() {
+    // Generate more platforms with focus on low, accessible platforms
+    const basePlatformCount = 25 + this.currentLevel * 3; // Increased base count
+    const lowPlatformCount = Math.floor(basePlatformCount * 0.6); // 60% low platforms
+    const midPlatformCount = Math.floor(basePlatformCount * 0.3); // 30% mid platforms
+    const highPlatformCount = Math.floor(basePlatformCount * 0.1); // 10% high platforms
+
+    // Generate low platforms (easily reachable by jumping)
+    for (let i = 0; i < lowPlatformCount; i++) {
+      const x =
+        this.LEFT_BOUNDARY + 150 + Math.random() * (this.WORLD_WIDTH - 300);
+      const y = this.GROUND_Y - 200 + Math.random() * 150; // 500-650px (reachable by jump)
+      const width = 80 + Math.random() * 160; // 80-240px wide
+
+      if (this.isValidPlatformPosition(x, y, width)) {
+        this.createTiledPlatform(x, y, width, 32);
+      }
+    }
+
+    // Generate mid platforms (reachable from low platforms)
+    for (let i = 0; i < midPlatformCount; i++) {
+      const x =
+        this.LEFT_BOUNDARY + 200 + Math.random() * (this.WORLD_WIDTH - 400);
+      const y = 350 + Math.random() * 150; // 350-500px
+      const width = 64 + Math.random() * 128; // 64-192px wide
+
+      if (this.isValidPlatformPosition(x, y, width)) {
+        this.createTiledPlatform(x, y, width, 32);
+      }
+    }
+
+    // Generate high platforms (challenging to reach)
+    for (let i = 0; i < highPlatformCount; i++) {
+      const x =
+        this.LEFT_BOUNDARY + 250 + Math.random() * (this.WORLD_WIDTH - 500);
+      const y = 200 + Math.random() * 150; // 200-350px
+      const width = 64 + Math.random() * 96; // 64-160px wide
+
+      if (this.isValidPlatformPosition(x, y, width)) {
+        this.createTiledPlatform(x, y, width, 32);
+      }
+    }
+  }
+
+  private generateMovingPlatforms() {
+    const movingPlatformCount = Math.min(5 + this.currentLevel * 2, 12); // Increased count
+
+    for (let i = 0; i < movingPlatformCount; i++) {
+      const x =
+        this.LEFT_BOUNDARY + 200 + Math.random() * (this.WORLD_WIDTH - 400);
+
+      // Create moving platforms at different heights for better accessibility
+      let startY, minY, maxY;
+
+      if (i < movingPlatformCount * 0.6) {
+        // Low moving platforms (easily reachable)
+        startY = this.GROUND_Y - 150 + Math.random() * 100; // 550-650px
+        minY = startY - 80;
+        maxY = startY + 80;
+      } else if (i < movingPlatformCount * 0.9) {
+        // Mid moving platforms
+        startY = 400 + Math.random() * 150; // 400-550px
+        minY = startY - 100;
+        maxY = startY + 100;
+      } else {
+        // High moving platforms
+        startY = 300 + Math.random() * 100; // 300-400px
+        minY = startY - 120;
+        maxY = startY + 120;
+      }
+
+      this.createMovingPlatform(x, startY, minY, maxY);
+    }
+  }
+
+  private generateEnemies() {
+    const enemyCount = 5 + this.currentLevel * 2;
+
+    for (let i = 0; i < enemyCount; i++) {
+      const x =
+        this.LEFT_BOUNDARY + 200 + Math.random() * (this.WORLD_WIDTH - 400);
+      const y = this.GROUND_Y - 50;
+
+      const bossChance = Math.min(0.1 + (this.currentLevel - 1) * 0.05, 0.4);
+      const enemyType = Math.random() < bossChance ? "adventurer" : "slime";
+
+      this.enemySystem.createEnemy(x, y, enemyType, 0);
+    }
+  }
+
+  private createTiledPlatform(
     x: number,
     y: number,
     width: number,
-    height: number = 64,
-    platformGroup: Phaser.Physics.Arcade.StaticGroup
+    height: number
   ) {
-    const tileSize = 32;
-    const tilesWide = Math.ceil(width / tileSize);
-    const tilesHigh = Math.ceil(height / tileSize);
+    const tilesWide = Math.ceil(width / this.TILE_SIZE);
+    const tilesHigh = Math.ceil(height / this.TILE_SIZE);
 
     for (let row = 0; row < tilesHigh; row++) {
       for (let col = 0; col < tilesWide; col++) {
-        const tileX = x + col * tileSize;
-        const tileY = y + row * tileSize;
-
-        let tileTexture: string;
-
-        if (row === 0) {
-          // Top row
-          if (col === 0) {
-            tileTexture = "winter_ground_upper_left";
-          } else if (col === tilesWide - 1) {
-            tileTexture = "winter_ground_upper_right";
-          } else {
-            tileTexture = "winter_ground_upper_middle";
-          }
-        } else if (row === tilesHigh - 1) {
-          // Bottom row
-          if (col === 0) {
-            tileTexture = "winter_ground_lower_left";
-          } else if (col === tilesWide - 1) {
-            tileTexture = "winter_ground_lower_right";
-          } else {
-            tileTexture = "winter_ground_lower_middle";
-          }
-        } else {
-          // Middle rows
-          tileTexture = "winter_ground_inner";
-        }
+        const tileX = x + col * this.TILE_SIZE;
+        const tileY = y + row * this.TILE_SIZE;
+        const tileTexture = this.getTileTexture(row, col, tilesWide, tilesHigh);
 
         const tile = this.platforms.create(tileX, tileY, tileTexture);
         tile.setOrigin(0, 0);
         tile.refreshBody();
-        platformGroup.add(tile);
       }
     }
   }
 
-  private generateGroundPlatforms(
-    chunkX: number,
-    chunkPlatforms: Phaser.Physics.Arcade.StaticGroup
-  ) {
-    const groundY = 700;
-    const platformWidth = 192; // 6 tiles * 32px
-    const platformHeight = 64; // 2 tiles high
-    const numGroundPlatforms = Math.floor(this.chunkSize / platformWidth) + 1;
-
-    for (let i = 0; i < numGroundPlatforms; i++) {
-      const x = chunkX + i * platformWidth;
-      this.createWinterTiledPlatform(
-        x,
-        groundY,
-        platformWidth,
-        platformHeight,
-        chunkPlatforms
-      );
-    }
-  }
-
-  private generateFloatingPlatforms(
-    chunkX: number,
-    chunkPlatforms: Phaser.Physics.Arcade.StaticGroup
-  ) {
-    // Generate more platforms with multiple tiers for better accessibility
-    this.generateLowTierPlatforms(chunkX, chunkPlatforms);
-    this.generateMidTierPlatforms(chunkX, chunkPlatforms);
-    this.generateHighTierPlatforms(chunkX, chunkPlatforms);
-  }
-
-  private generateLowTierPlatforms(
-    chunkX: number,
-    chunkPlatforms: Phaser.Physics.Arcade.StaticGroup
-  ) {
-    // Low tier platforms - easily reachable from ground (jump height ~150px)
-    const numLowPlatforms = 2 + Math.floor(Math.random() * 2); // 2-3 platforms
-    const groundY = 700;
-    const maxJumpHeight = 150; // Estimated player jump capability
-    const lowTierMinY = groundY - maxJumpHeight + 20; // y=570
-    const lowTierMaxY = groundY - 80; // y=620
-
-    for (let i = 0; i < numLowPlatforms; i++) {
-      const platformWidth = 96 + Math.random() * 64; // 96-160px wide
-      const platformHeight = 32;
-      const x =
-        chunkX +
-        150 +
-        i * (this.chunkSize / numLowPlatforms) +
-        Math.random() * 100;
-      const y = lowTierMinY + Math.random() * (lowTierMaxY - lowTierMinY);
-
-      if (this.isValidPlatformPosition(x, y, platformWidth, chunkPlatforms)) {
-        this.createWinterTiledPlatform(
-          x,
-          y,
-          platformWidth,
-          platformHeight,
-          chunkPlatforms
-        );
-      }
-    }
-  }
-
-  private generateMidTierPlatforms(
-    chunkX: number,
-    chunkPlatforms: Phaser.Physics.Arcade.StaticGroup
-  ) {
-    // Mid tier platforms - reachable from low tier platforms
-    const numMidPlatforms = 2 + Math.floor(Math.random() * 2); // 2-3 platforms
-    const midTierMinY = 450; // Reachable from low platforms
-    const midTierMaxY = 520;
-
-    for (let i = 0; i < numMidPlatforms; i++) {
-      const platformWidth = 80 + Math.random() * 80; // 80-160px wide
-      const platformHeight = 32;
-      const x =
-        chunkX +
-        200 +
-        i * (this.chunkSize / numMidPlatforms) +
-        Math.random() * 150;
-      const y = midTierMinY + Math.random() * (midTierMaxY - midTierMinY);
-
-      if (this.isValidPlatformPosition(x, y, platformWidth, chunkPlatforms)) {
-        this.createWinterTiledPlatform(
-          x,
-          y,
-          platformWidth,
-          platformHeight,
-          chunkPlatforms
-        );
-      }
-    }
-  }
-
-  private generateHighTierPlatforms(
-    chunkX: number,
-    chunkPlatforms: Phaser.Physics.Arcade.StaticGroup
-  ) {
-    // High tier platforms - reachable from mid tier platforms
-    const numHighPlatforms = 1 + Math.floor(Math.random() * 2); // 1-2 platforms
-    const highTierMinY = 320;
-    const highTierMaxY = 400;
-
-    for (let i = 0; i < numHighPlatforms; i++) {
-      const platformWidth = 64 + Math.random() * 96; // 64-160px wide
-      const platformHeight = 32;
-      const x =
-        chunkX +
-        300 +
-        i * (this.chunkSize / (numHighPlatforms + 1)) +
-        Math.random() * 200;
-      const y = highTierMinY + Math.random() * (highTierMaxY - highTierMinY);
-
-      if (this.isValidPlatformPosition(x, y, platformWidth, chunkPlatforms)) {
-        this.createWinterTiledPlatform(
-          x,
-          y,
-          platformWidth,
-          platformHeight,
-          chunkPlatforms
-        );
-      }
+  private getTileTexture(
+    row: number,
+    col: number,
+    tilesWide: number,
+    tilesHigh: number
+  ): string {
+    if (row === 0) {
+      // Top row
+      if (col === 0) return "winter_ground_upper_left";
+      if (col === tilesWide - 1) return "winter_ground_upper_right";
+      return "winter_ground_upper_middle";
+    } else if (row === tilesHigh - 1) {
+      // Bottom row
+      if (col === 0) return "winter_ground_lower_left";
+      if (col === tilesWide - 1) return "winter_ground_lower_right";
+      return "winter_ground_lower_middle";
+    } else {
+      // Middle rows
+      return "winter_ground_inner";
     }
   }
 
   private isValidPlatformPosition(
     x: number,
     y: number,
-    _width: number,
-    chunkPlatforms: Phaser.Physics.Arcade.StaticGroup
+    _width: number
   ): boolean {
-    const minHorizontalDistance = 120;
-    const minVerticalDistance = 80;
+    const minDistance = 120;
 
-    // Check against existing platforms in this chunk
-    return !chunkPlatforms.children.entries.some((existingPlatform: any) => {
-      const horizontalDistance = Math.abs(existingPlatform.x - x);
-      const verticalDistance = Math.abs(existingPlatform.y - y);
-
-      return (
-        horizontalDistance < minHorizontalDistance &&
-        verticalDistance < minVerticalDistance
-      );
+    return !this.platforms.children.entries.some((platform: any) => {
+      const horizontalDistance = Math.abs(platform.x - x);
+      const verticalDistance = Math.abs(platform.y - y);
+      return horizontalDistance < minDistance && verticalDistance < 80;
     });
-  }
-
-  private generateMovingPlatformsForChunk(chunkX: number, chunkIndex: number) {
-    // Don't generate moving platforms in boss levels (they have their own)
-    if (this.isBossLevel) return;
-
-    // Generate 1-2 moving platforms per chunk occasionally
-    const shouldGenerateMovingPlatform = Math.random() < 0.4; // 40% chance
-    if (!shouldGenerateMovingPlatform) return;
-
-    const numMovingPlatforms = Math.random() < 0.7 ? 1 : 2; // 70% chance for 1, 30% for 2
-
-    for (let i = 0; i < numMovingPlatforms; i++) {
-      // Position moving platforms in different areas of the chunk
-      const xOffset = (this.chunkSize / (numMovingPlatforms + 1)) * (i + 1);
-      const x = chunkX + xOffset + Math.random() * 100 - 50; // Add some randomness
-
-      // Choose movement range for the platform
-      const movementRanges = [
-        { start: 600, min: 550, max: 650 }, // Low movement range
-        { start: 500, min: 450, max: 550 }, // Mid movement range
-        { start: 400, min: 350, max: 450 }, // High movement range
-      ];
-
-      const range =
-        movementRanges[Math.floor(Math.random() * movementRanges.length)];
-
-      // Check if there's space for this moving platform
-      const hasSpace = this.isMovingPlatformSpaceFree(
-        x,
-        range.start,
-        range.min,
-        range.max
-      );
-
-      if (hasSpace) {
-        this.createMovingPlatform(x, range.start, range.min, range.max);
-        console.log(
-          `🔧 Generated moving platform in chunk ${chunkIndex} at x=${x}`
-        );
-      }
-    }
-  }
-
-  private isMovingPlatformSpaceFree(
-    x: number,
-    _startY: number,
-    _minY: number,
-    _maxY: number
-  ): boolean {
-    // Check if any existing moving platforms would conflict
-    return !this.movingPlatforms.children.entries.some((platform: any) => {
-      const platformX = platform.x;
-      const horizontalDistance = Math.abs(platformX - x);
-
-      // Platforms should be at least 200px apart horizontally
-      return horizontalDistance < 200;
-    });
-  }
-
-  private generateBackgroundElements(_chunkX: number, chunkIndex: number) {
-    // Simplified background - no perspective tree layers
-    // The main background image provides sufficient visual depth
-    const backgroundGroup = this.scene.add.group();
-    this.backgroundElements.set(chunkIndex, backgroundGroup);
-  }
-
-  private generateChunkEnemies(chunkX: number, chunkIndex: number) {
-    // Don't generate regular enemies in boss levels
-    if (this.isBossLevel) return;
-
-    // Scale number of enemies with level (1-2 at level 1, up to 4-6 at higher levels)
-    const baseEnemies = 1 + Math.floor(Math.random() * 2);
-    const levelBonus = Math.floor((this.currentLevel - 1) / 2); // +1 enemy every 2 levels
-    const numEnemies = Math.min(baseEnemies + levelBonus, 6); // Cap at 6 enemies per chunk
-
-    console.log(
-      `👹 Generating ${numEnemies} enemies for level ${this.currentLevel}, chunk ${chunkIndex}`
-    );
-
-    for (let i = 0; i < numEnemies; i++) {
-      const x = chunkX + 150 + Math.random() * (this.chunkSize - 300);
-      const y = 650;
-
-      // Higher levels have more boss enemies
-      const bossChance = Math.min(0.1 + (this.currentLevel - 1) * 0.05, 0.4); // 10% base, +5% per level, cap at 40%
-      const enemyTypes =
-        Math.random() < bossChance ? ["adventurer"] : ["slime", "slime"];
-      const enemyType =
-        enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
-
-      this.enemySystem.createEnemy(x, y, enemyType, chunkIndex);
-    }
-  }
-
-  private createBossArena() {
-    console.log(
-      `🏛️ Creating Compact Boss Arena for Level ${this.currentLevel}`
-    );
-
-    const centerX = this.scene.scale.width / 2;
-    const screenHeight = this.scene.scale.height;
-
-    // Clear any existing platforms first
-    this.platforms.clear(true, true);
-    console.log("🧹 Cleared existing platforms for boss arena");
-
-    // Create compact arena ground - smaller area focused around boss
-    this.createWinterTiledPlatform(
-      centerX - 200, // Reduced from -400 to -200
-      screenHeight - 100,
-      400, // Reduced from 800 to 400 - smaller arena
-      100, // Thick ground
-      this.platforms
-    );
-
-    // Create the tree boss in the center
-    const bossY = screenHeight - 100; // Position boss on top of the ground platform
-    const boss = this.enemySystem.createTreeBoss(centerX, bossY);
-
-    // Generate random platforms that avoid the boss collision box
-    this.generateBossArenaPlatforms(boss);
-
-    // No exit platform needed - boss defeat completes the level
-  }
-
-  private generateBossArenaPlatforms(boss: Phaser.Physics.Arcade.Sprite) {
-    console.log(
-      "🏗️ Generating boss arena platforms that avoid boss collision..."
-    );
-
-    if (!boss.body) {
-      console.warn("⚠️ Boss has no physics body for platform generation");
-      return;
-    }
-
-    // Wait a frame to ensure boss body is fully initialized
-    this.scene.time.delayedCall(16, () => {
-      this.generateBossArenaPlatformsDelayed(boss);
-    });
-  }
-
-  private generateBossArenaPlatformsDelayed(
-    boss: Phaser.Physics.Arcade.Sprite
-  ) {
-    if (!boss.body) {
-      console.warn("⚠️ Boss still has no physics body for platform generation");
-      return;
-    }
-
-    // Get boss position and size
-    const bossX = boss.x;
-    const bossY = boss.y;
-    const bossDisplayWidth = boss.width;
-    const bossDisplayHeight = boss.height;
-
-    console.log(`🌲 Boss position: (${bossX}, ${bossY})`);
-    console.log(
-      `🌲 Boss display size: ${bossDisplayWidth}x${bossDisplayHeight}`
-    );
-    console.log(`🌲 Boss scale: ${boss.scaleX}x${boss.scaleY}`);
-
-    // Create a large exclusion zone around the boss (5x the boss size)
-    const exclusionZoneSize = Math.max(bossDisplayWidth, bossDisplayHeight) * 5;
-    const exclusionZone = {
-      left: bossX - exclusionZoneSize / 2,
-      right: bossX + exclusionZoneSize / 2,
-      top: bossY - exclusionZoneSize,
-      bottom: bossY + exclusionZoneSize / 2, // Less space below since boss is on ground
-    };
-
-    console.log(
-      `🌲 Exclusion zone (${exclusionZoneSize.toFixed(1)}px): left=${exclusionZone.left.toFixed(1)}, right=${exclusionZone.right.toFixed(1)}, top=${exclusionZone.top.toFixed(1)}, bottom=${exclusionZone.bottom.toFixed(1)}`
-    );
-
-    // Generate 3-5 random platforms outside the exclusion zone
-    const numPlatforms = 3 + Math.floor(Math.random() * 3); // 3-5 platforms
-
-    for (let i = 0; i < numPlatforms; i++) {
-      let attempts = 0;
-      const maxAttempts = 30;
-      let platformCreated = false;
-
-      while (attempts < maxAttempts && !platformCreated) {
-        // Generate random platform position
-        const platformWidth = 80 + Math.random() * 120; // 80-200px wide
-        const platformHeight = 32;
-
-        // Define arena boundaries (outside exclusion zone)
-        const arenaLeft = Math.max(100, exclusionZone.right + 50); // Right of exclusion zone
-        const arenaRight = Math.min(1200, exclusionZone.left - 50); // Left of exclusion zone
-        const arenaTop = 200; // Minimum Y position
-        const arenaBottom = 600; // Maximum Y position (above ground)
-
-        // If arena is too small, expand it
-        if (arenaRight <= arenaLeft) {
-          // Use areas above and below the exclusion zone
-          const x = 100 + Math.random() * (1200 - 100 - platformWidth);
-          const y = arenaTop + Math.random() * (arenaBottom - arenaTop);
-
-          // Check if platform is in exclusion zone
-          const inExclusionZone = !(
-            x + platformWidth < exclusionZone.left ||
-            x > exclusionZone.right ||
-            y + platformHeight < exclusionZone.top ||
-            y > exclusionZone.bottom
-          );
-
-          if (!inExclusionZone) {
-            this.createWinterTiledPlatform(
-              x,
-              y,
-              platformWidth,
-              platformHeight,
-              this.platforms
-            );
-            console.log(
-              `✅ Created platform at (${x.toFixed(1)}, ${y.toFixed(1)}) with width ${platformWidth.toFixed(1)} - outside exclusion zone`
-            );
-            platformCreated = true;
-          } else {
-            console.log(
-              `❌ Platform at (${x.toFixed(1)}, ${y.toFixed(1)}) would be in exclusion zone, trying again...`
-            );
-            attempts++;
-          }
-        } else {
-          // Use the defined arena boundaries
-          const x =
-            arenaLeft +
-            Math.random() * (arenaRight - arenaLeft - platformWidth);
-          const y = arenaTop + Math.random() * (arenaBottom - arenaTop);
-
-          this.createWinterTiledPlatform(
-            x,
-            y,
-            platformWidth,
-            platformHeight,
-            this.platforms
-          );
-          console.log(
-            `✅ Created platform at (${x.toFixed(1)}, ${y.toFixed(1)}) with width ${platformWidth.toFixed(1)} - in arena boundaries`
-          );
-          platformCreated = true;
-        }
-      }
-
-      if (!platformCreated) {
-        console.log(
-          `⚠️ Could not find valid position for platform ${i + 1} after ${maxAttempts} attempts`
-        );
-      }
-    }
-
-    // Debug: List all platforms after generation
-    console.log(
-      `🔍 Total platforms after generation: ${this.platforms.children.entries.length}`
-    );
-    // Only show first 10 platforms to avoid spam
-    this.platforms.children.entries
-      .slice(0, 10)
-      .forEach((platform: any, index: number) => {
-        console.log(
-          `🔍 Platform ${index}: at (${platform.x.toFixed(1)}, ${platform.y.toFixed(1)}) with size ${platform.width.toFixed(1)}x${platform.height.toFixed(1)}`
-        );
-      });
-    if (this.platforms.children.entries.length > 10) {
-      console.log(
-        `🔍 ... and ${this.platforms.children.entries.length - 10} more platforms`
-      );
-    }
   }
 
   private createMovingPlatform(
@@ -597,46 +262,122 @@ export class WorldGenerator {
     minY: number,
     maxY: number
   ) {
-    // Create a moving platform as a kinematic body (moves but not affected by forces)
+    // Create a tiled platform with random width
+    const width = 96 + Math.random() * 128; // 96-224px wide
+    const height = 32;
+
+    // Create individual tiles for the moving platform
+    const tilesWide = Math.ceil(width / this.TILE_SIZE);
+    const tilesHigh = Math.ceil(height / this.TILE_SIZE);
+
+    // Create the main platform sprite at the center of the platform
+    const centerX = x + width / 2;
+    const centerY = startY + height / 2;
     const platform = this.scene.physics.add.sprite(
-      x,
-      startY,
+      centerX,
+      centerY,
       "winter_ground_upper_middle"
     );
 
-    // Add to moving platforms group FIRST
+    // Create a group for all tiles and store their relative positions
+    const tileGroup = this.scene.add.group();
+    const tilePositions: { tile: any; relativeX: number; relativeY: number }[] =
+      [];
+
+    // Add all tiles to the group and store their relative positions
+    for (let row = 0; row < tilesHigh; row++) {
+      for (let col = 0; col < tilesWide; col++) {
+        const tileX = x + col * this.TILE_SIZE;
+        const tileY = startY + row * this.TILE_SIZE;
+        const tileTexture = this.getTileTexture(row, col, tilesWide, tilesHigh);
+
+        const tile = this.scene.add.image(tileX, tileY, tileTexture);
+        tile.setOrigin(0, 0);
+        tileGroup.add(tile);
+
+        // Store relative position from platform center
+        tilePositions.push({
+          tile: tile,
+          relativeX: tileX - centerX,
+          relativeY: tileY - centerY,
+        });
+      }
+    }
+
     this.movingPlatforms.add(platform);
 
-    // Configure as kinematic body - this is key for moving platforms
-    platform.body.setImmovable(true); // Won't be pushed by collisions
-    platform.body.moves = true; // But can move under script control
-    platform.body.setSize(platform.width, 16); // Thin collision box
-
-    // Completely disable gravity - kinematic bodies shouldn't be affected by world forces
-    platform.body.allowGravity = false;
-    platform.body.setGravityY(0);
-
+    // Configure as moving platform
+    platform.body!.setImmovable(true);
+    platform.body!.setSize(width, 16);
+    platform.body!.allowGravity = false;
     platform.setDepth(10);
 
-    // Set initial velocity
-    const speed = 50; // pixels per second
-    platform.body.setVelocityY(-speed); // Start moving up
+    // Store movement data and tile group on the platform
+    platform.setData("minY", minY);
+    platform.setData("maxY", maxY);
+    platform.setData("speed", 50);
+    platform.setData("direction", -1); // Start moving up
+    platform.setData("tileGroup", tileGroup);
+    platform.setData("tilePositions", tilePositions);
+    platform.body!.setVelocityY(-50);
+  }
 
-    // Store movement data for this platform
-    const platformId = `platform_${x}_${startY}`;
-    this.platformMovementData.set(platformId, {
-      minY: minY,
-      maxY: maxY,
-      speed: speed,
-      direction: -1, // Start moving up
-    });
+  private createBossArena() {
+    const centerX = this.scene.scale.width / 2;
+    const groundY = this.scene.scale.height - 100;
 
-    // Store the ID on the platform for later reference
-    platform.setData("movementId", platformId);
+    // Create full ground coverage like normal levels
+    this.generateGroundPlatforms();
 
-    console.log(
-      `🔧 Created moving platform at (${x}, ${startY}) moving between ${minY} and ${maxY}`
+    // Create elevated platform for the boss
+    const bossPlatformWidth = 400;
+    const bossPlatformHeight = 64;
+    const bossPlatformY = groundY - 100; // Elevated above the ground
+    const startX = centerX - bossPlatformWidth / 2;
+    this.createTiledPlatform(
+      startX,
+      bossPlatformY,
+      bossPlatformWidth,
+      bossPlatformHeight
     );
+
+    // Create boss on the elevated platform
+    const boss = this.enemySystem.createTreeBoss(centerX, bossPlatformY);
+
+    // Create platforms around boss
+    this.generateBossArenaPlatforms(boss);
+  }
+
+  private generateBossArenaPlatforms(boss: Phaser.Physics.Arcade.Sprite) {
+    const bossX = boss.x;
+    const bossY = boss.y;
+    const exclusionRadius = 200;
+
+    // Generate 4-6 platforms outside boss area
+    const platformCount = 4 + Math.floor(Math.random() * 3);
+
+    for (let i = 0; i < platformCount; i++) {
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      while (attempts < maxAttempts) {
+        const x = 100 + Math.random() * (this.scene.scale.width - 200);
+        const y = 200 + Math.random() * 400;
+        const width = 80 + Math.random() * 120;
+
+        // Check distance from boss
+        const distanceFromBoss = Math.sqrt((x - bossX) ** 2 + (y - bossY) ** 2);
+
+        if (
+          distanceFromBoss > exclusionRadius &&
+          this.isValidPlatformPosition(x, y, width)
+        ) {
+          this.createTiledPlatform(x, y, width, 32);
+          break;
+        }
+        attempts++;
+      }
+    }
   }
 
   private createSnowEffect() {
@@ -659,64 +400,32 @@ export class WorldGenerator {
     }
   }
 
-  updateWorldStreaming(playerX: number) {
-    // Don't generate chunks in boss levels - they have their own arena
-    if (this.isBossLevel) {
-      return;
-    }
+  updateMovingPlatforms() {
+    this.movingPlatforms.children.entries.forEach((platform: any) => {
+      if (!platform.active) return;
 
-    const currentChunk = Math.floor(playerX / this.chunkSize);
-    const loadDistance = 3;
+      const minY = platform.getData("minY");
+      const maxY = platform.getData("maxY");
+      const speed = platform.getData("speed");
+      const direction = platform.getData("direction");
 
-    // Generate chunks around player
-    for (
-      let i = currentChunk - loadDistance;
-      i <= currentChunk + loadDistance;
-      i++
-    ) {
-      if (!this.chunksGenerated.has(i)) {
-        this.generateChunk(i);
+      if (platform.y <= minY && direction === -1) {
+        platform.setData("direction", 1);
+        platform.body!.setVelocityY(speed);
+      } else if (platform.y >= maxY && direction === 1) {
+        platform.setData("direction", -1);
+        platform.body!.setVelocityY(-speed);
       }
-      this.visibleChunks.add(i);
-    }
 
-    // Cleanup distant chunks
-    const unloadDistance = 5;
-    const chunksToRemove: number[] = [];
-
-    this.chunksGenerated.forEach((chunkIndex) => {
-      if (Math.abs(chunkIndex - currentChunk) > unloadDistance) {
-        chunksToRemove.push(chunkIndex);
+      // Move the tile group with the platform
+      const tilePositions = platform.getData("tilePositions");
+      if (tilePositions) {
+        tilePositions.forEach((tileData: any) => {
+          tileData.tile.x = platform.x + tileData.relativeX;
+          tileData.tile.y = platform.y + tileData.relativeY;
+        });
       }
     });
-
-    chunksToRemove.forEach((chunkIndex) => {
-      this.unloadChunk(chunkIndex);
-    });
-  }
-
-  private unloadChunk(chunkIndex: number) {
-    // Remove platforms
-    const chunkPlatforms = this.platformChunks.get(chunkIndex);
-    if (chunkPlatforms) {
-      chunkPlatforms.destroy(true);
-      this.platformChunks.delete(chunkIndex);
-    }
-
-    // Remove background elements
-    const backgroundElements = this.backgroundElements.get(chunkIndex);
-    if (backgroundElements) {
-      backgroundElements.destroy(true);
-      this.backgroundElements.delete(chunkIndex);
-    }
-
-    // Remove enemies
-    this.enemySystem.removeEnemiesInChunk(chunkIndex);
-
-    this.chunksGenerated.delete(chunkIndex);
-    this.visibleChunks.delete(chunkIndex);
-
-    // Chunk unloaded
   }
 
   getPlatforms(): Phaser.Physics.Arcade.StaticGroup {
@@ -727,53 +436,7 @@ export class WorldGenerator {
     return this.movingPlatforms;
   }
 
-  updateMovingPlatforms() {
-    // Update all moving platforms
-    if (this.movingPlatforms.children.entries.length === 0) {
-      return; // No debug spam when no platforms
-    }
-
-    this.movingPlatforms.children.entries.forEach((platform: any) => {
-      if (!platform.active) return;
-
-      const movementId = platform.getData("movementId");
-      const movementData = this.platformMovementData.get(movementId);
-
-      if (!movementData) {
-        console.log(`⚠️ No movement data found for platform ${movementId}`);
-        return;
-      }
-
-      // Check if platform has reached bounds and reverse direction
-      if (platform.y <= movementData.minY && movementData.direction === -1) {
-        // Hit top bound, start moving down
-        movementData.direction = 1;
-        platform.body.setVelocityY(movementData.speed);
-        console.log(
-          `🔄 Platform reversed to DOWN at y=${platform.y}, minY=${movementData.minY}`
-        );
-      } else if (
-        platform.y >= movementData.maxY &&
-        movementData.direction === 1
-      ) {
-        // Hit bottom bound, start moving up
-        movementData.direction = -1;
-        platform.body.setVelocityY(-movementData.speed);
-        console.log(
-          `🔄 Platform reversed to UP at y=${platform.y}, maxY=${movementData.maxY}`
-        );
-      }
-    });
-  }
-
   reset() {
-    this.chunksGenerated.clear();
-    this.visibleChunks.clear();
-    this.platformChunks.clear();
-    this.backgroundElements.clear();
-    this.platformMovementData.clear();
-
-    // Clear moving platforms if they exist
     if (this.movingPlatforms) {
       this.movingPlatforms.clear(true, true);
     }

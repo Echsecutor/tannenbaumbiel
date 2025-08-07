@@ -11,8 +11,27 @@ export class EnemySystem {
   private bossStoneThrowTimer: number = 0;
   private enemyStates: Map<string, string> = new Map(); // Track enemy states: idle, running, attacking, hurt, dying
 
+  // AI behavior properties
+  private playerReference: Phaser.Physics.Arcade.Sprite | null = null;
+  private platformsReference: Phaser.Physics.Arcade.StaticGroup | null = null;
+  private enemyAIUpdateTimer: number = 0;
+  private readonly AI_UPDATE_INTERVAL: number = 500; // Update AI every 500ms
+  private readonly PLAYER_DETECTION_RANGE: number = 400; // Range to detect player
+  private readonly JUMP_PROBABILITY: number = 0.3; // 30% chance to jump when near edge
+  // Removed unused MOVE_TOWARDS_PLAYER_PROBABILITY since we always move towards player when in range
+  private readonly RANDOM_MOVEMENT_PROBABILITY: number = 0.1; // 10% chance for random movement
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+  }
+
+  // Set references for AI behavior
+  setPlayerReference(player: Phaser.Physics.Arcade.Sprite) {
+    this.playerReference = player;
+  }
+
+  setPlatformsReference(platforms: Phaser.Physics.Arcade.StaticGroup) {
+    this.platformsReference = platforms;
   }
 
   createEnemyGroup(): Phaser.Physics.Arcade.Group {
@@ -57,6 +76,13 @@ export class EnemySystem {
     enemy.setData("facingRight", true);
     enemy.setData("chunkIndex", chunkIndex);
     enemy.setData("enemyId", enemyId);
+
+    // AI behavior data
+    enemy.setData("lastAIUpdate", 0);
+    enemy.setData("jumpCooldown", 0);
+    enemy.setData("directionChangeCooldown", 0);
+    enemy.setData("isNearEdge", false);
+    enemy.setData("canJump", true);
 
     return enemy;
   }
@@ -294,6 +320,9 @@ export class EnemySystem {
   }
 
   updateEnemies() {
+    // Update AI timer
+    this.enemyAIUpdateTimer += this.scene.game.loop.delta;
+
     this.enemies.children.entries.forEach((enemy: any) => {
       const enemyId = enemy.getData("enemyId");
       const currentState = this.enemyStates.get(enemyId);
@@ -307,10 +336,8 @@ export class EnemySystem {
         // Boss behavior: throw stones at regular intervals
         this.updateTreeBoss(enemy);
       } else {
-        // Regular enemy AI: Change direction randomly
-        if (Phaser.Math.Between(0, 100) < 2) {
-          enemy.setVelocityX(Phaser.Math.Between(-200, 200));
-        }
+        // Enhanced AI for regular enemies
+        this.updateEnemyAI(enemy);
       }
     });
 
@@ -319,6 +346,181 @@ export class EnemySystem {
 
     // Update boss stone projectiles
     this.updateBossStones();
+  }
+
+  private updateEnemyAI(enemy: Phaser.Physics.Arcade.Sprite) {
+    const currentTime = this.scene.time.now;
+    const lastAIUpdate = enemy.getData("lastAIUpdate") || 0;
+
+    // Only update AI periodically
+    if (currentTime - lastAIUpdate < this.AI_UPDATE_INTERVAL) {
+      return;
+    }
+
+    enemy.setData("lastAIUpdate", currentTime);
+
+    // Update cooldowns
+    this.updateEnemyCooldowns(enemy);
+
+    // Check if player is in range
+    const playerInRange = this.isPlayerInRange(enemy);
+
+    if (playerInRange) {
+      // Move towards player with high probability
+      this.moveTowardsPlayer(enemy);
+    } else {
+      // Random movement or edge detection
+      this.handleRandomMovement(enemy);
+    }
+
+    // Handle jumping for platform navigation
+    this.handleEnemyJumping(enemy);
+  }
+
+  private updateEnemyCooldowns(enemy: Phaser.Physics.Arcade.Sprite) {
+    // Update jump cooldown
+    const jumpCooldown = enemy.getData("jumpCooldown") || 0;
+    if (jumpCooldown > 0) {
+      enemy.setData(
+        "jumpCooldown",
+        Math.max(0, jumpCooldown - this.scene.game.loop.delta)
+      );
+    }
+
+    // Update direction change cooldown
+    const directionCooldown = enemy.getData("directionChangeCooldown") || 0;
+    if (directionCooldown > 0) {
+      enemy.setData(
+        "directionChangeCooldown",
+        Math.max(0, directionCooldown - this.scene.game.loop.delta)
+      );
+    }
+  }
+
+  private isPlayerInRange(enemy: Phaser.Physics.Arcade.Sprite): boolean {
+    if (!this.playerReference) return false;
+
+    const distance = Phaser.Math.Distance.Between(
+      enemy.x,
+      enemy.y,
+      this.playerReference.x,
+      this.playerReference.y
+    );
+
+    return distance <= this.PLAYER_DETECTION_RANGE;
+  }
+
+  private moveTowardsPlayer(enemy: Phaser.Physics.Arcade.Sprite) {
+    if (!this.playerReference) return;
+
+    const speed = 150;
+    const playerX = this.playerReference.x;
+    const enemyX = enemy.x;
+
+    // Determine direction to player
+    const direction = playerX > enemyX ? 1 : -1;
+
+    // Set velocity towards player
+    enemy.setVelocityX(direction * speed);
+
+    // Update facing direction
+    enemy.setData("facingRight", direction > 0);
+    enemy.setFlipX(direction > 0);
+  }
+
+  private handleRandomMovement(enemy: Phaser.Physics.Arcade.Sprite) {
+    const directionCooldown = enemy.getData("directionChangeCooldown") || 0;
+
+    // Only change direction if cooldown is finished
+    if (directionCooldown <= 0) {
+      const random = Math.random();
+
+      if (random < this.RANDOM_MOVEMENT_PROBABILITY) {
+        // Random direction change
+        const newDirection = Phaser.Math.Between(-1, 1);
+        const speed = 100;
+        enemy.setVelocityX(newDirection * speed);
+
+        // Update facing direction
+        enemy.setData("facingRight", newDirection > 0);
+        enemy.setFlipX(newDirection > 0);
+
+        // Set cooldown for direction changes
+        enemy.setData("directionChangeCooldown", 2000); // 2 seconds
+      }
+    }
+  }
+
+  private handleEnemyJumping(enemy: Phaser.Physics.Arcade.Sprite) {
+    if (!enemy.body || !enemy.body.touching.down) return;
+
+    const jumpCooldown = enemy.getData("jumpCooldown") || 0;
+    if (jumpCooldown > 0) return;
+
+    // Check if enemy is near an edge
+    const isNearEdge = this.checkIfNearEdge(enemy);
+    enemy.setData("isNearEdge", isNearEdge);
+
+    // Jump if near edge or randomly
+    if (isNearEdge && Math.random() < this.JUMP_PROBABILITY) {
+      this.makeEnemyJump(enemy);
+    }
+  }
+
+  private checkIfNearEdge(enemy: Phaser.Physics.Arcade.Sprite): boolean {
+    if (!this.platformsReference) return false;
+
+    const checkDistance = 20; // Distance to check for edge
+    const currentX = enemy.x;
+    const currentY = enemy.y;
+    const direction = enemy.getData("facingRight") ? 1 : -1;
+
+    // Check if there's a platform ahead
+    const checkX = currentX + direction * checkDistance;
+    const checkY = currentY + 10; // Slightly below enemy
+
+    // Raycast to check for platform ahead
+    const platforms = this.platformsReference.children.entries;
+    let platformAhead = false;
+
+    for (const platform of platforms) {
+      if (platform.body && this.isPointInBounds(checkX, checkY, platform)) {
+        platformAhead = true;
+        break;
+      }
+    }
+
+    // If no platform ahead, we're near an edge
+    return !platformAhead;
+  }
+
+  private isPointInBounds(x: number, y: number, sprite: any): boolean {
+    if (!sprite.body) return false;
+
+    const bounds = sprite.body;
+    return (
+      x >= bounds.x &&
+      x <= bounds.x + bounds.width &&
+      y >= bounds.y &&
+      y <= bounds.y + bounds.height
+    );
+  }
+
+  private makeEnemyJump(enemy: Phaser.Physics.Arcade.Sprite) {
+    const jumpSpeed = 400; // Similar to player jump speed
+
+    enemy.setVelocityY(-jumpSpeed);
+    enemy.setData("jumpCooldown", 1500); // 1.5 second cooldown
+
+    // Play jump animation if available
+    const enemyType = enemy.getData("type");
+    if (enemyType === "adventurer") {
+      // Adventurer doesn't have jump animation, use run instead
+      enemy.play("adventurer_run", true);
+    } else if (enemyType === "slime") {
+      // Slime doesn't have jump animation, use move instead
+      enemy.play("slime_move", true);
+    }
   }
 
   private updateTreeBoss(boss: any) {
