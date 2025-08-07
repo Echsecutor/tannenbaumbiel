@@ -160,6 +160,31 @@ export class EnemySystem {
         enemy.destroy();
         if (callback) callback();
       });
+    } else if (enemyType === "tree_boss") {
+      // Tree boss death - fade out and destroy
+      console.log("🌲 Tree boss is dying...");
+
+      // Clean up debug graphics
+      const debugGraphics = enemy.getData("debugGraphics");
+      if (debugGraphics) {
+        debugGraphics.destroy();
+      }
+
+      this.scene.tweens.add({
+        targets: enemy,
+        alpha: 0,
+        duration: 1000,
+        onComplete: () => {
+          console.log("🌲 Tree boss destroyed, removing from group");
+          this.enemyStates.delete(enemyId);
+          enemy.destroy();
+          // Ensure boss is removed from enemies group
+          if (this.enemies.contains(enemy)) {
+            this.enemies.remove(enemy);
+          }
+          if (callback) callback();
+        },
+      });
     }
   }
 
@@ -209,6 +234,7 @@ export class EnemySystem {
     boss.setData("health", 300); // Much more health for boss
     boss.setData("type", "tree_boss");
     boss.setData("maxHealth", 300);
+    boss.setData("enemyId", "tree_boss"); // Add enemyId for death handling
     boss.setDepth(15); // Higher depth than regular enemies
 
     // Set the boss origin to bottom center so it sits properly on the ground
@@ -221,12 +247,45 @@ export class EnemySystem {
     boss.body.setGravityY(0); // No gravity for the boss
     boss.body.allowGravity = false; // Explicitly disable gravity
 
+    // Set custom collision bounds to match tree sprite shape
+    // Since origin is (0.5, 1.0), we need to adjust collision box accordingly
+    const collisionWidth = boss.width * 0.6; // 60% of sprite width for main trunk
+    const collisionHeight = boss.height * 0.8; // 80% of sprite height, excluding top branches
+
+    // Calculate offset for bottom-center origin
+    const collisionOffsetX = (boss.width - collisionWidth) / 2; // Center horizontally
+    const collisionOffsetY = boss.height - collisionHeight; // Align to bottom since origin is at bottom
+
+    console.log(
+      `🌲 Setting collision box: ${collisionWidth}x${collisionHeight} with offset (${collisionOffsetX}, ${collisionOffsetY})`
+    );
+    console.log(`🌲 Boss sprite size: ${boss.width}x${boss.height}`);
+
+    // Force refresh the body to ensure collision box is applied
+    boss.body.setSize(collisionWidth, collisionHeight);
+    boss.body.setOffset(collisionOffsetX, collisionOffsetY);
+    boss.body.updateBounds(); // Force update the collision bounds
+
+    // Verify the collision box was set correctly
+    console.log(
+      `🌲 Actual collision box after setSize: ${boss.body.width}x${boss.body.height}`
+    );
+    console.log(
+      `🌲 Actual collision offset after setOffset: (${boss.body.offset.x}, ${boss.body.offset.y})`
+    );
+
+    // Create debug display for collision box
+    this.createBossDebugDisplay(boss);
+
     // Ensure the boss has proper collision bounds and stays in place
     boss.setCollideWorldBounds(true);
     boss.setBounce(0); // No bouncing
 
     // Initialize boss stone throwing
     this.bossStoneThrowTimer = 0;
+
+    // Initialize boss state
+    this.enemyStates.set("tree_boss", "idle");
 
     console.log(
       `🌲 Created Tree Boss at (${x}, ${y}) with scale ${scale.toFixed(2)}`
@@ -595,6 +654,14 @@ export class EnemySystem {
     return this.enemies.countActive();
   }
 
+  isBossDefeated(): boolean {
+    // Check if tree boss exists and is alive
+    const boss = this.enemies.children.entries.find(
+      (enemy: any) => enemy.getData("type") === "tree_boss" && enemy.active
+    );
+    return !boss; // Return true if boss doesn't exist (is defeated)
+  }
+
   clearNetworkEnemies() {
     for (const [enemyId, sprite] of this.networkEnemies) {
       sprite.destroy();
@@ -605,5 +672,55 @@ export class EnemySystem {
 
   getEnemyStates(): Map<string, string> {
     return this.enemyStates;
+  }
+
+  private createBossDebugDisplay(boss: Phaser.Physics.Arcade.Sprite): void {
+    // Create debug graphics for collision box display
+    const debugGraphics = this.scene.add.graphics();
+    debugGraphics.setDepth(16); // Above the boss sprite
+    debugGraphics.setVisible(false); // Hidden by default
+
+    // Create update function for debug display
+    const updateDebugDisplay = () => {
+      if (!boss.body) return;
+
+      debugGraphics.clear();
+
+      // Show the actual collision bounds (red)
+      debugGraphics.lineStyle(2, 0xff0000, 1);
+      const collisionX = boss.x - boss.body.width / 2;
+      const collisionY = boss.y - boss.body.height;
+      debugGraphics.strokeRect(
+        collisionX,
+        collisionY,
+        boss.body.width,
+        boss.body.height
+      );
+
+      // Show collision box info in console
+      console.log(
+        `🌲 Boss collision box: ${boss.body.width}x${boss.body.height} at (${collisionX}, ${collisionY})`
+      );
+    };
+
+    // Store debug graphics reference for cleanup
+    boss.setData("debugGraphics", debugGraphics);
+    boss.setData("updateDebugDisplay", updateDebugDisplay);
+  }
+
+  showBossCollisionBox(): void {
+    // Find the tree boss and show its collision box
+    this.enemies.children.entries.forEach((enemy: any) => {
+      if (enemy.getData("type") === "tree_boss" && enemy.active) {
+        const debugGraphics = enemy.getData("debugGraphics");
+        const updateDebugDisplay = enemy.getData("updateDebugDisplay");
+
+        if (debugGraphics && updateDebugDisplay) {
+          debugGraphics.setVisible(true);
+          updateDebugDisplay();
+          console.log("🔍 Boss collision box debug display enabled");
+        }
+      }
+    });
   }
 }

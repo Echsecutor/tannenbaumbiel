@@ -280,8 +280,8 @@ export class GameSceneRefactored extends Phaser.Scene {
     const isBossLevel = this.gameStateManager.isBossLevel();
 
     if (isBossLevel) {
-      // Boss levels: only complete when all enemies (boss) are defeated
-      if (this.enemySystem.countActiveEnemies() === 0) {
+      // Boss levels: only complete when the boss is defeated
+      if (this.enemySystem.isBossDefeated()) {
         this.levelCompleted = true;
         console.log("🏁 Boss defeated! Level complete!");
         this.gameStateManager.showVictory(
@@ -450,6 +450,9 @@ export class GameSceneRefactored extends Phaser.Scene {
     }
 
     console.log("🎉 Victory cheat handler called - triggering victory!");
+
+    // Show boss collision box debug display
+    this.enemySystem.showBossCollisionBox();
 
     // Set level as completed to prevent normal completion logic
     this.levelCompleted = true;

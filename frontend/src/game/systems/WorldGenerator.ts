@@ -414,72 +414,181 @@ export class WorldGenerator {
   }
 
   private createBossArena() {
-    console.log(`🏛️ Creating Boss Arena for Level ${this.currentLevel}`);
+    console.log(
+      `🏛️ Creating Compact Boss Arena for Level ${this.currentLevel}`
+    );
 
     const centerX = this.scene.scale.width / 2;
     const screenHeight = this.scene.scale.height;
 
-    // Create arena ground
+    // Clear any existing platforms first
+    this.platforms.clear(true, true);
+    console.log("🧹 Cleared existing platforms for boss arena");
+
+    // Create compact arena ground - smaller area focused around boss
     this.createWinterTiledPlatform(
-      centerX - 400,
+      centerX - 200, // Reduced from -400 to -200
       screenHeight - 100,
-      800, // Wide platform
+      400, // Reduced from 800 to 400 - smaller arena
       100, // Thick ground
       this.platforms
     );
 
-    // Create fewer climbing platforms on the left side - removed middle platform
-    this.createWinterTiledPlatform(
-      centerX - 350,
-      screenHeight - 200,
-      150,
-      32,
-      this.platforms
-    );
-    this.createWinterTiledPlatform(
-      centerX - 250,
-      screenHeight - 400,
-      150,
-      32,
-      this.platforms
-    );
-
-    // Create fewer climbing platforms on the right side - removed middle platform
-    this.createWinterTiledPlatform(
-      centerX + 200,
-      screenHeight - 200,
-      150,
-      32,
-      this.platforms
-    );
-    this.createWinterTiledPlatform(
-      centerX + 100,
-      screenHeight - 400,
-      150,
-      32,
-      this.platforms
-    );
-
-    // Create only one moving platform for vertical navigation - removed one to reduce blocking
-    this.createMovingPlatform(
-      centerX - 100,
-      screenHeight - 250,
-      screenHeight - 450,
-      screenHeight - 150
-    );
-
     // Create the tree boss in the center
     const bossY = screenHeight - 100; // Position boss on top of the ground platform
-    this.enemySystem.createTreeBoss(centerX, bossY);
+    const boss = this.enemySystem.createTreeBoss(centerX, bossY);
 
-    // Create exit platform on the far right
-    this.createWinterTiledPlatform(
-      centerX + 350,
-      screenHeight - 200,
-      200,
-      32,
-      this.platforms
+    // Generate random platforms that avoid the boss collision box
+    this.generateBossArenaPlatforms(boss);
+
+    // No exit platform needed - boss defeat completes the level
+  }
+
+  private generateBossArenaPlatforms(boss: Phaser.Physics.Arcade.Sprite) {
+    console.log(
+      "🏗️ Generating boss arena platforms that avoid boss collision..."
     );
+
+    if (!boss.body) {
+      console.warn("⚠️ Boss has no physics body for platform generation");
+      return;
+    }
+
+    // Wait a frame to ensure boss body is fully initialized
+    this.scene.time.delayedCall(16, () => {
+      this.generateBossArenaPlatformsDelayed(boss);
+    });
+  }
+
+  private generateBossArenaPlatformsDelayed(
+    boss: Phaser.Physics.Arcade.Sprite
+  ) {
+    if (!boss.body) {
+      console.warn("⚠️ Boss still has no physics body for platform generation");
+      return;
+    }
+
+    // Get boss position and size
+    const bossX = boss.x;
+    const bossY = boss.y;
+    const bossDisplayWidth = boss.width;
+    const bossDisplayHeight = boss.height;
+
+    console.log(`🌲 Boss position: (${bossX}, ${bossY})`);
+    console.log(
+      `🌲 Boss display size: ${bossDisplayWidth}x${bossDisplayHeight}`
+    );
+    console.log(`🌲 Boss scale: ${boss.scaleX}x${boss.scaleY}`);
+
+    // Create a large exclusion zone around the boss (5x the boss size)
+    const exclusionZoneSize = Math.max(bossDisplayWidth, bossDisplayHeight) * 5;
+    const exclusionZone = {
+      left: bossX - exclusionZoneSize / 2,
+      right: bossX + exclusionZoneSize / 2,
+      top: bossY - exclusionZoneSize,
+      bottom: bossY + exclusionZoneSize / 2, // Less space below since boss is on ground
+    };
+
+    console.log(
+      `🌲 Exclusion zone (${exclusionZoneSize.toFixed(1)}px): left=${exclusionZone.left.toFixed(1)}, right=${exclusionZone.right.toFixed(1)}, top=${exclusionZone.top.toFixed(1)}, bottom=${exclusionZone.bottom.toFixed(1)}`
+    );
+
+    // Generate 3-5 random platforms outside the exclusion zone
+    const numPlatforms = 3 + Math.floor(Math.random() * 3); // 3-5 platforms
+
+    for (let i = 0; i < numPlatforms; i++) {
+      let attempts = 0;
+      const maxAttempts = 30;
+      let platformCreated = false;
+
+      while (attempts < maxAttempts && !platformCreated) {
+        // Generate random platform position
+        const platformWidth = 80 + Math.random() * 120; // 80-200px wide
+        const platformHeight = 32;
+
+        // Define arena boundaries (outside exclusion zone)
+        const arenaLeft = Math.max(100, exclusionZone.right + 50); // Right of exclusion zone
+        const arenaRight = Math.min(1200, exclusionZone.left - 50); // Left of exclusion zone
+        const arenaTop = 200; // Minimum Y position
+        const arenaBottom = 600; // Maximum Y position (above ground)
+
+        // If arena is too small, expand it
+        if (arenaRight <= arenaLeft) {
+          // Use areas above and below the exclusion zone
+          const x = 100 + Math.random() * (1200 - 100 - platformWidth);
+          const y = arenaTop + Math.random() * (arenaBottom - arenaTop);
+
+          // Check if platform is in exclusion zone
+          const inExclusionZone = !(
+            x + platformWidth < exclusionZone.left ||
+            x > exclusionZone.right ||
+            y + platformHeight < exclusionZone.top ||
+            y > exclusionZone.bottom
+          );
+
+          if (!inExclusionZone) {
+            this.createWinterTiledPlatform(
+              x,
+              y,
+              platformWidth,
+              platformHeight,
+              this.platforms
+            );
+            console.log(
+              `✅ Created platform at (${x.toFixed(1)}, ${y.toFixed(1)}) with width ${platformWidth.toFixed(1)} - outside exclusion zone`
+            );
+            platformCreated = true;
+          } else {
+            console.log(
+              `❌ Platform at (${x.toFixed(1)}, ${y.toFixed(1)}) would be in exclusion zone, trying again...`
+            );
+            attempts++;
+          }
+        } else {
+          // Use the defined arena boundaries
+          const x =
+            arenaLeft +
+            Math.random() * (arenaRight - arenaLeft - platformWidth);
+          const y = arenaTop + Math.random() * (arenaBottom - arenaTop);
+
+          this.createWinterTiledPlatform(
+            x,
+            y,
+            platformWidth,
+            platformHeight,
+            this.platforms
+          );
+          console.log(
+            `✅ Created platform at (${x.toFixed(1)}, ${y.toFixed(1)}) with width ${platformWidth.toFixed(1)} - in arena boundaries`
+          );
+          platformCreated = true;
+        }
+      }
+
+      if (!platformCreated) {
+        console.log(
+          `⚠️ Could not find valid position for platform ${i + 1} after ${maxAttempts} attempts`
+        );
+      }
+    }
+
+    // Debug: List all platforms after generation
+    console.log(
+      `🔍 Total platforms after generation: ${this.platforms.children.entries.length}`
+    );
+    // Only show first 10 platforms to avoid spam
+    this.platforms.children.entries
+      .slice(0, 10)
+      .forEach((platform: any, index: number) => {
+        console.log(
+          `🔍 Platform ${index}: at (${platform.x.toFixed(1)}, ${platform.y.toFixed(1)}) with size ${platform.width.toFixed(1)}x${platform.height.toFixed(1)}`
+        );
+      });
+    if (this.platforms.children.entries.length > 10) {
+      console.log(
+        `🔍 ... and ${this.platforms.children.entries.length - 10} more platforms`
+      );
+    }
   }
 
   private createMovingPlatform(
@@ -551,6 +660,11 @@ export class WorldGenerator {
   }
 
   updateWorldStreaming(playerX: number) {
+    // Don't generate chunks in boss levels - they have their own arena
+    if (this.isBossLevel) {
+      return;
+    }
+
     const currentChunk = Math.floor(playerX / this.chunkSize);
     const loadDistance = 3;
 

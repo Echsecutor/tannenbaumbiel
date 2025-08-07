@@ -7,6 +7,8 @@ alwaysApply: false
 
 Before working with any Phaser objects, do a quick lookup on https://docs.phaser.io/api-documentation/api-documentation and links therein for the right syntax.
 
+Always check for phaser build in methods and prefer using these over re-writing functionality. In particular for game physics, start/stop of game loops, etc.
+
 # Verify Build After Code Changes
 
 **MANDATORY**: After making any code changes, always run the build process to ensure compilation success:

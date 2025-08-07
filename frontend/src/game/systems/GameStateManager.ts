@@ -91,6 +91,9 @@ export class GameStateManager {
   showVictory(onNextLevel: () => void, onMenu: () => void) {
     console.log("Victory!");
 
+    // Pause physics to stop all movement and prevent player death
+    this.scene.physics.pause();
+
     // Play victory music instead of background music
     if ((this.scene as any).playVictoryMusic) {
       (this.scene as any).playVictoryMusic();
@@ -158,6 +161,9 @@ export class GameStateManager {
   private restartGame(onRestart: () => void) {
     console.log("🔄 Starting game restart...");
 
+    // Resume physics for restart
+    this.scene.physics.resume();
+
     // Restore background music for restart (stops victory music if playing)
     if ((this.scene as any).restoreBackgroundMusic) {
       (this.scene as any).restoreBackgroundMusic();
@@ -194,6 +200,9 @@ export class GameStateManager {
 
   private startNextLevel(onNextLevel: () => void) {
     console.log("🎮 Starting next level...");
+
+    // Resume physics for next level
+    this.scene.physics.resume();
 
     // Restore background music for next level
     if ((this.scene as any).restoreBackgroundMusic) {

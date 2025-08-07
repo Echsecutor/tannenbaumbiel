@@ -113,8 +113,16 @@ export class UIScene extends Scene {
       `🎮 UIScene: Creating level display at center-top (${x}, ${y})`
     );
 
+    // Get the current level from the game scene's game state manager
+    const gameScene = this.scene.get("GameScene");
+    let currentLevel = this.currentLevel;
+    if (gameScene && (gameScene as any).gameStateManager) {
+      currentLevel = (gameScene as any).gameStateManager.getCurrentLevel();
+      this.currentLevel = currentLevel; // Update our local copy
+    }
+
     this.levelText = this.add
-      .text(x, y, `Level ${this.currentLevel}`, {
+      .text(x, y, `Level ${currentLevel}`, {
         fontSize: "24px",
         color: "#ffffff",
         fontFamily: "Arial",
@@ -139,6 +147,9 @@ export class UIScene extends Scene {
       this.levelText.x,
       this.levelText.y
     );
+
+    // Update the display immediately with the correct level
+    this.updateLevelDisplay();
   }
 
   private createMultiplayerScoreDisplay() {
