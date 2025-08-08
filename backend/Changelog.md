@@ -2,6 +2,14 @@
 
 ## WIP
 
+- **Standardized Enemy Types**: Updated enemy creation to use only 'adventurer' and 'slime' types
+  - **Problem**: Backend used historical enemy types (owlet, pink_boss) that didn't match frontend expectations
+  - **Solution**: Changed all enemy creation to use 'adventurer' (boss) and 'slime' (regular) consistently
+  - **Changes**: 
+    - Updated enemy_positions in world.py to use 'adventurer' instead of 'owlet' and 'pink_boss'
+    - Updated AI movement logic to use 'adventurer' instead of 'pink_boss'
+    - Consistent enemy types across frontend and backend
+
 - **FEATURE**: Added score tracking to multiplayer game state
   - Extended `PlayerState` model with score field for player score tracking
   - Updated `GameWorld` player creation and state synchronization to include score

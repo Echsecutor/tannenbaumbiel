@@ -2,6 +2,66 @@
 
 ## WIP
 
+- Fixed single player boss level progression bug: Game no longer switches to multiplayer mode after defeating tree boss
+  - **Problem**: After beating boss level 3, game would advance to level 4 in offline mode, then incorrectly switch to level 5 in online mode
+  - **Root Cause**: Double level increment bug - `startNextLevel()` method was calling `nextLevel()` AND the callback was also calling `nextLevel()`, causing level to jump from 4→5 and triggering multiplayer mode
+  - **Solution**: Simplified `startNextLevel()` to only call the callback, preventing double increment and double scene restart
+  - **Follow-up Fix**: Enhanced `GameScene.nextLevel()` to preserve offline state and selected sprite in scene restart parameters
+  - **Victory Cheat Fix**: Fixed `triggerVictoryCheat()` to accept proper callbacks, preventing infinite loop and enabling "Start Next Level" button functionality
+  - **Additional Fix**: Enhanced `shouldAutoRejoin()` to clear rejoin flags when in offline mode for extra safety
+- Enhanced offline mode isolation: Single player mode now completely avoids backend synchronization calls
+  - **Improvement**: Added additional guards to prevent network operations in offline mode
+  - **Changes**: Enhanced `getGameState()` to return null roomData in offline mode, added guard to `setRejoinFlags()` method
+  - **Benefits**: Single player mode is now fully isolated from network operations, improving performance and preventing potential errors
+- Fixed room data flow to maintain NetworkSystem as single source of truth
+  - **Problem**: GameScene was maintaining its own copy of room data, potentially causing synchronization issues
+  - **Solution**: Removed local `roomData` property from GameScene, updated all references to use NetworkSystem.getCurrentRoomData()
+  - **Changes**: Updated `sendReadyForWorldFromGameScene()` and room data initialization to use NetworkSystem directly
+  - **Benefits**: Eliminates room data synchronization issues, ensures consistent room state across all components
+- Fixed single player cheat system: UIScene level click cheat (5 clicks) now properly triggers victory by adding missing event listener in GameScene
+
+- **Fixed Multiplayer Restart State Synchronization**: Fixed "Expected state ROOM_JOINED, got ConnectionState.GAME_READY" error during level restart
+  - **Problem**: Game tried to send `ready_for_world` message before completing the rejoin process after restart
+  - **Root Cause**: Networking setup happened immediately while auto-rejoin process was delayed, causing state mismatch
+  - **Solution**: Delayed networking setup until after successful rejoin completion and proper state reset
+- **Fixed NetworkSystem Missing Method Error**: Fixed `addPlatformCollisionForNetworkEnemies is not a function` error in multiplayer
+  - **Problem**: Post-refactoring missing method causing crashes when setting up network enemy platform collisions
+  - **Root Cause**: Enemy system refactoring centralized enemy management in EnemySystem, but NetworkSystem was missing the interface method
+  - **Solution**: Added `addPlatformCollisionForNetworkEnemies()` and `getNetworkEnemies()` methods to NetworkSystem that delegate to EnemySystem
+- **Fixed Multiplayer Victory Timing Bug**: Victory no longer triggers before enemies are loaded from server
+  - **Problem**: Victory condition checked immediately after world setup, but enemies only arrive later from server
+  - **Root Cause**: Network enemies stored separately from local enemies, but victory only counted local enemies
+  - **Solution**: Added `isGameReady()` check and `countNetworkEnemies()` method to count both local and network enemies
+  - **Changes**: 
+    - Victory checks now wait for `ConnectionState.GAME_READY` in multiplayer mode
+    - Victory logic counts both `EnemySystem.countActiveEnemies()` and `NetworkSystem.countNetworkEnemies()`
+- **Fixed Network Enemy Animation Bug**: Network enemies now display proper animations instead of showing "Missing animation" errors
+  - **Problem**: NetworkSystem used incorrect animation names (`owlet_idle_anim`) that didn't match existing animations
+  - **Solution**: Updated animation mapping to match EnemySystem naming (owlet→adventurer_idle, slime→slime_idle, pink_boss→pink_enemy_idle_anim)
+- **Fixed Multiplayer Restart Issues**: Restart now properly rejoins room without state mismatch errors
+  - **Problem**: After restart, state mismatch errors ("Expected ROOM_JOINED, got GAME_READY"), missing join parameters, loading timeouts
+  - **Solution**: Added NetworkSystem.resetState(), proper restart data with room parameters, and auto-rejoin trigger
+  - **Changes**: Scene restart now preserves room name/username and triggers auto-rejoin after NetworkSystem state reset
+- **Fixed Network Enemy Scaling Bug**: Network enemies now have the same size and appearance as local enemies
+  - **Problem**: Network mini bosses were 10-12x larger than single player enemies (scale 1.0-1.2 vs 0.1)
+  - **Solution**: Updated all network enemy types to use scale 0.1, depth 12, and bounce 1 to match local enemies
+  - **Changes**: Consistent enemy appearance between single player and multiplayer modes
+- **Refactored Enemy System Architecture**: Eliminated duplication between local and network enemy management
+  - **Problem**: NetworkSystem and EnemySystem had completely separate, duplicated enemy creation and animation logic
+  - **Solution**: Made EnemySystem the single source of truth for all enemy management (local + network)
+  - **Changes**:
+    - EnemySystem now handles both local and network enemies with centralized creation methods
+    - NetworkSystem delegates enemy management to EnemySystem instead of duplicating logic
+    - Consistent enemy type mapping, graphics, animations, and properties across all modes
+    - Simplified victory condition logic (single count instead of separate local/network counts)
+- **Cleaned Up Enemy Types**: Standardized to only use 2 enemy types consistently across frontend and backend
+  - **Problem**: Inconsistent enemy types between frontend (adventurer/slime) and backend (owlet/pink_boss/slime)
+  - **Solution**: Updated backend to use only 'adventurer' and 'slime', removed all historical type mappings
+  - **Changes**: 
+    - Backend now creates 'adventurer' and 'slime' enemies directly
+    - Removed frontend type mapping (owlet→adventurer, pink_boss→adventurer)
+    - Removed old unused updateNetworkEnemies method with pink_boss references
+    - Consistent enemy types across all systems: only 'adventurer' (boss) and 'slime' (regular)
 - **Implemented State-Based Multiplayer Protocol**: Replaced timing-dependent protocol with explicit state transitions and acknowledgments
   - **Problem**: Previous protocol relied on message timing and could cause race conditions
   - **Solution**: Implemented state-based protocol with explicit acknowledgments at each step

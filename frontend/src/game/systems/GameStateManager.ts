@@ -8,7 +8,6 @@ export class GameStateManager {
   private scene: Phaser.Scene;
   private networkSystem: NetworkSystem;
   private isOffline: boolean;
-  private roomData: any = null;
   private currentLevel: number = 1;
 
   constructor(
@@ -21,9 +20,7 @@ export class GameStateManager {
     this.isOffline = isOffline;
   }
 
-  setRoomData(roomData: any) {
-    this.roomData = roomData;
-  }
+
 
   getCurrentLevel(): number {
     return this.currentLevel;
@@ -174,18 +171,36 @@ export class GameStateManager {
         "🏠 Leaving room before restart for proper synchronization..."
       );
 
+      // Preserve room data before reset - get it from NetworkSystem (single source of truth)
+      const roomDataToPreserve = this.networkSystem.getCurrentRoomData();
+      console.log("🔄 Preserving room data for rejoin:", roomDataToPreserve);
+
       // Leave the room to notify other players
       this.networkSystem.leaveRoom();
 
-      // Set flags for rejoin after restart
-      this.setRejoinFlags();
+      // Reset network system state for clean restart
+      this.networkSystem.resetState();
+
+      // Set flags for rejoin after restart using preserved data
+      this.setRejoinFlagsWithData(roomDataToPreserve);
 
       // Wait for leave message to be processed
       setTimeout(() => {
         console.log("🎮 Restarting scene after leaving room...");
         const selectedSprite =
           localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
-        this.scene.scene.restart({ selectedSprite });
+        
+        // Get original join parameters for restart
+        const originalRoomName = this.scene.registry.get("originalRoomName");
+        const originalUsername = this.scene.registry.get("originalUsername");
+        
+        this.scene.scene.restart({ 
+          selectedSprite,
+          offline: false,
+          isRestart: true,
+          roomName: originalRoomName,
+          username: originalUsername
+        });
       }, 100);
     } else {
       // Offline mode - restart with offline flag preserved
@@ -209,56 +224,22 @@ export class GameStateManager {
       (this.scene as any).restoreBackgroundMusic();
     }
 
-    // Advance to next level
-    this.nextLevel();
-
-    if (this.isOffline) {
-      // Offline mode - restart with offline flag preserved and current level
-      console.log("🎮 Next level in offline mode...");
-      const selectedSprite =
-        localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
-      this.scene.scene.restart({
-        offline: true,
-        level: this.currentLevel,
-        selectedSprite,
-      });
-    } else {
-      // Online mode - handle multiplayer level transition
-      console.log("🎮 Next level in multiplayer mode...");
-
-      if (this.networkSystem.isOnline()) {
-        // Clean up and notify other players we're moving to next level
-        this.networkSystem.clearNetworkEntities();
-
-        // Set flag to rejoin after level transition
-        this.setRejoinFlags();
-
-        // Restart scene - will automatically rejoin the room
-        const selectedSprite =
-          localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
-        this.scene.scene.restart({ level: this.currentLevel, selectedSprite });
-      } else {
-        // Connection lost - fallback to offline mode
-        console.log(
-          "⚠️ Connection lost, switching to offline mode for next level"
-        );
-        const selectedSprite =
-          localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
-        this.scene.scene.restart({
-          offline: true,
-          level: this.currentLevel,
-          selectedSprite,
-        });
-      }
-    }
-
+    // Let the callback handle level advancement and scene restart
+    // (this prevents double increment and double restart)
     onNextLevel();
   }
 
-  private setRejoinFlags() {
+
+
+  private setRejoinFlagsWithData(roomData: any) {
     // Store rejoin information in scene registry
     this.scene.registry.set("shouldRejoinRoom", true);
-    this.scene.registry.set("lastRoomData", this.roomData);
+    this.scene.registry.set("lastRoomData", roomData);
+    
+    console.log("🚩 Setting rejoin flags:", {
+      shouldRejoinRoom: true,
+      lastRoomData: roomData
+    });
 
     // Ensure original join parameters are preserved
     if (
@@ -300,6 +281,12 @@ export class GameStateManager {
         );
         this.networkSystem.rejoinRoom(originalRoomName, originalUsername);
 
+        // Request world state after a short delay to allow room join to complete
+        setTimeout(() => {
+          console.log("🌍 Requesting world state after rejoin");
+          this.networkSystem.requestWorldState();
+        }, 500);
+
         console.log("✅ Rejoin process initiated");
         resolve(true);
       } catch (error) {
@@ -315,20 +302,33 @@ export class GameStateManager {
   shouldAutoRejoin(): boolean {
     const shouldRejoin = this.scene.registry.get("shouldRejoinRoom");
     const lastRoomData = this.scene.registry.get("lastRoomData");
+    
+    console.log("🔍 shouldAutoRejoin debug:", { 
+      shouldRejoin, 
+      lastRoomData, 
+      isOffline: this.isOffline 
+    });
 
-    if (shouldRejoin && lastRoomData && !this.isOffline) {
+    // If we're in offline mode, don't auto-rejoin regardless of registry flags
+    if (this.isOffline) {
+      console.log("🔄 In offline mode, clearing any stale rejoin flags");
+      this.clearRejoinFlags();
+      return false;
+    }
+
+    if (shouldRejoin && lastRoomData) {
       console.log("🔄 Restart detected, will rejoin room:", lastRoomData);
-      this.isOffline = false;
-      this.roomData = lastRoomData;
-
-      // Clear the rejoin flags
-      this.scene.registry.set("shouldRejoinRoom", false);
-      this.scene.registry.set("lastRoomData", null);
-
+      // Note: room data will be restored to NetworkSystem during rejoin process
       return true;
     }
 
     return false;
+  }
+
+  // Clear rejoin flags after rejoin process is complete
+  clearRejoinFlags(): void {
+    this.scene.registry.set("shouldRejoinRoom", false);
+    this.scene.registry.set("lastRoomData", null);
   }
 
   setOfflineMode(offline: boolean) {
@@ -352,7 +352,7 @@ export class GameStateManager {
   getGameState(): any {
     return {
       isOffline: this.isOffline,
-      roomData: this.roomData,
+      roomData: this.isOffline ? null : this.networkSystem.getCurrentRoomData(),
       currentLevel: this.currentLevel,
       originalRoomName: this.scene.registry.get("originalRoomName"),
       originalUsername: this.scene.registry.get("originalUsername"),
@@ -362,8 +362,8 @@ export class GameStateManager {
   // Restore game state from save data
   restoreGameState(gameState: any) {
     this.isOffline = gameState.isOffline || false;
-    this.roomData = gameState.roomData || null;
     this.currentLevel = gameState.currentLevel || 1;
+    // Room data will be restored to NetworkSystem if needed
 
     if (gameState.originalRoomName) {
       this.scene.registry.set("originalRoomName", gameState.originalRoomName);
@@ -374,19 +374,19 @@ export class GameStateManager {
   }
 
   // Victory cheat - triggers instant level completion
-  triggerVictoryCheat() {
+  triggerVictoryCheat(onNextLevel?: () => void, onMainMenu?: () => void) {
     console.log("🎉 Victory cheat activated! Triggering level completion...");
 
     // Use the existing victory flow to ensure consistency
-    // The callback passed to showVictory will be called by the "Continue" button
+    // Use provided callbacks or defaults
     this.showVictory(
-      () => {
-        console.log("✅ Cheat victory - proceeding to next level");
-      },
-      () => {
+      onNextLevel || (() => {
+        console.log("✅ Cheat victory - no next level callback provided");
+      }),
+      onMainMenu || (() => {
         // Return to menu option
         this.scene.scene.start("MenuScene");
-      }
+      })
     );
   }
 }

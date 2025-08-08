@@ -32,7 +32,6 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   // Game state
   private isOffline = false;
-  private roomData: any = null;
   private myPlayerId: string = "";
   private levelCompleted = false;
   private selectedSprite: string = "dude_monster";
@@ -57,7 +56,6 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   init(data: any) {
     this.isOffline = data.offline || false;
-    this.roomData = data.roomData || null;
     this.selectedSprite = data.selectedSprite || "dude_monster";
 
     // Reset level completion flag for new level/restart
@@ -81,14 +79,19 @@ export class GameSceneRefactored extends Phaser.Scene {
     this.handleRestartLogic(data);
 
     // Store flag for later processing after networking is set up
-    if (data.roomJoined && this.roomData) {
-      this.registry.set("needsReadyForWorld", true);
+    if (data.roomJoined && data.roomData) {
+      // Store room data in registry for NetworkSystem to use later
+      this.registry.set("currentRoomData", data.roomData);
+      // Only set needsReadyForWorld if this is not a restart/rejoin scenario
+      if (!this.gameStateManager.shouldAutoRejoin()) {
+        this.registry.set("needsReadyForWorld", true);
+      }
       this.registry.set("roomAlreadyJoined", true);
     }
 
     console.log("GameScene initialized:", {
       offline: this.isOffline,
-      roomData: this.roomData,
+      roomData: data.roomData || null,
       myPlayerId: this.myPlayerId,
       level: level,
       selectedSprite: this.selectedSprite,
@@ -101,6 +104,10 @@ export class GameSceneRefactored extends Phaser.Scene {
     this.worldGenerator = new WorldGenerator(this, this.enemySystem);
     this.worldSynchronizer = new WorldSynchronizer(this, this.enemySystem);
     this.networkSystem = new NetworkSystem(this);
+    
+    // Set EnemySystem reference in NetworkSystem for centralized enemy management
+    this.networkSystem.setEnemySystem(this.enemySystem);
+    
     this.cameraSystem = new CameraSystem(this);
     this.controlsSystem = new ControlsSystem(this);
     this.physicsSystem = new PhysicsSystem(this);
@@ -114,7 +121,12 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   private handleRestartLogic(data: any) {
     // Store original join parameters for restart functionality
-    if (data.roomName && data.username) {
+    if (data.originalRoomName && data.originalUsername) {
+      this.gameStateManager.storeOriginalJoinParameters(
+        data.originalRoomName,
+        data.originalUsername
+      );
+    } else if (data.roomName && data.username) {
       this.gameStateManager.storeOriginalJoinParameters(
         data.roomName,
         data.username
@@ -124,6 +136,25 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Check if this is a restart that should rejoin the room
     if (this.gameStateManager.shouldAutoRejoin()) {
       console.log("🔄 Auto-rejoin detected, will attempt to rejoin room");
+      
+      // Trigger the auto-rejoin process
+      setTimeout(() => {
+        this.gameStateManager.autoRejoinAfterRestart().then((success) => {
+          if (success) {
+            console.log("🎉 Successfully rejoined room after restart");
+            // Set up networking after successful rejoin
+            this.setupNetworking();
+            // Now that we've successfully rejoined, we can set the flag for ready_for_world
+            this.registry.set("needsReadyForWorld", true);
+            // Clear rejoin flags after successful completion
+            this.gameStateManager.clearRejoinFlags();
+          } else {
+            console.error("❌ Failed to rejoin room after restart");
+            // Clear rejoin flags even on failure to prevent future attempts
+            this.gameStateManager.clearRejoinFlags();
+          }
+        });
+      }, 100); // Small delay to let scene finish initializing
     }
   }
 
@@ -143,7 +174,8 @@ export class GameSceneRefactored extends Phaser.Scene {
     }
 
     // Set up networking FIRST if online (before creating game systems)
-    if (!this.isOffline) {
+    // But skip for restart scenarios - networking will be set up after rejoin
+    if (!this.isOffline && !this.gameStateManager.shouldAutoRejoin()) {
       this.setupNetworking();
     }
 
@@ -162,6 +194,21 @@ export class GameSceneRefactored extends Phaser.Scene {
 
     // Set up victory cheat
     this.handleVictoryCheat();
+
+    // Launch UI scene for HUD display
+    this.scene.launch("UIScene");
+
+    // Emit initial UI state once game is ready
+    this.time.delayedCall(100, () => {
+      const player = this.playerSystem.getPlayer();
+      if (player) {
+        const health = player.getData("health") || 100;
+        const score = player.getData("score") || 0;
+        this.game.events.emit("health-changed", health);
+        this.game.events.emit("score-changed", score);
+        console.log(`🎮 GameScene: Emitted initial UI state - Health: ${health}, Score: ${score}`);
+      }
+    });
 
     console.log("🎮 GameScene: Game world creation complete");
   }
@@ -241,8 +288,11 @@ export class GameSceneRefactored extends Phaser.Scene {
       // Set up enemy collisions when enemies are created
       // This will be called each time enemies are updated
       this.setupNetworkEnemyCollisions = () => {
-        this.networkSystem.addPlatformCollisionForNetworkEnemies(platforms);
-        this.setupNetworkEnemyPlayerCollisions();
+        // Defer collision setup to next frame to ensure physics bodies are ready
+        this.time.delayedCall(0, () => {
+          this.networkSystem.addPlatformCollisionForNetworkEnemies(platforms);
+          this.setupNetworkEnemyPlayerCollisions();
+        });
       };
     }
 
@@ -341,57 +391,13 @@ export class GameSceneRefactored extends Phaser.Scene {
     }
   }
 
-  private setupPhysicsCollisions() {
-    // For online mode, physics collisions will be set up when the world is created
-    // after receiving the server world state
-    if (!this.isOffline) {
-      console.log("🌍 Physics collisions will be set up after world creation");
-      return;
-    }
-
-    // Player-enemy collisions
-    (this.scene as any).physics.add.overlap(
-      this.playerSystem.getPlayer(),
-      this.enemySystem.getEnemyGroup(),
-      this.handlePlayerEnemyHit.bind(this),
-      undefined,
-      this
-    );
-
-    // Projectile-enemy collisions
-    (this.scene as any).physics.add.overlap(
-      this.physicsSystem.getProjectileGroup(),
-      this.enemySystem.getEnemyGroup(),
-      this.handleProjectileEnemyHit.bind(this),
-      undefined,
-      this
-    );
-
-    // Projectile-platform collisions
-    (this.scene as any).physics.add.collider(
-      this.physicsSystem.getProjectileGroup(),
-      this.worldGenerator.getPlatforms(),
-      this.handleProjectilePlatformHit.bind(this),
-      undefined,
-      this
-    );
-
-    // Player-stone collisions (for boss attacks)
-    (this.scene as any).physics.add.overlap(
-      this.playerSystem.getPlayer(),
-      this.enemySystem.getBossStones(),
-      this.handlePlayerStoneHit.bind(this),
-      undefined,
-      this
-    );
-  }
 
   private setupNetworking(networkManager?: NetworkManager) {
     const manager = networkManager || this.registry.get("networkManager");
 
     if (manager) {
-      // Pass room data if already joined
-      const roomData = this.registry.get("roomAlreadyJoined") ? this.roomData : null;
+      // Pass room data if already joined - get it from registry where MenuScene stored it
+      const roomData = this.registry.get("roomAlreadyJoined") ? this.registry.get("currentRoomData") : null;
       this.networkSystem.initialize(manager, this.myPlayerId, roomData);
       
       // Set up world state callback immediately after NetworkSystem initialization
@@ -399,6 +405,7 @@ export class GameSceneRefactored extends Phaser.Scene {
         console.log("🌍 GameScene: World state callback triggered", {
           world_seed: worldState.world_seed,
           platforms_count: worldState.platforms?.length || 0,
+          callback_time: Date.now()
         });
         this.worldSynchronizer.setServerWorldState(worldState);
 
@@ -408,7 +415,8 @@ export class GameSceneRefactored extends Phaser.Scene {
 
       // Set up enemy collision callback
       this.networkSystem.setEnemiesUpdatedCallback(() => {
-        if (this.setupNetworkEnemyCollisions) {
+        // Only set up collisions if world has been generated
+        if (this.setupNetworkEnemyCollisions && this.worldSynchronizer.isWorldGenerated()) {
           this.setupNetworkEnemyCollisions();
         }
       });
@@ -440,7 +448,7 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Update local player
     this.playerSystem.handleMovement();
 
-    // Send input updates to server (online mode)
+    // Send input updates to server (online mode only)
     if (!this.isOffline && this.networkSystem.isOnline()) {
       this.networkSystem.sendInputUpdates(currentInputs);
     }
@@ -476,7 +484,7 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Update camera
     this.cameraSystem.updateSideScrollingCamera();
 
-    // Update network projectiles (online mode)
+    // Update network projectiles (online mode only)
     if (!this.isOffline && this.networkSystem.isOnline()) {
       // Get projectile states from physics system for network sync
       const projectileStates = this.physicsSystem.getProjectileStates();
@@ -487,7 +495,7 @@ export class GameSceneRefactored extends Phaser.Scene {
       );
     }
 
-    // Broadcast game state (online mode)
+    // Broadcast game state (online mode only)
     if (!this.isOffline && this.networkSystem.isOnline()) {
       this.broadcastGameState();
     }
@@ -499,10 +507,17 @@ export class GameSceneRefactored extends Phaser.Scene {
   private checkLevelCompletion(_player: Phaser.Physics.Arcade.Sprite) {
     if (this.levelCompleted) return;
 
-    // Check if all enemies are defeated
-    if (this.enemySystem.countActiveEnemies() === 0) {
+    // In multiplayer mode, don't check victory until initial game state received
+    if (!this.isOffline && this.networkSystem.isOnline() && !this.networkSystem.isGameReady()) {
+      return; // Wait for initial enemies to be loaded from server
+    }
+
+    // Check if all enemies are defeated (EnemySystem now counts both local and network enemies)
+    const totalEnemyCount = this.enemySystem.countActiveEnemies();
+    
+    if (totalEnemyCount === 0) {
       this.levelCompleted = true;
-      console.log("🎉 Level completed!");
+      console.log(`🎉 Level completed! (Total enemies: ${totalEnemyCount})`);
 
       this.gameStateManager.showVictory(
         () => this.nextLevel(),
@@ -575,8 +590,16 @@ export class GameSceneRefactored extends Phaser.Scene {
       // Emit score changed event for UI update
       this.game.events.emit("score-changed", newScore);
 
-      // Check if all enemies defeated
-      if (this.enemySystem.countActiveEnemies() === 0) {
+      // Check if all enemies defeated (EnemySystem now counts both local and network enemies)
+      const totalEnemyCount = this.enemySystem.countActiveEnemies();
+      
+      if (totalEnemyCount === 0) {
+        // In multiplayer mode, only trigger victory if game is fully initialized
+        if (!this.isOffline && this.networkSystem.isOnline() && !this.networkSystem.isGameReady()) {
+          return; // Wait for initial enemies to be loaded from server
+        }
+        
+        console.log(`🎉 Victory from enemy defeat! (Total enemies: ${totalEnemyCount})`);
         this.gameStateManager.showVictory(
           () => this.nextLevel(),
           () => this.scene.start("MenuScene")
@@ -645,9 +668,22 @@ export class GameSceneRefactored extends Phaser.Scene {
   }
 
   private handleVictoryCheat() {
+    // Keyboard cheat (V key)
     this.input.keyboard?.on("keydown-V", () => {
       console.log("🎉 Victory cheat activated!");
-      this.gameStateManager.triggerVictoryCheat();
+      this.gameStateManager.triggerVictoryCheat(
+        () => this.nextLevel(),
+        () => this.scene.start("MenuScene")
+      );
+    });
+
+    // UI Scene cheat (level text clicking)
+    this.game.events.on("victory-cheat-triggered", () => {
+      console.log("🎉 Victory cheat activated via UI!");
+      this.gameStateManager.triggerVictoryCheat(
+        () => this.nextLevel(),
+        () => this.scene.start("MenuScene")
+      );
     });
   }
 
@@ -693,7 +729,14 @@ export class GameSceneRefactored extends Phaser.Scene {
     console.log("🎮 Moving to next level...");
     this.cleanupAudio();
     this.gameStateManager.nextLevel();
-    this.scene.restart({ level: this.gameStateManager.getCurrentLevel() });
+    
+    // Preserve offline state and selected sprite when restarting
+    const selectedSprite = localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+    this.scene.restart({ 
+      offline: this.isOffline,
+      level: this.gameStateManager.getCurrentLevel(),
+      selectedSprite: selectedSprite
+    });
   }
 
   private cleanupAudio() {
@@ -926,6 +969,12 @@ export class GameSceneRefactored extends Phaser.Scene {
     // Set up systems with synchronized world
     this.setupSystemsForWorld(syncedPlatforms);
 
+    // Set up collisions for any existing network enemies now that platforms are ready
+    if (this.setupNetworkEnemyCollisions) {
+      console.log("🔧 Setting up collisions for existing network enemies");
+      this.setupNetworkEnemyCollisions();
+    }
+
     // Hide loading screen now that world is synchronized
     this.hideLoadingScreen();
 
@@ -934,7 +983,9 @@ export class GameSceneRefactored extends Phaser.Scene {
 
   private sendReadyForWorldFromGameScene() {
     const networkManager = this.registry.get("networkManager");
-    if (!networkManager || !this.roomData || !this.myPlayerId) {
+    const currentRoomData = this.networkSystem.getCurrentRoomData();
+    
+    if (!networkManager || !currentRoomData || !this.myPlayerId) {
       console.error("🌍 GameScene: Cannot send ready_for_world - missing required data");
       return;
     }
@@ -944,7 +995,7 @@ export class GameSceneRefactored extends Phaser.Scene {
       type: "ready_for_world",
       timestamp: Date.now(),
       data: {
-        room_id: this.roomData.room_id,
+        room_id: currentRoomData.room_id,
         player_id: this.myPlayerId,
       },
     });

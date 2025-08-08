@@ -354,20 +354,21 @@ class GameWorld:
         random.seed(self.world_seed + 2000)  # Different seed for enemies
 
         # Create enemies with deterministic positioning
+        # Only using 2 enemy types: adventurer (bosses) and slime (regular enemies)
         enemy_positions = [
-            (300, 650, "owlet"),
-            (600, 650, "owlet"),
-            (800, 650, "pink_boss"),
+            (300, 650, "adventurer"),
+            (600, 650, "adventurer"),
+            (800, 650, "adventurer"),
             (1200, 650, "slime"),
-            (1500, 650, "owlet"),
+            (1500, 650, "adventurer"),
             (1800, 650, "slime"),
-            (2100, 650, "owlet"),
-            (2400, 650, "pink_boss"),
+            (2100, 650, "adventurer"),
+            (2400, 650, "adventurer"),
         ]
 
         for i, (x, y, enemy_type) in enumerate(enemy_positions):
             enemy_id = f"enemy_{i + 1}"
-            health = 100 if enemy_type == "pink_boss" else 50
+            health = 100 if enemy_type == "adventurer" else 50
 
             enemy = EnemyState(
                 enemy_id=enemy_id,
@@ -397,11 +398,11 @@ class GameWorld:
         # Simple AI: Random movement with occasional direction changes
         if self.tick % 120 == 0:  # Change direction every 2 seconds (at 60fps)
             # Random chance to change direction or speed
-            if enemy.enemy_type == "pink_boss":
-                # Boss moves slower
+            if enemy.enemy_type == "adventurer":
+                # Adventurer (boss) moves slower
                 enemy.velocity_x = choice([-50, 0, 50])
             else:
-                # Regular enemies
+                # Slime (regular enemies) move faster
                 enemy.velocity_x = choice([-100, -50, 0, 50, 100])
 
             enemy.facing_right = enemy.velocity_x >= 0

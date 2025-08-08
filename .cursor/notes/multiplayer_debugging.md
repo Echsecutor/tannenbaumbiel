@@ -2,6 +2,305 @@
 
 ## Recent Major Fixes (2024)
 
+### 10. Enemy System Architecture Refactoring (MAJOR IMPROVEMENT)
+
+**Problem**: Complete duplication of enemy creation and management logic between `EnemySystem` (local enemies) and `NetworkSystem` (network enemies).
+
+**Root Cause**: Poor architectural design where two separate systems handled the same entity type with different code paths.
+
+**Issues This Caused**:
+- Code duplication leading to maintenance burden
+- Inconsistent enemy properties (scale, animations, graphics)
+- Different texture keys and animation mappings
+- Separate victory counting logic
+- Bug-prone manual synchronization
+
+**Solution Implemented**:
+- **Made EnemySystem the single source of truth** for all enemy management
+- **Centralized enemy creation** with consistent configuration data
+- **Unified enemy type mapping** (owlet→adventurer, pink_boss→adventurer, slime→slime)
+- **NetworkSystem now delegates** to EnemySystem instead of duplicating logic
+- **Simplified victory conditions** (single count instead of local+network)
+
+**Code Changes**:
+
+```typescript
+// frontend/src/game/systems/EnemySystem.ts - NEW CENTRALIZED APPROACH
+export class EnemySystem {
+  private networkEnemies: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
+  
+  // Centralized configuration
+  private readonly ENEMY_CONFIG = {
+    "adventurer": {
+      texture: "adventurer_idle_000",
+      health: 100,
+      scale: 0.1,
+      depth: 12,
+      bounce: 1,
+      idleAnimation: "adventurer_idle",
+      runAnimation: "adventurer_run"
+    },
+    // ... etc
+  };
+
+  // Single method for creating ANY enemy
+  createNetworkEnemy(x, y, networkEnemyType, enemyId) {
+    const localEnemyType = this.ENEMY_TYPE_MAP[networkEnemyType];
+    return this.createEnemySprite(x, y, localEnemyType, enemyId);
+  }
+
+  // Single method for updating ANY enemy animation
+  updateNetworkEnemyAnimation(enemyId, velocityX, facingRight) {
+    // Uses same config as local enemies
+  }
+
+  // Combined counting
+  countActiveEnemies(): number {
+    return this.enemies.countActive() + this.networkEnemies.size;
+  }
+}
+
+// frontend/src/game/systems/NetworkSystem.ts - SIMPLIFIED
+export class NetworkSystem {
+  private enemySystem: any = null; // Reference instead of duplication
+  
+  setEnemySystem(enemySystem: any): void {
+    this.enemySystem = enemySystem;
+  }
+
+  private updateNetworkEnemy(enemyState: any) {
+    // Delegate to EnemySystem instead of duplicating logic
+    let sprite = this.enemySystem.getNetworkEnemy(enemyState.enemy_id);
+    if (!sprite) {
+      sprite = this.enemySystem.createNetworkEnemy(/*...*/);
+    }
+    this.enemySystem.updateNetworkEnemyAnimation(/*...*/);
+  }
+}
+```
+
+**Benefits**:
+- **Zero code duplication** for enemy management
+- **Guaranteed consistency** between single player and multiplayer
+- **Single place to fix bugs** or add features
+- **Cleaner architecture** with clear responsibilities
+- **Easier testing and maintenance**
+
+**Post-Refactoring Fix (2025-08-07)**:
+After the enemy system refactoring, a missing method `addPlatformCollisionForNetworkEnemies` was causing runtime errors. This method was needed to set up physics collisions between network enemies (managed by EnemySystem) and platforms. The fix involved:
+
+```typescript
+// frontend/src/game/systems/NetworkSystem.ts - ADDED MISSING METHOD
+addPlatformCollisionForNetworkEnemies(platforms: Phaser.Physics.Arcade.StaticGroup) {
+  if (!this.enemySystem) {
+    console.error("❌ NetworkSystem: EnemySystem reference not set for platform collisions");
+    return;
+  }
+  
+  const networkEnemies = this.enemySystem.getNetworkEnemies();
+  for (const [_enemyId, sprite] of networkEnemies) {
+    this.scene.physics.add.collider(sprite, platforms);
+  }
+}
+```
+
+This demonstrates the importance of maintaining proper interfaces between systems during architectural refactoring.
+
+### 11. Enemy Type Cleanup (STANDARDIZATION)
+
+**Problem**: Inconsistent enemy types between frontend and backend causing unnecessary complexity.
+
+**Root Cause**: Historical enemy types (`owlet`, `pink_boss`) in backend didn't match actual frontend implementation (only `adventurer` and `slime`).
+
+**Issues This Caused**:
+- Unnecessary type mapping complexity in frontend
+- Confusion about which enemy types are actually supported
+- Old unused code with references to non-existent enemy types
+- Backend sending types that needed translation
+
+**Solution Implemented**:
+- **Standardized to 2 enemy types only**: `adventurer` (boss) and `slime` (regular)
+- **Updated backend enemy creation** to use correct types directly
+- **Removed frontend type mapping** (no longer needed)
+- **Cleaned up old code** with references to historical types
+
+**Code Changes**:
+
+```python
+# backend/app/game/world.py - BEFORE
+enemy_positions = [
+    (300, 650, "owlet"),        # -> adventurer
+    (800, 650, "pink_boss"),    # -> adventurer  
+    (1200, 650, "slime"),       # -> slime
+]
+
+# AFTER (CLEAN)
+enemy_positions = [
+    (300, 650, "adventurer"),   # Direct mapping
+    (800, 650, "adventurer"),   # Direct mapping
+    (1200, 650, "slime"),       # Direct mapping
+]
+```
+
+```typescript
+// frontend/src/game/systems/EnemySystem.ts - BEFORE
+private readonly ENEMY_TYPE_MAP = {
+  "owlet": "adventurer",
+  "pink_boss": "adventurer", 
+  "slime": "slime"
+};
+
+// AFTER (REMOVED) - No mapping needed!
+// Backend sends correct types directly
+```
+
+**Benefits**:
+- **Simpler codebase** with no unnecessary mappings
+- **Clearer enemy type system** (only 2 types total)
+- **Consistent naming** across all systems
+- **Removed dead code** and historical references
+
+### 9. Network Enemy Scaling Bug (FIXED)
+
+**Problem**: Network enemies (especially mini bosses) appear much larger than their single player counterparts.
+
+**Root Cause**: NetworkSystem used different scaling values than EnemySystem, making network enemies 10-12 times larger.
+
+**Symptoms**:
+- Network mini bosses appear huge compared to single player
+- Inconsistent visual appearance between single player and multiplayer
+- Network enemies don't match local enemy proportions
+
+**Solution Implemented**:
+- Updated all network enemy scales to match EnemySystem values (0.1 for all types)
+- Fixed depth and bounce properties to match local enemies
+- Ensured visual consistency between single player and multiplayer modes
+
+**Code Changes**:
+
+```typescript
+// frontend/src/game/systems/NetworkSystem.ts - Before (INCONSISTENT)
+switch (enemyState.enemy_type) {
+  case "owlet":
+    scale = 1; // TOO LARGE
+    break;
+  case "pink_boss":  
+    scale = 1.2; // TOO LARGE
+    break;
+  case "slime":
+    scale = 0.8; // TOO LARGE
+    break;
+}
+
+// After (CONSISTENT)
+switch (enemyState.enemy_type) {
+  case "owlet":
+    scale = 0.1; // Match local enemy scale
+    break;
+  case "pink_boss":
+    scale = 0.1; // Match local enemy scale  
+    break;
+  case "slime":
+    scale = 0.1; // Match local enemy scale
+    break;
+}
+
+// Also added matching properties:
+sprite.setDepth(12); // Match local enemy depth
+sprite.setBounce(1); // Match local enemy bounce
+```
+
+### 8. Network Enemy Animation Bug (FIXED)
+
+**Problem**: Network enemies display "Missing animation" errors for animations like `owlet_idle_anim`, `pink_boss_idle_anim`, `slime_idle_anim`.
+
+**Root Cause**: NetworkSystem was using incorrect animation naming scheme that didn't match the actual loaded animations.
+
+**Symptoms**:
+- Console shows "Missing animation: owlet_idle_anim" repeatedly
+- Network enemies appear without animations
+- Local enemies work fine with correct animations
+
+**Solution Implemented**:
+- Updated NetworkSystem animation logic to match EnemySystem naming scheme
+- Fixed animation mapping: owlet→adventurer, slime→slime, pink_boss→pink_enemy_idle_anim
+- Ensured consistent animation names across local and network enemy systems
+
+**Code Changes**:
+
+```typescript
+// frontend/src/game/systems/NetworkSystem.ts - Before (BROKEN)
+if (Math.abs(enemyState.velocity_x) > 10) {
+  sprite.play(`${enemyType}_run_anim`, true); // owlet_run_anim - DOESN'T EXIST
+} else {
+  sprite.play(`${enemyType}_idle_anim`, true); // owlet_idle_anim - DOESN'T EXIST  
+}
+
+// After (FIXED)
+if (Math.abs(enemyState.velocity_x) > 10) {
+  if (enemyType === "owlet") {
+    sprite.play("adventurer_run", true); // CORRECT
+  } else if (enemyType === "slime") {
+    sprite.play("slime_move", true); // CORRECT
+  } else if (enemyType === "pink_boss") {
+    sprite.play("pink_enemy_idle_anim", true); // CORRECT
+  }
+} else {
+  // Similar mapping for idle animations
+}
+```
+
+### 7. Multiplayer Victory Timing Bug (FIXED)
+
+**Problem**: Victory condition triggers immediately after world creation but before enemies are loaded from server.
+
+**Root Cause**: Victory check runs in every update frame and immediately after world synchronization, but enemies only arrive later when initial game state is received from server.
+
+**Symptoms**:
+- Victory screen appears immediately after joining multiplayer game
+- "🎉 Level completed!" appears before enemies are created
+- Victory music starts before any gameplay
+
+**Solution Implemented**:
+- Added `isGameReady()` method to NetworkSystem to track when initial game state received
+- Added `countNetworkEnemies()` method to count network enemies separately from local enemies
+- Modified victory checks to wait for `ConnectionState.GAME_READY` in multiplayer mode
+- Updated victory logic to count both local enemies (`EnemySystem`) and network enemies (`NetworkSystem`)
+- Prevents victory conditions from triggering until enemies are properly loaded
+
+**Code Changes**:
+
+```typescript
+// frontend/src/game/systems/NetworkSystem.ts
+isGameReady(): boolean {
+  return this.connectionState === ConnectionState.GAME_READY;
+}
+
+countNetworkEnemies(): number {
+  return this.networkEnemies.size;
+}
+
+// frontend/src/game/scenes/GameSceneRefactored.ts
+private checkLevelCompletion(_player: Phaser.Physics.Arcade.Sprite) {
+  // In multiplayer mode, don't check victory until initial game state received
+  if (!this.isOffline && this.networkSystem.isOnline() && !this.networkSystem.isGameReady()) {
+    return; // Wait for initial enemies to be loaded from server
+  }
+  
+  // Count both local and network enemies
+  const localEnemyCount = this.enemySystem.countActiveEnemies();
+  const networkEnemyCount = !this.isOffline ? this.networkSystem.countNetworkEnemies() : 0;
+  const totalEnemyCount = localEnemyCount + networkEnemyCount;
+  
+  if (totalEnemyCount === 0) {
+    this.levelCompleted = true;
+    // ... trigger victory
+  }
+}
+```
+
+## Recent Major Fixes (2024)
+
 ### 4. World Synchronization Issues (FIXED)
 
 **Problem**: Players saw completely different levels with different platform layouts and enemy positions.
@@ -471,6 +770,143 @@ if (sprite && sprite.body) {
 // BAD - No physics body check
 sprite.setVelocity(vx, vy); // CRASHES if sprite.body is undefined
 ```
+
+### Single Player Cheat System Broken (FIXED)
+
+**Problem**: UIScene cheat (clicking level text 5 times) shows activation logs but victory doesn't trigger.
+
+**Root Cause**: UIScene emits `victory-cheat-triggered` event but GameScene wasn't listening for it, only handling keyboard cheat (V key).
+
+**Symptoms**:
+- Console shows "🎉 Victory cheat activated!" after 5 clicks
+- No actual victory screen or level completion
+- Keyboard cheat (V key) works but UI cheat doesn't
+
+**Solution Implemented**:
+- Added missing event listener in GameScene's `handleVictoryCheat()` method
+- GameScene now listens for both keyboard input and UIScene event
+- Both cheats now call the same `gameStateManager.triggerVictoryCheat()` method
+
+**Code Changes**:
+
+```typescript
+// frontend/src/game/scenes/GameSceneRefactored.ts
+private handleVictoryCheat() {
+  // Keyboard cheat (V key)
+  this.input.keyboard?.on("keydown-V", () => {
+    console.log("🎉 Victory cheat activated!");
+    this.gameStateManager.triggerVictoryCheat();
+  });
+
+  // UI Scene cheat (level text clicking) - ADDED
+  this.game.events.on("victory-cheat-triggered", () => {
+    console.log("🎉 Victory cheat activated via UI!");
+    this.gameStateManager.triggerVictoryCheat();
+  });
+}
+```
+
+**Prevention Strategy**:
+- Ensure all UI events have corresponding listeners in the appropriate scenes
+- Test both keyboard and UI-based cheats during development
+- Use consistent event naming conventions across scenes
+
+### Single Player Boss Progression Bug (FIXED)
+
+**Problem**: After defeating tree boss in single player mode, game incorrectly switches to multiplayer mode instead of continuing single player level progression.
+
+**Root Cause**: Double level increment bug where `startNextLevel()` method was calling `nextLevel()` AND the onNextLevel callback was also calling `nextLevel()`, causing level to jump from 4→5 and incorrectly triggering multiplayer mode.
+
+**Symptoms**:
+- Boss defeated successfully in level 3 (offline mode)
+- Game advances to level 4 still in offline mode
+- Suddenly switches to level 5 with `isOffline: false`
+- Tries to create online world with WorldSynchronizer
+- Gets stuck waiting for server world state that never comes
+- Loading timeout errors and performance issues
+
+**Solution Implemented**:
+- Fixed double level increment by simplifying `startNextLevel()` method to only call the callback
+- Removed duplicate `nextLevel()` call from `startNextLevel()` method
+- Prevents level jump from 4→5 that was triggering multiplayer mode switch
+- Enhanced `shouldAutoRejoin()` to clear rejoin flags when in offline mode for additional safety
+
+**Code Changes**:
+
+```typescript
+// frontend/src/game/systems/GameStateManager.ts - BEFORE (BROKEN)
+private startNextLevel(onNextLevel: () => void) {
+  // ...
+  this.nextLevel(); // ❌ First increment (3→4)
+  
+  if (this.isOffline) {
+    this.scene.scene.restart({ offline: true, level: this.currentLevel });
+  }
+  // ...
+  onNextLevel(); // ❌ Second increment (4→5) via GameScene.nextLevel()
+}
+
+// AFTER (FIXED)
+private startNextLevel(onNextLevel: () => void) {
+  console.log("🎮 Starting next level...");
+  this.scene.physics.resume();
+  
+  if ((this.scene as any).restoreBackgroundMusic) {
+    (this.scene as any).restoreBackgroundMusic();
+  }
+  
+  // Let the callback handle level advancement and scene restart
+  // (this prevents double increment and double restart)
+  onNextLevel(); // ✅ Single increment only
+}
+
+// Enhanced GameScene.nextLevel() to preserve offline state
+private nextLevel() {
+  console.log("🎮 Moving to next level...");
+  this.cleanupAudio();
+  this.gameStateManager.nextLevel();
+  
+  // ✅ Preserve offline state and selected sprite when restarting
+  const selectedSprite = localStorage.getItem("tannenbaum_selected_sprite") || "dude_monster";
+  this.scene.restart({ 
+    offline: this.isOffline,  // ✅ Critical: preserve offline mode
+    level: this.gameStateManager.getCurrentLevel(),
+    selectedSprite: selectedSprite
+  });
+}
+
+// Enhanced safety check in shouldAutoRejoin()
+shouldAutoRejoin(): boolean {
+  // If we're in offline mode, don't auto-rejoin regardless of registry flags
+  if (this.isOffline) {
+    console.log("🔄 In offline mode, clearing any stale rejoin flags");
+    this.clearRejoinFlags();
+    return false;
+  }
+  // ...
+}
+```
+
+**Benefits**:
+- Single player mode remains consistent across all level transitions
+- Boss level progression works correctly
+- No more unwanted switches to multiplayer mode
+- Registry state cleanup prevents future issues
+- Multiplayer rejoin functionality preserved for actual multiplayer sessions
+
+**Follow-up Enhancement**: Enhanced offline mode isolation to prevent any backend synchronization calls in single player mode:
+- Added guard to `getGameState()` to return null roomData when offline
+- Added guard to `setRejoinFlags()` to skip network operations when offline  
+- Verified existing guards in NetworkSystem methods (`broadcastGameState`, `sendInputUpdates`)
+- All network operations now properly check `isOffline` flag before executing
+- Single player mode is completely isolated from network operations
+
+**Room Data Flow Enhancement**: Fixed room data synchronization to maintain NetworkSystem as single source of truth:
+- Removed duplicate `roomData` property from GameScene
+- Updated `sendReadyForWorldFromGameScene()` to use `NetworkSystem.getCurrentRoomData()`  
+- Fixed room data initialization flow: MenuScene → Registry → NetworkSystem
+- Eliminated potential room state synchronization issues
+- All components now access room data through NetworkSystem consistently
 
 ### Game Restart Synchronization Issues
 

@@ -25,12 +25,15 @@ export class NetworkSystem {
   private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
   private currentRoomId: string = "";
   private receivedWorldSeed: number = 0;
+  private currentRoomData: any = null;
 
   // Network entities
   private networkPlayers: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
-  private networkEnemies: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
   private networkProjectiles: Map<string, Phaser.Physics.Arcade.Sprite> =
     new Map();
+  
+  // Reference to EnemySystem for centralized enemy management
+  private enemySystem: any = null;
 
   // World state callback
   private onWorldStateReceived: ((worldState: any) => void) | null = null;
@@ -40,6 +43,13 @@ export class NetworkSystem {
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
+  }
+
+  /**
+   * Set reference to EnemySystem for centralized enemy management
+   */
+  setEnemySystem(enemySystem: any): void {
+    this.enemySystem = enemySystem;
   }
 
   initialize(networkManager: NetworkManager, myPlayerId?: string, roomData?: any) {
@@ -56,6 +66,7 @@ export class NetworkSystem {
       this.connectionState = ConnectionState.ROOM_JOINED;
       this.roomJoinConfirmed = true;
       this.currentRoomId = roomData.room_id;
+      this.currentRoomData = roomData; // Store room data as single source of truth
       console.log("🏠 NetworkSystem: Initialized with existing room join state");
     }
 
@@ -136,22 +147,6 @@ export class NetworkSystem {
     console.log("🏠 NetworkSystem: Room join handled, waiting for world state...");
   }
 
-  private sendReadyForWorld() {
-    if (!this.networkManager || !this.currentRoomId || !this.myPlayerId) {
-      console.error("🌍 NetworkSystem: Cannot send ready_for_world - missing required data");
-      return;
-    }
-
-    console.log("🌍 NetworkSystem: Sending ready_for_world acknowledgment");
-    this.networkManager.sendMessage({
-      type: "ready_for_world",
-      timestamp: Date.now(),
-      data: {
-        room_id: this.currentRoomId,
-        player_id: this.myPlayerId,
-      },
-    });
-  }
 
   private handleWorldStateUpdate(worldState: any) {
     console.log("🌍 NetworkSystem: Received world state from server", {
@@ -468,6 +463,39 @@ export class NetworkSystem {
     return !!this.networkManager && this.roomJoinConfirmed;
   }
 
+  /**
+   * Check if the network system has received the initial game state
+   * This prevents victory conditions from triggering before enemies are loaded
+   */
+  isGameReady(): boolean {
+    return this.connectionState === ConnectionState.GAME_READY;
+  }
+
+  /**
+   * Count active network enemies for victory condition checking
+   */
+  countNetworkEnemies(): number {
+    return this.enemySystem ? this.enemySystem.getNetworkEnemies().size : 0;
+  }
+
+  /**
+   * Reset network system state for restart
+   */
+  resetState(): void {
+    console.log("🔄 NetworkSystem: Resetting state for restart");
+    this.connectionState = ConnectionState.DISCONNECTED;
+    this.roomJoinConfirmed = false;
+    this.myPlayerId = "";
+    this.currentRoomId = "";
+    this.receivedWorldSeed = 0;
+    this.currentRoomData = null;
+    this.clearNetworkEntities();
+  }
+
+  getCurrentRoomData(): any {
+    return this.currentRoomData;
+  }
+
   getMyPlayerId(): string {
     return this.myPlayerId;
   }
@@ -490,83 +518,59 @@ export class NetworkSystem {
   private updateEnemiesFromServer(enemies: any[]) {
     console.log(`🦴 NetworkSystem: Updating ${enemies.length} enemies from server`);
     
+    if (!this.enemySystem) {
+      console.error("❌ NetworkSystem: EnemySystem reference not set");
+      return;
+    }
+    
     // Remove disconnected enemies
     const activeEnemyIds = new Set(enemies.map((e) => e.enemy_id));
-    for (const [enemyId, sprite] of this.networkEnemies) {
+    const currentNetworkEnemies = this.enemySystem.getNetworkEnemies();
+    for (const [enemyId] of currentNetworkEnemies) {
       if (!activeEnemyIds.has(enemyId)) {
         console.log(`🦴 NetworkSystem: Removing enemy ${enemyId}`);
-        sprite.destroy();
-        this.networkEnemies.delete(enemyId);
+        this.enemySystem.removeNetworkEnemy(enemyId);
       }
     }
 
+    // Track if any new enemies were created
+    let newEnemiesCreated = false;
+
     // Update/create enemies
     for (const enemyState of enemies) {
-      this.updateNetworkEnemy(enemyState);
+      const wasCreated = this.updateNetworkEnemy(enemyState);
+      if (wasCreated) {
+        newEnemiesCreated = true;
+      }
     }
 
-    // Trigger collision setup callback if enemies were updated
-    if (this.onEnemiesUpdated) {
+    // Only trigger collision setup if new enemies were created
+    if (newEnemiesCreated && this.onEnemiesUpdated) {
       this.onEnemiesUpdated();
     }
   }
 
-  private updateNetworkEnemy(enemyState: any) {
-    let sprite = this.networkEnemies.get(enemyState.enemy_id);
+  private updateNetworkEnemy(enemyState: any): boolean {
+    let sprite = this.enemySystem.getNetworkEnemy(enemyState.enemy_id);
+    let wasCreated = false;
 
     if (!sprite) {
       try {
-        // Create enemy sprite based on type
-        let textureKey = "owlet_idle"; // Default
-        let scale = 1;
-        let health = 50;
-
-        switch (enemyState.enemy_type) {
-          case "owlet":
-            textureKey = "owlet_idle";
-            scale = 1;
-            health = 50;
-            break;
-          case "pink_boss":
-            textureKey = "pink_boss_idle";
-            scale = 1.2;
-            health = 100;
-            break;
-          case "slime":
-            textureKey = "slime_idle";
-            scale = 0.8;
-            health = 30;
-            break;
-        }
-
-        sprite = this.scene.physics.add.sprite(
+        // Create enemy using EnemySystem for consistency
+        sprite = this.enemySystem.createNetworkEnemy(
           enemyState.x,
           enemyState.y,
-          textureKey
+          enemyState.enemy_type,
+          enemyState.enemy_id
         );
         
-        if (!sprite) {
-          console.error(`❌ Failed to create enemy sprite for ${enemyState.enemy_id}`);
-          return;
+        if (sprite) {
+          console.log(`🦴 Created network enemy: ${enemyState.enemy_id} (${enemyState.enemy_type})`);
+          wasCreated = true;
         }
-
-        sprite.setScale(scale);
-        sprite.setData("health", health);
-        sprite.setData("maxHealth", health);
-        sprite.setData("enemyType", enemyState.enemy_type);
-        sprite.setData("enemyId", enemyState.enemy_id);
-        sprite.setBounce(0.2);
-        sprite.setCollideWorldBounds(true);
-
-        // Set proper physics body
-        sprite.body!.setSize(32, 48);
-        sprite.body!.setOffset(16, 16);
-
-        this.networkEnemies.set(enemyState.enemy_id, sprite);
-        console.log(`🦴 Created network enemy: ${enemyState.enemy_id} (${enemyState.enemy_type})`);
       } catch (error) {
         console.error(`❌ Error creating network enemy:`, error);
-        return;
+        return false;
       }
     }
 
@@ -586,20 +590,20 @@ export class NetworkSystem {
           sprite.setPosition(targetX, targetY);
         }
 
-        sprite.setFlipX(!enemyState.facing_right);
         sprite.setData("health", enemyState.health);
 
-        // Update animation based on movement
-        const enemyType = enemyState.enemy_type;
-        if (Math.abs(enemyState.velocity_x) > 10) {
-          sprite.play(`${enemyType}_run_anim`, true);
-        } else {
-          sprite.play(`${enemyType}_idle_anim`, true);
-        }
+        // Update animation using EnemySystem for consistency
+        this.enemySystem.updateNetworkEnemyAnimation(
+          enemyState.enemy_id,
+          enemyState.velocity_x,
+          enemyState.facing_right
+        );
       } catch (error) {
         console.error(`❌ Error updating network enemy:`, error);
       }
     }
+
+    return wasCreated;
   }
 
   clearNetworkEntities() {
@@ -609,11 +613,10 @@ export class NetworkSystem {
     }
     this.networkPlayers.clear();
 
-    // Clear network enemies
-    for (const [_enemyId, sprite] of this.networkEnemies) {
-      sprite.destroy();
+    // Clear network enemies using EnemySystem
+    if (this.enemySystem) {
+      this.enemySystem.clearNetworkEnemies();
     }
-    this.networkEnemies.clear();
 
     // Clear network projectiles
     for (const [_projectileId, sprite] of this.networkProjectiles) {
@@ -633,13 +636,35 @@ export class NetworkSystem {
   addPlatformCollisionForNetworkEnemies(
     platforms: Phaser.Physics.Arcade.StaticGroup
   ) {
-    for (const [_enemyId, sprite] of this.networkEnemies) {
-      this.scene.physics.add.collider(sprite, platforms);
+    if (!this.enemySystem) {
+      console.error("❌ NetworkSystem: EnemySystem reference not set for platform collisions");
+      return;
     }
-  }
-
-  getNetworkEnemies(): Map<string, Phaser.Physics.Arcade.Sprite> {
-    return this.networkEnemies;
+    
+    // Safety check for platforms group
+    if (!platforms || !platforms.children) {
+      console.warn("⚠️ NetworkSystem: Platforms group not ready yet, deferring collision setup");
+      // Defer collision setup until platforms are ready
+      this.scene.time.delayedCall(100, () => {
+        this.addPlatformCollisionForNetworkEnemies(platforms);
+      });
+      return;
+    }
+    
+    const networkEnemies = this.enemySystem.getNetworkEnemies();
+    for (const [_enemyId, sprite] of networkEnemies) {
+      // Safety check for sprite physics body
+      if (!sprite || !sprite.body) {
+        console.warn(`⚠️ NetworkSystem: Skipping collision setup for enemy ${_enemyId} - missing physics body`);
+        continue;
+      }
+      
+      try {
+        this.scene.physics.add.collider(sprite, platforms);
+      } catch (error) {
+        console.error(`❌ NetworkSystem: Failed to add collision for enemy ${_enemyId}:`, error);
+      }
+    }
   }
 
   reset() {
@@ -654,6 +679,14 @@ export class NetworkSystem {
 
   getNetworkPlayers(): Map<string, Phaser.Physics.Arcade.Sprite> {
     return this.networkPlayers;
+  }
+
+  getNetworkEnemies(): Map<string, Phaser.Physics.Arcade.Sprite> {
+    if (!this.enemySystem) {
+      console.error("❌ NetworkSystem: EnemySystem reference not set for getNetworkEnemies");
+      return new Map();
+    }
+    return this.enemySystem.getNetworkEnemies();
   }
 
   getAllPlayerScores(): Array<{

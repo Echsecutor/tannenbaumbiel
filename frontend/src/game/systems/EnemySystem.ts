@@ -7,6 +7,38 @@ export class EnemySystem {
   private scene: Phaser.Scene;
   private enemies!: Phaser.Physics.Arcade.Group;
   private networkEnemies: Map<string, Phaser.Physics.Arcade.Sprite> = new Map();
+  
+  // No mapping needed - backend and frontend now use same enemy types
+
+  // Enemy configuration data
+  private readonly ENEMY_CONFIG: Record<string, {
+    texture: string;
+    health: number;
+    scale: number;
+    depth: number;
+    bounce: number;
+    idleAnimation: string;
+    runAnimation: string;
+  }> = {
+    "adventurer": {
+      texture: "adventurer_idle_000",
+      health: 100,
+      scale: 0.1,
+      depth: 12,
+      bounce: 1,
+      idleAnimation: "adventurer_idle",
+      runAnimation: "adventurer_run"
+    },
+    "slime": {
+      texture: "slime_idle_000", 
+      health: 50,
+      scale: 0.1,
+      depth: 12,
+      bounce: 1,
+      idleAnimation: "slime_idle",
+      runAnimation: "slime_move"
+    }
+  };
   private bossStones!: Phaser.Physics.Arcade.Group;
   private bossStoneThrowTimer: number = 0;
   private enemyStates: Map<string, string> = new Map(); // Track enemy states: idle, running, attacking, hurt, dying
@@ -59,25 +91,27 @@ export class EnemySystem {
     let enemyId = `enemy_${x}_${y}_${chunkIndex}`;
 
     if (enemyType === "adventurer") {
-      // Small boss enemy using ADVENTURER sprites
+      // Boss enemy using ADVENTURER sprites
       enemy = this.enemies.create(x, y, "adventurer_idle_000");
       enemy.setData("health", 100);
       enemy.setData("type", "adventurer");
-      enemy.setScale(0.1); // Scale down to match slimes and player size
+      enemy.setScale(0.1);
       enemy.setDepth(12);
       enemy.play("adventurer_idle");
       enemy.setVelocity(Phaser.Math.Between(-100, 100), 20);
       this.enemyStates.set(enemyId, "idle");
-    } else {
-      // Normal enemy using SLIME sprites
+    } else if (enemyType === "slime") {
+      // Regular enemy using SLIME sprites
       enemy = this.enemies.create(x, y, "slime_idle_000");
       enemy.setData("health", 50);
       enemy.setData("type", "slime");
-      enemy.setScale(0.1); // Scale down much smaller to match player size
+      enemy.setScale(0.1);
       enemy.setDepth(12);
       enemy.play("slime_idle");
       enemy.setVelocity(Phaser.Math.Between(-150, 150), 20);
       this.enemyStates.set(enemyId, "idle");
+    } else {
+      throw new Error(`Unknown enemy type: ${enemyType}. Only 'adventurer' and 'slime' are supported.`);
     }
 
     enemy.setBounce(1);
@@ -665,9 +699,6 @@ export class EnemySystem {
     });
   }
 
-  getEnemyGroup(): Phaser.Physics.Arcade.Group {
-    return this.enemies;
-  }
 
   getBossStones(): Phaser.Physics.Arcade.Group {
     return this.bossStones;
@@ -694,161 +725,6 @@ export class EnemySystem {
     return enemyStates;
   }
 
-  updateNetworkEnemies(
-    enemyStates: any[],
-    platforms: Phaser.Physics.Arcade.StaticGroup,
-    player: Phaser.Physics.Arcade.Sprite,
-    projectiles: Phaser.Physics.Arcade.Group
-  ) {
-    const activeEnemyIds = new Set<string>();
-
-    for (const enemyState of enemyStates) {
-      activeEnemyIds.add(enemyState.enemy_id);
-      let sprite = this.networkEnemies.get(enemyState.enemy_id);
-
-      if (!sprite) {
-        try {
-          let texture: string;
-          if (enemyState.enemy_type === "adventurer") {
-            texture = "adventurer_idle_000";
-          } else if (enemyState.enemy_type === "slime") {
-            texture = "slime_idle_000";
-          } else if (enemyState.enemy_type === "pink_boss") {
-            texture = "pink_enemy_idle"; // Keep old boss for backwards compatibility
-          } else {
-            texture = "slime_idle_000"; // Default to slime
-          }
-
-          sprite = this.scene.physics.add.sprite(
-            enemyState.x,
-            enemyState.y,
-            texture
-          );
-          sprite.setDepth(12);
-
-          if (!sprite || !sprite.body) {
-            console.error(
-              `❌ Failed to create enemy sprite ${enemyState.enemy_id}`
-            );
-            continue;
-          }
-
-          sprite.setData("health", enemyState.health);
-          sprite.setData("type", enemyState.enemy_type);
-          sprite.setData("facingRight", enemyState.facing_right);
-          sprite.setData("enemyId", enemyState.enemy_id);
-
-          if (enemyState.enemy_type === "adventurer") {
-            sprite.setScale(0.1); // Scale down to match slimes and player size
-            sprite.setTint(0x8a2be2); // Purple tint for network adventurers
-          } else if (enemyState.enemy_type === "slime") {
-            sprite.setScale(0.1); // Scale down much smaller to match player size
-            sprite.setTint(0x32cd32); // Green tint for network slimes
-          } else if (enemyState.enemy_type === "pink_boss") {
-            sprite.setScale(1.5);
-            sprite.setTint(0xff69b4);
-          } else {
-            sprite.setScale(0.1); // Default to slime scaling
-            sprite.setTint(0x32cd32); // Default green tint
-          }
-
-          this.enemyStates.set(enemyState.enemy_id, "idle");
-
-          sprite.setBounce(0);
-          sprite.setCollideWorldBounds(true);
-
-          // Add collisions
-          this.scene.physics.add.collider(sprite, platforms);
-          this.scene.physics.add.overlap(
-            player,
-            sprite,
-            (_p: any, e: any) => this.hitEnemy(e),
-            undefined,
-            this.scene
-          );
-          this.scene.physics.add.overlap(
-            projectiles,
-            sprite,
-            (_pr: any, e: any) => this.hitEnemy(e),
-            undefined,
-            this.scene
-          );
-
-          this.networkEnemies.set(enemyState.enemy_id, sprite);
-          console.log(`🦴 Created network enemy: ${enemyState.enemy_id}`);
-        } catch (error) {
-          console.error(`❌ Error creating network enemy:`, error);
-          continue;
-        }
-      }
-
-      if (sprite && sprite.body) {
-        try {
-          sprite.setPosition(enemyState.x, enemyState.y);
-
-          // Check if enemy is dead (health <= 0)
-          const isDead = enemyState.health <= 0;
-
-          if (isDead) {
-            // Dead enemies don't move and play death animation
-            sprite.setVelocity(0, 0);
-            this.enemyStates.set(enemyState.enemy_id, "dying");
-
-            // Play death animation
-            if (enemyState.enemy_type === "adventurer") {
-              sprite.play("adventurer_dead", true);
-            } else if (enemyState.enemy_type === "slime") {
-              sprite.play("slime_dead", true);
-            } else if (enemyState.enemy_type === "pink_boss") {
-              sprite.play("pink_enemy_idle_anim", true); // Old boss type doesn't have death animation
-            }
-          } else {
-            // Only update movement and animations for living enemies
-            sprite.setVelocity(enemyState.velocity_x, enemyState.velocity_y);
-
-            // Handle sprite flipping - both SLIME and ADVENTURER sprites are right-facing by default
-            sprite.setFlipX(enemyState.facing_right);
-
-            // Update animation based on enemy type and movement
-            if (Math.abs(enemyState.velocity_x) > 10) {
-              if (enemyState.enemy_type === "adventurer") {
-                sprite.play("adventurer_run", true);
-              } else if (enemyState.enemy_type === "slime") {
-                sprite.play("slime_move", true);
-              } else if (enemyState.enemy_type === "pink_boss") {
-                sprite.play("pink_enemy_idle_anim", true); // Old boss type
-              }
-            } else {
-              if (enemyState.enemy_type === "adventurer") {
-                sprite.play("adventurer_idle", true);
-              } else if (enemyState.enemy_type === "slime") {
-                sprite.play("slime_idle", true);
-              } else if (enemyState.enemy_type === "pink_boss") {
-                sprite.play("pink_enemy_idle_anim", true); // Old boss type
-              }
-            }
-          }
-
-          sprite.setData("health", enemyState.health);
-        } catch (error) {
-          console.error(
-            `❌ Error updating enemy ${enemyState.enemy_id}:`,
-            error
-          );
-        }
-      }
-    }
-
-    // Remove enemies that no longer exist
-    for (const [enemyId, sprite] of this.networkEnemies) {
-      if (!activeEnemyIds.has(enemyId)) {
-        sprite.destroy();
-        this.networkEnemies.delete(enemyId);
-        this.enemyStates.delete(enemyId); // Clean up enemy state
-      }
-    }
-  }
-
   removeEnemiesInChunk(chunkIndex: number) {
     this.enemies.children.entries.forEach((enemy: any) => {
       if (enemy.getData("chunkIndex") === chunkIndex) {
@@ -862,8 +738,110 @@ export class EnemySystem {
   }
 
   countActiveEnemies(): number {
-    return this.enemies.countActive();
+    return this.enemies.countActive() + this.networkEnemies.size;
   }
+
+  /**
+   * Centralized enemy creation method - creates consistent enemies for both local and network
+   */
+  private createEnemySprite(x: number, y: number, enemyType: string, enemyId: string): Phaser.Physics.Arcade.Sprite {
+    const config = this.ENEMY_CONFIG[enemyType];
+    if (!config) {
+      throw new Error(`Unknown enemy type: ${enemyType}`);
+    }
+
+    const sprite = this.scene.physics.add.sprite(x, y, config.texture);
+    
+    // Apply consistent properties
+    sprite.setScale(config.scale);
+    sprite.setDepth(config.depth);
+    sprite.setBounce(config.bounce);
+    sprite.setCollideWorldBounds(true);
+    
+    // Set data
+    sprite.setData("health", config.health);
+    sprite.setData("maxHealth", config.health);
+    sprite.setData("type", enemyType);
+    sprite.setData("enemyId", enemyId);
+    sprite.setData("facingRight", true);
+    
+    // Play initial animation
+    sprite.play(config.idleAnimation);
+    
+    return sprite;
+  }
+
+  /**
+   * Create a network enemy (managed by NetworkSystem but created here for consistency)
+   */
+  createNetworkEnemy(x: number, y: number, enemyType: string, enemyId: string): Phaser.Physics.Arcade.Sprite {
+    console.log(`🎮 EnemySystem: Creating network enemy ${enemyId} (${enemyType})`);
+    
+    const sprite = this.createEnemySprite(x, y, enemyType, enemyId);
+    
+    // Set proper physics body (same as NetworkSystem was using)
+    sprite.body!.setSize(32, 48);
+    sprite.body!.setOffset(16, 16);
+    
+    this.networkEnemies.set(enemyId, sprite);
+    this.enemyStates.set(enemyId, "idle");
+    
+    return sprite;
+  }
+
+  /**
+   * Update network enemy animation based on state
+   */
+  updateNetworkEnemyAnimation(enemyId: string, velocityX: number, facingRight: boolean): void {
+    const sprite = this.networkEnemies.get(enemyId);
+    if (!sprite) return;
+
+    const enemyType = sprite.getData("type");
+    const config = this.ENEMY_CONFIG[enemyType];
+    if (!config) return;
+
+    sprite.setFlipX(!facingRight);
+
+    // Update animation based on movement
+    if (Math.abs(velocityX) > 10) {
+      sprite.play(config.runAnimation, true);
+      this.enemyStates.set(enemyId, "running");
+    } else {
+      sprite.play(config.idleAnimation, true);
+      this.enemyStates.set(enemyId, "idle");
+    }
+  }
+
+  /**
+   * Remove network enemy
+   */
+  removeNetworkEnemy(enemyId: string): void {
+    const sprite = this.networkEnemies.get(enemyId);
+    if (sprite) {
+      sprite.destroy();
+      this.networkEnemies.delete(enemyId);
+      this.enemyStates.delete(enemyId);
+      console.log(`🎮 EnemySystem: Removed network enemy ${enemyId}`);
+    }
+  }
+
+  /**
+   * Get network enemy sprite
+   */
+  getNetworkEnemy(enemyId: string): Phaser.Physics.Arcade.Sprite | undefined {
+    return this.networkEnemies.get(enemyId);
+  }
+
+  /**
+   * Get all network enemies for collision setup
+   */
+  getNetworkEnemies(): Map<string, Phaser.Physics.Arcade.Sprite> {
+    return this.networkEnemies;
+  }
+
+  /**
+   * Clear all network enemies (for restart)
+   */
 
   isBossDefeated(): boolean {
     // Check if tree boss exists and is alive
