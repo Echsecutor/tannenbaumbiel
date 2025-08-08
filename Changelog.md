@@ -4,6 +4,9 @@ This file documents major project-wide changes and restructuring.
 
 ## WIP
 
+## 1.0.0+2025-08-08
+
+
 - **DATABASE**: Removed redundant PostgreSQL initialization script
 
   - Deleted `deployment/postgres/init.sql` as backend handles schema creation via SQLAlchemy models
